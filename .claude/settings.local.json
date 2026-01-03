@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(npm run db:push:*)",
+      "Bash(node -e:*)",
+      "Bash(npx dotenv:*)",
+      "Bash(npx drizzle-kit:*)"
+    ]
+  }
+}

@@ -1,0 +1,193 @@
+import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
+
+export type TaskType =
+    | 'deep_reasoning'
+    | 'code_generation'
+    | 'bulk_processing'
+    | 'structured_output'
+    | 'vision_analysis'
+    | 'general'
+
+export type Provider = 'anthropic' | 'openai' | 'google'
+
+export interface ProviderConfig {
+    provider: Provider
+    model: string
+    apiKey: string
+    capabilities: string[]
+    costPer1M: { input: number; output: number }
+    dailyBudget: number
+    spentToday: number
+}
+
+export interface RoutingDecision {
+    provider: Provider
+    model: string
+    reasoning: string
+    estimatedCost: number
+    alternatives: { provider: Provider; cost: number }[]
+}
+
+export class ChorumRouter {
+    private providers: ProviderConfig[]
+
+    constructor(providers: ProviderConfig[]) {
+        this.providers = providers.filter(p => p.apiKey)
+    }
+
+    async route(opts: {
+        prompt: string
+        taskType?: TaskType
+        estimatedTokens?: number
+        userOverride?: Provider
+    }): Promise<RoutingDecision> {
+        const taskType = opts.taskType || this.inferTaskType(opts.prompt)
+        const estimatedTokens = opts.estimatedTokens || this.estimateTokens(opts.prompt)
+
+        // If user manually selected provider, honor it
+        if (opts.userOverride) {
+            const provider = this.providers.find(p => p.provider === opts.userOverride)
+            if (provider) {
+                return {
+                    provider: provider.provider,
+                    model: provider.model,
+                    reasoning: 'User override',
+                    estimatedCost: this.calculateCost(provider, estimatedTokens),
+                    alternatives: []
+                }
+            }
+        }
+
+        // Filter providers by capability
+        const capable = this.providers.filter(p =>
+            this.hasCapability(p, taskType)
+        )
+
+        // Filter by budget
+        const withinBudget = capable.filter(p =>
+            p.spentToday < p.dailyBudget
+        )
+
+        if (withinBudget.length === 0) {
+            // Fallback: If all exhaust budget, assume we might need ANY capable provider or throw.
+            // For now, let's just pick the cheapest capable one and ignore budget (soft limit) or throw.
+            // The user spec says "If Claude budget exhausted, falls back to GPT-version".
+            // This logic implies we just filter out exhausted ones. If ALL are exhausted, we might crash.
+            // I'll return the cheapest capable even if over budget as a failsafe, or just throw as per user code.
+            throw new Error('All providers have exhausted daily budgets')
+        }
+
+        // Sort by cost (cheapest first for most tasks)
+        const sorted = withinBudget.sort((a, b) => {
+            const costA = this.calculateCost(a, estimatedTokens)
+            const costB = this.calculateCost(b, estimatedTokens)
+
+            // For deep reasoning, prefer quality over cost
+            if (taskType === 'deep_reasoning') {
+                // Anthropic first, then OpenAI, then Google
+                const qualityOrder = { anthropic: 0, openai: 1, google: 2 }
+                // @ts-ignore
+                return qualityOrder[a.provider] - qualityOrder[b.provider]
+            }
+
+            return costA - costB
+        })
+
+        const selected = sorted[0]
+        const alternatives = sorted.slice(1, 3).map(p => ({
+            provider: p.provider,
+            cost: this.calculateCost(p, estimatedTokens)
+        }))
+
+        return {
+            provider: selected.provider,
+            model: selected.model,
+            reasoning: this.buildReasoning(taskType, selected, alternatives),
+            estimatedCost: this.calculateCost(selected, estimatedTokens),
+            alternatives
+        }
+    }
+
+    private inferTaskType(prompt: string): TaskType {
+        const lower = prompt.toLowerCase()
+
+        if (lower.match(/debug|fix|code|function|class|implement/)) {
+            return 'code_generation'
+        }
+        if (lower.match(/analyze|research|explain|compare|evaluate/)) {
+            return 'deep_reasoning'
+        }
+        if (lower.match(/json|table|list|format|structure/)) {
+            return 'structured_output'
+        }
+        if (lower.match(/image|screenshot|diagram|visual/)) {
+            return 'vision_analysis'
+        }
+
+        return 'general'
+    }
+
+    private estimateTokens(prompt: string): number {
+        // Rough estimate: ~4 chars per token
+        const inputTokens = Math.ceil(prompt.length / 4)
+        // Assume output is similar length
+        return inputTokens * 2
+    }
+
+    private calculateCost(provider: ProviderConfig, tokens: number): number {
+        const inputTokens = tokens / 2
+        const outputTokens = tokens / 2
+
+        const inputCost = (inputTokens / 1_000_000) * provider.costPer1M.input
+        const outputCost = (outputTokens / 1_000_000) * provider.costPer1M.output
+
+        return inputCost + outputCost
+    }
+
+    private hasCapability(provider: ProviderConfig, task: TaskType): boolean {
+        const taskMap: Record<TaskType, string[]> = {
+            deep_reasoning: ['deep_reasoning', 'long_context'],
+            code_generation: ['code_generation', 'structured_output'],
+            bulk_processing: ['cost_efficient'],
+            structured_output: ['structured_output', 'code_generation'],
+            vision_analysis: ['vision'],
+            general: [] // All providers can handle general
+        }
+
+        const required = taskMap[task]
+        if (required.length === 0) return true
+
+        return required.some(cap => provider.capabilities.includes(cap))
+    }
+
+    private buildReasoning(
+        task: TaskType,
+        selected: ProviderConfig,
+        alternatives: { provider: Provider; cost: number }[]
+    ): string {
+        const reasons = []
+
+        if (task === 'deep_reasoning') {
+            reasons.push('Task requires deep reasoning')
+        } else if (task === 'code_generation') {
+            reasons.push('Task involves code generation')
+        } else if (task === 'bulk_processing') {
+            reasons.push('Bulk task, optimizing for cost')
+        }
+
+        if (selected.provider === 'anthropic') {
+            reasons.push('Claude Opus selected for quality')
+        } else if (selected.provider === 'google') {
+            reasons.push('Gemini selected for cost efficiency')
+        }
+
+        const budgetRemaining = selected.dailyBudget - selected.spentToday
+        if (budgetRemaining < selected.dailyBudget * 0.2) {
+            reasons.push(`Low budget remaining ($${budgetRemaining.toFixed(2)})`)
+        }
+
+        return reasons.join(', ')
+    }
+}
