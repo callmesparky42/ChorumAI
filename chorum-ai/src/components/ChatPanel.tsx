@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Settings, Bot, Users } from 'lucide-react'
+import { Send, Bot, Users } from 'lucide-react'
 import { Message } from './Message'
 import { ProviderSelector } from './ProviderSelector'
 import { CostMeter } from './CostMeter'
 import { useChorumStore } from '@/lib/store'
 import { useAgentStore } from '@/lib/agents/store'
 import { useReviewStore } from '@/lib/review/store'
-import Link from 'next/link'
 import clsx from 'clsx'
 
 export function ChatPanel({ projectId }: { projectId?: string }) {
@@ -43,9 +42,8 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
     return (
         <div className="flex-1 flex flex-col bg-gray-950">
             {/* Header */}
-            <div className="h-16 border-b border-gray-800 flex items-center justify-between px-6 bg-gray-950/50 backdrop-blur-md sticky top-0 z-10">
+            <div className="h-14 border-b border-gray-800 flex items-center justify-between px-6 bg-gray-950/50 backdrop-blur-md sticky top-0 z-10">
                 <div className="flex items-center gap-3">
-                    <img src="/logo.png" alt="Chorum AI" className="h-8 w-auto object-contain" />
                     {activeAgent && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 rounded-full border border-gray-700">
                             <span className="text-base">{activeAgent.icon}</span>
@@ -76,9 +74,6 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                         <Users className="w-4 h-4" />
                         <span className="hidden sm:inline">Review</span>
                     </button>
-                    <Link href="/settings" className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition-colors">
-                        <Settings className="w-5 h-5" />
-                    </Link>
                 </div>
             </div>
 
