@@ -11,9 +11,7 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const user = await db.query.users.findFirst({
-            where: eq(users.id, session.user.id)
-        })
+        const [user] = await db.select().from(users).where(eq(users.id, session.user.id))
 
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 })
@@ -28,6 +26,12 @@ export async function GET() {
                 anonymizePii: false,
                 strictSsl: false,
                 logAllRequests: false
+            },
+            fallbackSettings: user.fallbackSettings || {
+                enabled: true,
+                defaultProvider: null,
+                localFallbackModel: null,
+                priorityOrder: []
             }
         })
     } catch (error) {
@@ -50,6 +54,7 @@ export async function PATCH(req: Request) {
         if (body.name !== undefined) updateData.name = body.name
         if (body.bio !== undefined) updateData.bio = body.bio
         if (body.securitySettings !== undefined) updateData.securitySettings = body.securitySettings
+        if (body.fallbackSettings !== undefined) updateData.fallbackSettings = body.fallbackSettings
         // Note: email changes should require verification, skipping for now
 
         await db.update(users).set(updateData).where(eq(users.id, session.user.id))

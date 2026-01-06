@@ -1,7 +1,3 @@
-import Anthropic from '@anthropic-ai/sdk'
-import OpenAI from 'openai'
-import { GoogleGenerativeAI } from '@google/generative-ai'
-
 export type TaskType =
     | 'deep_reasoning'
     | 'code_generation'
@@ -10,7 +6,12 @@ export type TaskType =
     | 'vision_analysis'
     | 'general'
 
-export type Provider = 'anthropic' | 'openai' | 'google'
+// Built-in cloud providers
+export type CloudProvider = 'anthropic' | 'openai' | 'google' | 'mistral' | 'deepseek'
+// Local/custom providers
+export type LocalProvider = 'ollama' | 'lmstudio' | 'openai-compatible'
+// Combined type - also allows custom string for fully custom providers
+export type Provider = CloudProvider | LocalProvider | (string & {})
 
 export interface ProviderConfig {
     provider: Provider
@@ -20,6 +21,9 @@ export interface ProviderConfig {
     costPer1M: { input: number; output: number }
     dailyBudget: number
     spentToday: number
+    baseUrl?: string      // Custom endpoint URL
+    isLocal?: boolean     // Local vs cloud
+    displayName?: string  // User-friendly name
 }
 
 export interface RoutingDecision {
@@ -86,10 +90,14 @@ export class ChorumRouter {
 
             // For deep reasoning, prefer quality over cost
             if (taskType === 'deep_reasoning') {
-                // Anthropic first, then OpenAI, then Google
-                const qualityOrder = { anthropic: 0, openai: 1, google: 2 }
-                // @ts-ignore
-                return qualityOrder[a.provider] - qualityOrder[b.provider]
+                // Quality ranking: Anthropic > OpenAI > Google > Mistral > DeepSeek > Local
+                const qualityOrder: Record<string, number> = {
+                    anthropic: 0, openai: 1, google: 2, mistral: 3, deepseek: 4,
+                    ollama: 5, lmstudio: 5, 'openai-compatible': 5
+                }
+                const orderA = qualityOrder[a.provider] ?? 6
+                const orderB = qualityOrder[b.provider] ?? 6
+                return orderA - orderB
             }
 
             return costA - costB

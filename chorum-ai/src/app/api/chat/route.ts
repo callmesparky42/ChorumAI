@@ -3,14 +3,19 @@ import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { ChorumRouter } from '@/lib/chorum/router'
 import { db } from '@/lib/db'
-import { messages, routingLog, usageLog, providerCredentials, projects } from '@/lib/db/schema'
+import { messages, routingLog, usageLog, providerCredentials, projects, users } from '@/lib/db/schema'
 import { eq, and, gte } from 'drizzle-orm'
-import Anthropic from '@anthropic-ai/sdk'
-import OpenAI from 'openai'
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { v4 as uuidv4 } from 'uuid'
 import { getConversationMemory, buildMemoryContext } from '@/lib/chorum/memory'
 import { checkAndSummarize, buildSummarizationPrompt } from '@/lib/chorum/summarize'
+import { anonymizePii } from '@/lib/pii'
+import { callProvider, type FullProviderConfig } from '@/lib/providers'
+import {
+    callProviderWithFallback,
+    buildFallbackChain,
+    detectLocalProviders,
+    sortByFallbackPriority
+} from '@/lib/providers/fallback'
 
 export async function POST(req: NextRequest) {
     try {
@@ -20,7 +25,26 @@ export async function POST(req: NextRequest) {
         }
         const userId = session.user.id
 
-        const { projectId, content, providerOverride } = await req.json()
+        // Fetch user settings (bio, security settings, fallback settings)
+        const [user] = await db.select().from(users).where(eq(users.id, userId))
+        const userBio = user?.bio
+        const securitySettings = user?.securitySettings
+        const fallbackSettings = user?.fallbackSettings
+
+        const { projectId, content: rawContent, providerOverride } = await req.json()
+
+        // Apply PII anonymization if enabled
+        let content = rawContent
+        let piiDetected = false
+        if (securitySettings?.anonymizePii) {
+            const piiResult = anonymizePii(rawContent)
+            if (piiResult.wasModified) {
+                content = piiResult.text
+                piiDetected = true
+                console.log(`[PII] Anonymized ${piiResult.matches.length} item(s):`,
+                    piiResult.matches.map(m => m.type).join(', '))
+            }
+        }
 
         // Fetch project context
         let systemPrompt = 'You are a helpful AI assistant.'
@@ -41,6 +65,11 @@ export async function POST(req: NextRequest) {
                     systemPrompt += `\n\nTech Stack: ${project.techStack.join(', ')}`
                 }
             }
+        }
+
+        // Inject user bio/profile into system prompt for personalization
+        if (userBio && userBio.trim()) {
+            systemPrompt += `\n\n## About the User\n${userBio.trim()}`
         }
 
         // Get conversation memory
@@ -92,13 +121,16 @@ export async function POST(req: NextRequest) {
             }, {} as Record<string, number>)
 
             providerConfigs = creds.map(c => ({
-                provider: c.provider as any,
+                provider: c.provider,
                 model: c.model,
                 apiKey: decrypt(c.apiKeyEncrypted),
                 capabilities: c.capabilities || [],
                 costPer1M: c.costPer1M || { input: 0, output: 0 },
                 dailyBudget: Number(c.dailyBudget) || 10,
-                spentToday: spendByProvider[c.provider] || 0
+                spentToday: spendByProvider[c.provider] || 0,
+                baseUrl: c.baseUrl || undefined,
+                isLocal: c.isLocal || false,
+                displayName: c.displayName || undefined
             }))
         }
 
@@ -132,72 +164,115 @@ export async function POST(req: NextRequest) {
         let response: string
         let tokensInput: number = 0
         let tokensOutput: number = 0
+        let actualProvider: string = decision.provider
+        let wasFallback: boolean = false
+        let failedProviders: { provider: string; error: string }[] = []
 
         try {
-            if (decision.provider === 'anthropic') {
-                const anthropic = new Anthropic({
-                    apiKey: providerConfigs.find(p => p.provider === 'anthropic')!.apiKey
-                })
+            // Find the selected provider config
+            const selectedConfig = providerConfigs.find(p => p.provider === decision.provider)
+            if (!selectedConfig) {
+                throw new Error(`Provider ${decision.provider} not found in configs`)
+            }
 
-                const result = await anthropic.messages.create({
-                    model: decision.model,
-                    max_tokens: 4096,
-                    system: systemPrompt,
-                    messages: fullMessages
-                })
+            // Check if fallback is enabled (default: true)
+            const fallbackEnabled = fallbackSettings?.enabled !== false
 
-                response = result.content[0].type === 'text' ? result.content[0].text : ''
-                tokensInput = result.usage.input_tokens
-                tokensOutput = result.usage.output_tokens
+            if (fallbackEnabled && providerConfigs.length > 1) {
+                // Build fallback chain with alternatives from routing decision
+                const alternativeConfigs = decision.alternatives
+                    .map(alt => providerConfigs.find(p => p.provider === alt.provider))
+                    .filter((c): c is FullProviderConfig => !!c)
 
-            } else if (decision.provider === 'openai') {
-                const openai = new OpenAI({
-                    apiKey: providerConfigs.find(p => p.provider === 'openai')!.apiKey
-                })
+                // Check for local providers as last resort
+                const localProviders: { ollama?: string; lmstudio?: string } = {}
+                if (fallbackSettings?.localFallbackModel) {
+                    localProviders.ollama = fallbackSettings.localFallbackModel
+                } else {
+                    // Auto-detect local providers
+                    const detected = await detectLocalProviders()
+                    if (detected.ollama.available && detected.ollama.models.length > 0) {
+                        localProviders.ollama = detected.ollama.models[0]
+                    }
+                    if (detected.lmstudio.available && detected.lmstudio.models.length > 0) {
+                        localProviders.lmstudio = detected.lmstudio.models[0]
+                    }
+                }
 
-                const result = await openai.chat.completions.create({
-                    model: decision.model,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        ...fullMessages
-                    ]
-                })
-
-                response = result.choices[0].message.content || ''
-                tokensInput = result.usage?.prompt_tokens || 0
-                tokensOutput = result.usage?.completion_tokens || 0
-
-            } else {
-                const genAI = new GoogleGenerativeAI(
-                    providerConfigs.find(p => p.provider === 'google')!.apiKey
+                const fallbackConfig = buildFallbackChain(
+                    providerConfigs as FullProviderConfig[],
+                    decision.provider,
+                    localProviders
                 )
-                const model = genAI.getGenerativeModel({
-                    model: decision.model,
-                    systemInstruction: systemPrompt
-                })
 
-                // Gemini uses different format - convert to parts
-                const history = fullMessages.slice(0, -1).map(m => ({
-                    role: m.role === 'user' ? 'user' : 'model',
-                    parts: [{ text: m.content }]
-                }))
+                // Override alternatives if user has custom priority order
+                if (fallbackSettings?.priorityOrder?.length) {
+                    fallbackConfig.alternatives = sortByFallbackPriority(
+                        providerConfigs as FullProviderConfig[]
+                    ).filter(p => p.provider !== decision.provider)
+                }
 
-                const chat = model.startChat({ history: history as any })
-                const result = await chat.sendMessage(content)
+                // If user has a default provider preference, bump it to front of alternatives
+                if (fallbackSettings?.defaultProvider &&
+                    fallbackSettings.defaultProvider !== decision.provider) {
+                    const defaultConfig = providerConfigs.find(
+                        p => p.provider === fallbackSettings.defaultProvider
+                    )
+                    if (defaultConfig) {
+                        fallbackConfig.alternatives = [
+                            defaultConfig as FullProviderConfig,
+                            ...fallbackConfig.alternatives.filter(
+                                a => a.provider !== fallbackSettings.defaultProvider
+                            )
+                        ]
+                    }
+                }
 
-                response = result.response.text()
-                tokensInput = result.response.usageMetadata?.promptTokenCount || 0
-                tokensOutput = result.response.usageMetadata?.candidatesTokenCount || 0
+                // Use fallback-aware call
+                const result = await callProviderWithFallback(
+                    fallbackConfig,
+                    fullMessages.map(m => ({ role: m.role, content: m.content })),
+                    systemPrompt
+                )
+
+                response = result.content
+                tokensInput = result.tokensInput
+                tokensOutput = result.tokensOutput
+                actualProvider = result.usedProvider
+                wasFallback = result.wasFallback
+                failedProviders = result.failedProviders
+            } else {
+                // Fallback disabled or only one provider - direct call
+                const result = await callProvider(
+                    {
+                        provider: selectedConfig.provider,
+                        apiKey: selectedConfig.apiKey,
+                        model: decision.model,
+                        baseUrl: selectedConfig.baseUrl,
+                        isLocal: selectedConfig.isLocal
+                    },
+                    fullMessages.map(m => ({ role: m.role, content: m.content })),
+                    systemPrompt
+                )
+
+                response = result.content
+                tokensInput = result.tokensInput
+                tokensOutput = result.tokensOutput
             }
         } catch (err: any) {
             console.error('Provider error:', err)
-            return NextResponse.json({ error: `Provider ${decision.provider} failed: ${err.message}` }, { status: 500 })
+            return NextResponse.json({
+                error: `All providers failed: ${err.message}`,
+                failedProviders
+            }, { status: 500 })
         }
 
-        const provider = providerConfigs.find(p => p.provider === decision.provider)!
+        // Use actual provider for cost calculation (may differ if fallback occurred)
+        const usedProviderConfig = providerConfigs.find(p => p.provider === actualProvider) ||
+            providerConfigs.find(p => p.provider === decision.provider)!
         const actualCost = (
-            (tokensInput / 1_000_000 * provider.costPer1M.input) +
-            (tokensOutput / 1_000_000 * provider.costPer1M.output)
+            (tokensInput / 1_000_000 * usedProviderConfig.costPer1M.input) +
+            (tokensOutput / 1_000_000 * usedProviderConfig.costPer1M.output)
         )
 
         const assistantMsgId = uuidv4()
@@ -209,7 +284,7 @@ export async function POST(req: NextRequest) {
                 projectId,
                 role: 'assistant',
                 content: response,
-                provider: decision.provider,
+                provider: actualProvider, // Use actual provider (may differ if fallback)
                 costUsd: actualCost.toString(),
                 tokensInput,
                 tokensOutput
@@ -218,15 +293,17 @@ export async function POST(req: NextRequest) {
             await db.insert(routingLog).values({
                 userId,
                 projectId,
-                selectedProvider: decision.provider,
-                reasoning: decision.reasoning,
+                selectedProvider: actualProvider,
+                reasoning: wasFallback
+                    ? `Fallback: ${decision.reasoning} → Failed providers: ${failedProviders.map(f => f.provider).join(', ')}`
+                    : decision.reasoning,
                 alternatives: decision.alternatives,
                 userOverride: !!providerOverride
             })
 
             await db.insert(usageLog).values({
                 userId,
-                provider: decision.provider,
+                provider: actualProvider,
                 costUsd: actualCost.toString(),
                 tokensInput,
                 tokensOutput
@@ -242,24 +319,21 @@ export async function POST(req: NextRequest) {
 
                     const prompt = buildSummarizationPrompt(conversationText)
 
-                    if (cheapestProvider.provider === 'openai') {
-                        const openai = new OpenAI({ apiKey: cheapestProvider.apiKey })
-                        const result = await openai.chat.completions.create({
-                            model: 'gpt-3.5-turbo',
-                            messages: [{ role: 'user', content: prompt }],
-                            max_tokens: 500
-                        })
-                        return result.choices[0].message.content || ''
-                    } else {
-                        // Default to Anthropic
-                        const anthropic = new Anthropic({ apiKey: cheapestProvider.apiKey })
-                        const result = await anthropic.messages.create({
-                            model: 'claude-3-haiku-20240307',
-                            max_tokens: 500,
-                            messages: [{ role: 'user', content: prompt }]
-                        })
-                        return result.content[0].type === 'text' ? result.content[0].text : ''
-                    }
+                    // Use provider factory for summarization
+                    const result = await callProvider(
+                        {
+                            provider: cheapestProvider.provider,
+                            apiKey: cheapestProvider.apiKey,
+                            model: cheapestProvider.provider === 'openai' ? 'gpt-3.5-turbo' :
+                                   cheapestProvider.provider === 'anthropic' ? 'claude-3-haiku-20240307' :
+                                   cheapestProvider.model,
+                            baseUrl: cheapestProvider.baseUrl,
+                            isLocal: cheapestProvider.isLocal
+                        },
+                        [{ role: 'user', content: prompt }],
+                        'You are a helpful assistant that summarizes conversations.'
+                    )
+                    return result.content
                 }).catch(err => console.warn('Summarization failed:', err))
             }
         } catch (e) {
@@ -271,13 +345,19 @@ export async function POST(req: NextRequest) {
                 id: assistantMsgId,
                 role: 'assistant',
                 content: response,
-                provider: decision.provider,
+                provider: actualProvider,
                 costUsd: actualCost.toString(),
                 tokensInput,
                 tokensOutput
             },
             routing: decision,
-            memoryUsed: memory.summary ? true : false
+            fallback: wasFallback ? {
+                originalProvider: decision.provider,
+                usedProvider: actualProvider,
+                failedProviders
+            } : null,
+            memoryUsed: memory.summary ? true : false,
+            piiAnonymized: piiDetected
         })
 
     } catch (error: any) {

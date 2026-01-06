@@ -50,6 +50,20 @@
       "when": 1767671729545,
       "tag": "0006_sleepy_the_captain",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1767714025747,
+      "tag": "0007_easy_silver_samurai",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1767717051271,
+      "tag": "0008_legal_aaron_stack",
+      "breakpoints": true
     }
   ]
 }

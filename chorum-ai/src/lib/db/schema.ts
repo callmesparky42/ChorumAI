@@ -14,6 +14,12 @@ export const users = pgTable('user', {
     strictSsl: boolean
     logAllRequests: boolean
   }>(),
+  fallbackSettings: jsonb('fallback_settings').$type<{
+    enabled: boolean
+    defaultProvider: string | null  // Provider to prefer when things break (e.g., 'anthropic')
+    localFallbackModel: string | null  // Ollama model to use as offline fallback
+    priorityOrder: string[]  // Custom fallback order
+  }>(),
   createdAt: timestamp('created_at').defaultNow()
 })
 
@@ -85,13 +91,16 @@ export const authenticators = pgTable(
 export const providerCredentials = pgTable('provider_credentials', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  provider: text('provider').notNull(), // 'anthropic' | 'openai' | 'google'
+  provider: text('provider').notNull(), // 'anthropic' | 'openai' | 'google' | 'mistral' | 'deepseek' | 'ollama' | 'openai-compatible'
   apiKeyEncrypted: text('api_key_encrypted').notNull(),
-  model: text('model').notNull(), // 'claude-opus-4' | 'gpt-4' | 'gemini-pro'
+  model: text('model').notNull(),
   dailyBudget: decimal('daily_budget', { precision: 10, scale: 2 }),
   isActive: boolean('is_active').default(true),
-  capabilities: jsonb('capabilities').$type<string[]>(), // ['deep_reasoning', 'code_generation']
-  costPer1M: jsonb('cost_per_1m').$type<{ input: number; output: number }>()
+  capabilities: jsonb('capabilities').$type<string[]>(),
+  costPer1M: jsonb('cost_per_1m').$type<{ input: number; output: number }>(),
+  baseUrl: text('base_url'), // Custom endpoint URL (e.g., http://localhost:11434 for Ollama)
+  isLocal: boolean('is_local').default(false), // Local vs cloud provider
+  displayName: text('display_name') // User-friendly name (e.g., "My Local Phi-3")
 })
 
 export const projects = pgTable('projects', {
