@@ -16,6 +16,9 @@ import {
     detectLocalProviders,
     sortByFallbackPriority
 } from '@/lib/providers/fallback'
+import { injectLearningContext, type LearningContext } from '@/lib/learning/injector'
+import { validateResponse } from '@/lib/learning/validator'
+import { updateConfidence } from '@/lib/learning/manager'
 
 export async function POST(req: NextRequest) {
     try {
@@ -70,6 +73,14 @@ export async function POST(req: NextRequest) {
         // Inject user bio/profile into system prompt for personalization
         if (userBio && userBio.trim()) {
             systemPrompt += `\n\n## About the User\n${userBio.trim()}`
+        }
+
+        // [Learning System] Inject Patterns, Invariants, and Critical File context
+        // Returns cached data to avoid double DB call during validation
+        let learningContext: LearningContext | null = null
+        if (projectId) {
+            learningContext = await injectLearningContext(systemPrompt, projectId)
+            systemPrompt = learningContext.systemPrompt
         }
 
         // Get conversation memory
@@ -267,6 +278,39 @@ export async function POST(req: NextRequest) {
             }, { status: 500 })
         }
 
+        // [Learning System] Validate Response & Update Confidence
+        // Uses cached data from learningContext - no extra DB calls
+        let validationResult: { isValid: boolean; violations: string[]; warnings: string[] } | null = null
+        if (projectId && learningContext) {
+            try {
+                const validation = validateResponse(
+                    response,
+                    learningContext.invariants,
+                    learningContext.criticalFiles
+                )
+
+                validationResult = {
+                    isValid: validation.isValid,
+                    violations: validation.violations,
+                    warnings: validation.warnings
+                }
+
+                if (!validation.isValid) {
+                    console.warn(`[Learning] Response violated invariants: ${validation.violations.join(', ')}`)
+                }
+
+                if (validation.warnings.length > 0) {
+                    console.log(`[Learning] Validation warnings: ${validation.warnings.join(', ')}`)
+                }
+
+                // Update confidence score based on validation result
+                await updateConfidence(projectId, validation.isValid)
+
+            } catch (e) {
+                console.warn('[Learning] Validation failed:', e)
+            }
+        }
+
         // Use actual provider for cost calculation (may differ if fallback occurred)
         const usedProviderConfig = providerConfigs.find(p => p.provider === actualProvider) ||
             providerConfigs.find(p => p.provider === decision.provider)!
@@ -325,8 +369,8 @@ export async function POST(req: NextRequest) {
                             provider: cheapestProvider.provider,
                             apiKey: cheapestProvider.apiKey,
                             model: cheapestProvider.provider === 'openai' ? 'gpt-3.5-turbo' :
-                                   cheapestProvider.provider === 'anthropic' ? 'claude-3-haiku-20240307' :
-                                   cheapestProvider.model,
+                                cheapestProvider.provider === 'anthropic' ? 'claude-3-haiku-20240307' :
+                                    cheapestProvider.model,
                             baseUrl: cheapestProvider.baseUrl,
                             isLocal: cheapestProvider.isLocal
                         },
@@ -356,6 +400,7 @@ export async function POST(req: NextRequest) {
                 usedProvider: actualProvider,
                 failedProviders
             } : null,
+            validation: validationResult,
             memoryUsed: memory.summary ? true : false,
             piiAnonymized: piiDetected
         })

@@ -158,3 +158,35 @@ export const usageLog = pgTable('usage_log', {
   date: timestamp('date').notNull().defaultNow()
 })
 
+// --- Learning System Tables ---
+
+export const projectLearningPaths = pgTable('project_learning_paths', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'pattern' | 'antipattern' | 'decision' | 'invariant' | 'golden_path'
+  content: text('content').notNull(),
+  context: text('context'), // Trigger/Description
+  metadata: jsonb('metadata'), // e.g. { source_message_id: "...", learned_from_user: "..." }
+  createdAt: timestamp('created_at').defaultNow()
+})
+
+export const projectConfidence = pgTable('project_confidence', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  score: decimal('score', { precision: 5, scale: 2 }).default('100.00'), // 0-100
+  decayRate: decimal('decay_rate', { precision: 5, scale: 4 }).default('0.9900'), // Daily decay multiplier
+  lastDecayAt: timestamp('last_decay_at').defaultNow(),
+  interactionCount: integer('interaction_count').default(0),
+  positiveInteractionCount: integer('positive_interaction_count').default(0),
+  updatedAt: timestamp('updated_at').defaultNow()
+})
+
+export const projectFileMetadata = pgTable('project_file_metadata', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  filePath: text('file_path').notNull(), // Relative path
+  isCritical: boolean('is_critical').default(false), // Tier A file
+  linkedInvariants: jsonb('linked_invariants').$type<string[]>(), // IDs of invariants
+  updatedAt: timestamp('updated_at').defaultNow()
+})
+
