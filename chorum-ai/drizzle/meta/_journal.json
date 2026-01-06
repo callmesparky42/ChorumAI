@@ -43,6 +43,13 @@
       "when": 1767669188198,
       "tag": "0005_chemical_excalibur",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1767671729545,
+      "tag": "0006_sleepy_the_captain",
+      "breakpoints": true
     }
   ]
 }

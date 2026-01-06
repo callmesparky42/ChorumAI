@@ -106,7 +106,7 @@ export const projects = pgTable('projects', {
 
 export const messages = pgTable('messages', {
   id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id').notNull().references(() => projects.id),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   role: text('role').notNull(), // 'user' | 'assistant'
   content: text('content').notNull(),
   provider: text('provider'), // Which LLM answered (null for user messages)
@@ -119,7 +119,7 @@ export const messages = pgTable('messages', {
 
 export const memorySummaries = pgTable('memory_summaries', {
   id: uuid('id').primaryKey().defaultRandom(),
-  projectId: uuid('project_id').notNull().references(() => projects.id),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   summary: text('summary').notNull(),
   messageCount: integer('message_count').notNull(),
   fromDate: timestamp('from_date').notNull(),
@@ -130,7 +130,7 @@ export const memorySummaries = pgTable('memory_summaries', {
 export const routingLog = pgTable('routing_log', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  projectId: uuid('project_id').references(() => projects.id),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
   taskType: text('task_type'), // Inferred or explicit
   selectedProvider: text('selected_provider').notNull(),
   reasoning: text('reasoning'),

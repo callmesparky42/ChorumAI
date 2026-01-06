@@ -93,9 +93,14 @@ export function Sidebar({ activeProjectId, onSelectProject }: Props) {
                 if (activeProjectId === projectId && newProjects.length > 0) {
                     onSelectProject(newProjects[0].id)
                 }
+            } else {
+                const errorData = await res.json().catch(() => ({}))
+                console.error('Delete failed:', res.status, errorData)
+                alert(`Failed to delete project: ${errorData.error || res.statusText}`)
             }
         } catch (error) {
             console.error('Failed to delete project', error)
+            alert('Failed to delete project. Check console for details.')
         }
     }
 
