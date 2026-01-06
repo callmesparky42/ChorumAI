@@ -13,11 +13,11 @@ interface Project {
 }
 
 interface Props {
-    activeProject: Project | null
-    onSelectProject: (project: Project) => void
+    activeProjectId?: string | null
+    onSelectProject: (projectId: string) => void
 }
 
-export function Sidebar({ activeProject, onSelectProject }: Props) {
+export function Sidebar({ activeProjectId, onSelectProject }: Props) {
     const [projects, setProjects] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
     const [showNewProjectModal, setShowNewProjectModal] = useState(false)
@@ -38,8 +38,8 @@ export function Sidebar({ activeProject, onSelectProject }: Props) {
                 const data = await res.json()
                 setProjects(data)
                 // Select first project if none active and projects exist
-                if (!activeProject && data.length > 0) {
-                    onSelectProject(data[0])
+                if (!activeProjectId && data.length > 0) {
+                    onSelectProject(data[0].id)
                 }
             }
         } catch (error) {
@@ -68,7 +68,7 @@ export function Sidebar({ activeProject, onSelectProject }: Props) {
             if (res.ok) {
                 const project = await res.json()
                 setProjects([project, ...projects])
-                onSelectProject(project)
+                onSelectProject(project.id)
                 setShowNewProjectModal(false)
                 setNewName('')
                 setNewDesc('')
@@ -91,15 +91,15 @@ export function Sidebar({ activeProject, onSelectProject }: Props) {
                     {projects.map(project => (
                         <button
                             key={project.id}
-                            onClick={() => onSelectProject(project)}
+                            onClick={() => onSelectProject(project.id)}
                             className={clsx(
                                 "w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center gap-3",
-                                activeProject?.id === project.id
+                                activeProjectId === project.id
                                     ? "bg-blue-600/10 text-blue-400 font-medium"
                                     : "text-gray-400 hover:bg-gray-900 hover:text-gray-200"
                             )}
                         >
-                            <Folder className={clsx("w-4 h-4", activeProject?.id === project.id ? "text-blue-500" : "text-gray-600")} />
+                            <Folder className={clsx("w-4 h-4", activeProjectId === project.id ? "text-blue-500" : "text-gray-600")} />
                             <span className="truncate">{project.name}</span>
                         </button>
                     ))}

@@ -1,27 +1,43 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { ChatPanel } from '@/components/ChatPanel'
-import { ContextPanel } from '@/components/ContextPanel'
+import { AgentPanel } from '@/components/AgentPanel'
 
-export default function ChorumPage() {
-  const [activeProject, setActiveProject] = useState<{ id: string, name: string } | null>({ id: '1', name: 'Chorum AI Build' }) // Default to project 1
+function ChorumContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeProjectId = searchParams.get('project')
+
+  const handleSelectProject = useCallback((projectId: string) => {
+    const params = new URLSearchParams(searchParams)
+    params.set('project', projectId)
+    router.push(`/?${params.toString()}`)
+  }, [router, searchParams])
 
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
       {/* Sidebar - 256px */}
       <Sidebar
-        activeProject={activeProject}
-        onSelectProject={setActiveProject}
+        activeProjectId={activeProjectId}
+        onSelectProject={handleSelectProject}
       />
 
       {/* Chat - flex-1 */}
-      <ChatPanel projectId={activeProject?.id} />
+      <ChatPanel projectId={activeProjectId || undefined} />
 
-      {/* Context - 320px */}
-      {/* @ts-ignore */}
-      <ContextPanel activeProject={activeProject} />
+      {/* Agent Panel - 320px */}
+      <AgentPanel projectId={activeProjectId || undefined} />
     </div>
+  )
+}
+
+export default function ChorumPage() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-gray-950 flex items-center justify-center text-gray-500">Loading...</div>}>
+      <ChorumContent />
+    </Suspense>
   )
 }

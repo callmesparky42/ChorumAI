@@ -24,7 +24,11 @@ export async function POST(req: NextRequest) {
 
         // Fetch project context
         let systemPrompt = 'You are a helpful AI assistant.'
-        if (projectId) {
+
+        // Validate projectId is a valid UUID before querying
+        const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+
+        if (projectId && isValidUUID(projectId)) {
             const project = await db.query.projects.findFirst({
                 where: and(
                     eq(projects.id, projectId),
@@ -276,8 +280,14 @@ export async function POST(req: NextRequest) {
             memoryUsed: memory.summary ? true : false
         })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Chat error:', error)
-        return NextResponse.json({ error: 'Failed to process message' }, { status: 500 })
+        // Return structured error info if available, otherwise generic
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        // If Postgres invalid input syntax for type uuid
+        if (errorMessage.includes('invalid input syntax for type uuid')) {
+            return NextResponse.json({ error: 'Invalid Project ID format' }, { status: 400 })
+        }
+        return NextResponse.json({ error: `Failed to process message: ${errorMessage}` }, { status: 500 })
     }
 }

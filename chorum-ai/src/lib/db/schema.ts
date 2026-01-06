@@ -1,14 +1,90 @@
-import { pgTable, text, uuid, timestamp, decimal, integer, jsonb, vector, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, text, uuid, timestamp, decimal, integer, jsonb, boolean, primaryKey } from 'drizzle-orm/pg-core'
+import type { AdapterAccount } from "next-auth/adapters"
 
-export const users = pgTable('users', {
-  id: uuid('id').primaryKey().defaultRandom(),
+export const users = pgTable('user', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  name: text('name'),
   email: text('email').notNull().unique(),
+  emailVerified: timestamp('emailVerified', { mode: 'date' }),
+  image: text('image'),
+  bio: text('bio'),
+  securitySettings: jsonb('security_settings').$type<{
+    enforceHttps: boolean
+    anonymizePii: boolean
+    strictSsl: boolean
+    logAllRequests: boolean
+  }>(),
   createdAt: timestamp('created_at').defaultNow()
 })
 
+export const accounts = pgTable(
+  "account",
+  {
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: text("type").$type<AdapterAccount["type"]>().notNull(),
+    provider: text("provider").notNull(),
+    providerAccountId: text("providerAccountId").notNull(),
+    refresh_token: text("refresh_token"),
+    access_token: text("access_token"),
+    expires_at: integer("expires_at"),
+    token_type: text("token_type"),
+    scope: text("scope"),
+    id_token: text("id_token"),
+    session_state: text("session_state"),
+  },
+  (account) => ({
+    compoundKey: primaryKey({
+      columns: [account.provider, account.providerAccountId],
+    }),
+  })
+)
+
+export const sessions = pgTable("session", {
+  sessionToken: text("sessionToken").primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expires: timestamp("expires", { mode: "date" }).notNull(),
+})
+
+export const verificationTokens = pgTable(
+  "verification_token",
+  {
+    identifier: text("identifier").notNull(),
+    token: text("token").notNull(),
+    expires: timestamp("expires", { mode: "date" }).notNull(),
+  },
+  (vt) => ({
+    compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
+  })
+)
+
+export const authenticators = pgTable(
+  "authenticator",
+  {
+    credentialID: text("credentialID").notNull().unique(),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    providerAccountId: text("providerAccountId").notNull(),
+    credentialPublicKey: text("credentialPublicKey").notNull(),
+    counter: integer("counter").notNull(),
+    credentialDeviceType: text("credentialDeviceType").notNull(),
+    credentialBackedUp: boolean("credentialBackedUp").notNull(),
+    transports: text("transports"),
+  },
+  (authenticator) => ({
+    compositePK: primaryKey({
+      columns: [authenticator.userId, authenticator.credentialID],
+    }),
+  })
+)
+
 export const providerCredentials = pgTable('provider_credentials', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   provider: text('provider').notNull(), // 'anthropic' | 'openai' | 'google'
   apiKeyEncrypted: text('api_key_encrypted').notNull(),
   model: text('model').notNull(), // 'claude-opus-4' | 'gpt-4' | 'gemini-pro'
@@ -20,7 +96,7 @@ export const providerCredentials = pgTable('provider_credentials', {
 
 export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
   techStack: jsonb('tech_stack').$type<string[]>(),
@@ -53,7 +129,7 @@ export const memorySummaries = pgTable('memory_summaries', {
 
 export const routingLog = pgTable('routing_log', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   projectId: uuid('project_id').references(() => projects.id),
   taskType: text('task_type'), // Inferred or explicit
   selectedProvider: text('selected_provider').notNull(),
@@ -65,7 +141,7 @@ export const routingLog = pgTable('routing_log', {
 
 export const usageLog = pgTable('usage_log', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id').notNull().references(() => users.id),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   provider: text('provider').notNull(),
   costUsd: decimal('cost_usd', { precision: 10, scale: 6 }).notNull(),
   tokensInput: integer('tokens_input').notNull(),
