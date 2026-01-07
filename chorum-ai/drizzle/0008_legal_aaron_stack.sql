@@ -1,1 +1,1 @@
-ALTER TABLE "user" ADD COLUMN "fallback_settings" jsonb;
+ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "fallback_settings" jsonb;

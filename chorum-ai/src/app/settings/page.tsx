@@ -12,6 +12,9 @@ const PROVIDER_PRESETS: Record<string, { name: string, models: string[], require
     google: { name: 'Google (Gemini)', models: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro'], requiresKey: true, isLocal: false },
     mistral: { name: 'Mistral AI', models: ['mistral-large-latest', 'mistral-medium-latest', 'codestral-latest'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.mistral.ai/v1' },
     deepseek: { name: 'DeepSeek', models: ['deepseek-chat', 'deepseek-coder'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.deepseek.com/v1' },
+    perplexity: { name: 'Perplexity AI', models: ['llama-3.1-sonar-large-128k-online', 'llama-3.1-sonar-small-128k-online', 'llama-3.1-sonar-huge-128k-online'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.perplexity.ai' },
+    xai: { name: 'xAI (Grok)', models: ['grok-2-latest', 'grok-2-vision-latest', 'grok-beta'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.x.ai/v1' },
+    glm: { name: 'GLM-4 (Zhipu AI)', models: ['glm-4-plus', 'glm-4-long', 'glm-4-flash', 'glm-4-flashx'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
     ollama: { name: 'Ollama (Local)', models: ['llama3', 'mistral', 'phi3', 'codellama', 'gemma2'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:11434' },
     lmstudio: { name: 'LM Studio (Local)', models: ['local-model'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:1234/v1' },
     'openai-compatible': { name: 'OpenAI-Compatible API', models: ['custom'], requiresKey: false, isLocal: true }
@@ -412,7 +415,7 @@ function SettingsContent() {
                                     <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
                                         <div className="flex-1 pr-8">
                                             <h3 className="font-medium text-white mb-1">Enforce HTTPS Only</h3>
-                                            <p className="text-sm text-gray-500">Reject any non-secure provider endpoints or image sources.</p>
+                                            <p className="text-sm text-gray-500">Require encrypted HTTPS connections for all external API endpoints. Requests to providers using unencrypted HTTP will be blocked to prevent man-in-the-middle attacks and data interception. Localhost connections (for Ollama/LM Studio) are exempt from this restriction.</p>
                                         </div>
                                         <button
                                             onClick={() => {
@@ -435,7 +438,7 @@ function SettingsContent() {
                                     <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
                                         <div className="flex-1 pr-8">
                                             <h3 className="font-medium text-white mb-1">Anonymize PII</h3>
-                                            <p className="text-sm text-gray-500">Attempt to detect and strip personally identifiable information (emails, phone numbers) before sending prompts.</p>
+                                            <p className="text-sm text-gray-500">Automatically detect and redact personally identifiable information (emails, phone numbers, SSNs, credit cards) from your prompts before sending to LLM providers. Redacted content is replaced with placeholders like [EMAIL_REDACTED] to preserve context while protecting your privacy. This runs client-side before any data leaves your server.</p>
                                         </div>
                                         <button
                                             onClick={() => {
@@ -454,7 +457,7 @@ function SettingsContent() {
                                     <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
                                         <div className="flex-1 pr-8">
                                             <h3 className="font-medium text-white mb-1">Strict SSL Verification</h3>
-                                            <p className="text-sm text-gray-500">Disable ability to bypass SSL certificate errors (self-signed certs will fail).</p>
+                                            <p className="text-sm text-gray-500">Enforce full SSL/TLS certificate validation for all provider connections. When enabled, self-signed, expired, or invalid certificates will cause requests to fail, protecting against certificate spoofing attacks. Disable only if you need to connect to development servers with self-signed certificates.</p>
                                         </div>
                                         <button
                                             onClick={() => {
@@ -473,7 +476,7 @@ function SettingsContent() {
                                     <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
                                         <div className="flex-1 pr-8">
                                             <h3 className="font-medium text-white mb-1">Audit Logging</h3>
-                                            <p className="text-sm text-gray-500">Log every request and response to local secure storage for compliance auditing.</p>
+                                            <p className="text-sm text-gray-500">Record detailed logs of every LLM request including provider, model, timestamp, and security flags for compliance and debugging. Logs include which security features were active and whether PII was detected. This data stays local and is not sent to any external service. Essential for enterprise compliance requirements (SOC2, HIPAA).</p>
                                         </div>
                                         <button
                                             onClick={() => {
@@ -825,6 +828,9 @@ function SettingsContent() {
                                         <option value="google">Google (Gemini)</option>
                                         <option value="mistral">Mistral AI</option>
                                         <option value="deepseek">DeepSeek</option>
+                                        <option value="perplexity">Perplexity AI</option>
+                                        <option value="xai">xAI (Grok)</option>
+                                        <option value="glm">GLM-4 (Zhipu AI)</option>
                                     </optgroup>
                                     <optgroup label="Local / Custom">
                                         <option value="ollama">Ollama (Local)</option>

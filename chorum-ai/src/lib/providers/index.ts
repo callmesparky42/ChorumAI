@@ -50,6 +50,27 @@ export async function callProvider(
         case 'deepseek':
             return callDeepSeek(callConfig, messages, systemPrompt)
 
+        case 'perplexity':
+            // Perplexity uses OpenAI-compatible API
+            return callOpenAICompatible({
+                ...callConfig,
+                baseUrl: callConfig.baseUrl || 'https://api.perplexity.ai'
+            }, messages, systemPrompt)
+
+        case 'xai':
+            // xAI (Grok) uses OpenAI-compatible API
+            return callOpenAICompatible({
+                ...callConfig,
+                baseUrl: callConfig.baseUrl || 'https://api.x.ai/v1'
+            }, messages, systemPrompt)
+
+        case 'glm':
+            // GLM-4 (Zhipu AI) uses OpenAI-compatible API
+            return callOpenAICompatible({
+                ...callConfig,
+                baseUrl: callConfig.baseUrl || 'https://open.bigmodel.cn/api/paas/v4'
+            }, messages, systemPrompt)
+
         case 'ollama':
             return callOllama(callConfig, messages, systemPrompt)
 
@@ -77,6 +98,7 @@ export async function callProvider(
 export function isProviderSupported(provider: string): boolean {
     const supported = [
         'anthropic', 'openai', 'google', 'mistral', 'deepseek',
+        'perplexity', 'xai', 'glm',
         'ollama', 'lmstudio', 'openai-compatible'
     ]
     return supported.includes(provider)
@@ -90,7 +112,10 @@ export function getDefaultBaseUrl(provider: string): string | undefined {
         ollama: 'http://localhost:11434',
         lmstudio: 'http://localhost:1234/v1',
         mistral: 'https://api.mistral.ai/v1',
-        deepseek: 'https://api.deepseek.com/v1'
+        deepseek: 'https://api.deepseek.com/v1',
+        perplexity: 'https://api.perplexity.ai',
+        xai: 'https://api.x.ai/v1',
+        glm: 'https://open.bigmodel.cn/api/paas/v4'
     }
     return defaults[provider]
 }

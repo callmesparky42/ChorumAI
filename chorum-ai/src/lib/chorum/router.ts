@@ -7,7 +7,7 @@ export type TaskType =
     | 'general'
 
 // Built-in cloud providers
-export type CloudProvider = 'anthropic' | 'openai' | 'google' | 'mistral' | 'deepseek'
+export type CloudProvider = 'anthropic' | 'openai' | 'google' | 'mistral' | 'deepseek' | 'perplexity' | 'xai' | 'glm'
 // Local/custom providers
 export type LocalProvider = 'ollama' | 'lmstudio' | 'openai-compatible'
 // Combined type - also allows custom string for fully custom providers
@@ -90,10 +90,10 @@ export class ChorumRouter {
 
             // For deep reasoning, prefer quality over cost
             if (taskType === 'deep_reasoning') {
-                // Quality ranking: Anthropic > OpenAI > Google > Mistral > DeepSeek > Local
+                // Quality ranking: Anthropic > OpenAI > Google > Perplexity > xAI > Mistral > DeepSeek > GLM > Local
                 const qualityOrder: Record<string, number> = {
-                    anthropic: 0, openai: 1, google: 2, mistral: 3, deepseek: 4,
-                    ollama: 5, lmstudio: 5, 'openai-compatible': 5
+                    anthropic: 0, openai: 1, google: 2, perplexity: 3, xai: 4, mistral: 5, deepseek: 6, glm: 7,
+                    ollama: 8, lmstudio: 8, 'openai-compatible': 8
                 }
                 const orderA = qualityOrder[a.provider] ?? 6
                 const orderB = qualityOrder[b.provider] ?? 6

@@ -34,7 +34,12 @@ const FOCUS_LABELS: Record<ReviewFocus, string> = {
 const PROVIDER_LABELS: Record<string, string> = {
   anthropic: 'Claude',
   openai: 'GPT-4',
-  google: 'Gemini'
+  google: 'Gemini',
+  mistral: 'Mistral',
+  deepseek: 'DeepSeek',
+  perplexity: 'Perplexity',
+  xai: 'Grok',
+  glm: 'GLM-4'
 }
 
 const SEVERITY_CONFIG: Record<ReviewIssue['severity'], { icon: React.ReactNode; color: string; bg: string }> = {

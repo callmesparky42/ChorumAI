@@ -91,7 +91,7 @@ export const authenticators = pgTable(
 export const providerCredentials = pgTable('provider_credentials', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  provider: text('provider').notNull(), // 'anthropic' | 'openai' | 'google' | 'mistral' | 'deepseek' | 'ollama' | 'openai-compatible'
+  provider: text('provider').notNull(), // 'anthropic' | 'openai' | 'google' | 'mistral' | 'deepseek' | 'perplexity' | 'xai' | 'glm' | 'ollama' | 'lmstudio' | 'openai-compatible'
   apiKeyEncrypted: text('api_key_encrypted').notNull(),
   model: text('model').notNull(),
   dailyBudget: decimal('daily_budget', { precision: 10, scale: 2 }),

@@ -19,6 +19,7 @@ import {
 import { injectLearningContext, type LearningContext } from '@/lib/learning/injector'
 import { validateResponse } from '@/lib/learning/validator'
 import { updateConfidence } from '@/lib/learning/manager'
+import { validateProviderEndpoint, logLlmRequest, type SecuritySettings } from '@/lib/security'
 
 export async function POST(req: NextRequest) {
     try {
@@ -185,6 +186,28 @@ export async function POST(req: NextRequest) {
             if (!selectedConfig) {
                 throw new Error(`Provider ${decision.provider} not found in configs`)
             }
+
+            // [Security] Validate provider endpoint URL if HTTPS enforcement is enabled
+            const httpsValidation = validateProviderEndpoint(
+                selectedConfig.baseUrl,
+                selectedConfig.provider,
+                securitySettings as SecuritySettings | null
+            )
+            if (!httpsValidation.valid) {
+                return NextResponse.json({
+                    error: `Security violation: ${httpsValidation.error}`,
+                    securityError: true
+                }, { status: 403 })
+            }
+
+            // [Security] Log LLM request if audit logging is enabled
+            logLlmRequest(
+                userId,
+                selectedConfig.provider,
+                selectedConfig.baseUrl || 'default',
+                securitySettings as SecuritySettings | null,
+                { model: decision.model, projectId }
+            )
 
             // Check if fallback is enabled (default: true)
             const fallbackEnabled = fallbackSettings?.enabled !== false
