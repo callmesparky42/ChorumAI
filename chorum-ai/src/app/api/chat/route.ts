@@ -20,6 +20,7 @@ import { injectLearningContext, type LearningContext } from '@/lib/learning/inje
 import { validateResponse } from '@/lib/learning/validator'
 import { updateConfidence } from '@/lib/learning/manager'
 import { validateProviderEndpoint, logLlmRequest, type SecuritySettings } from '@/lib/security'
+import { selectAgent, type OrchestrationResult } from '@/lib/agents/orchestrator'
 
 export async function POST(req: NextRequest) {
     try {
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
         const securitySettings = user?.securitySettings
         const fallbackSettings = user?.fallbackSettings
 
-        const { projectId, content: rawContent, providerOverride } = await req.json()
+        const { projectId, content: rawContent, providerOverride, agentOverride } = await req.json()
 
         // Apply PII anonymization if enabled
         let content = rawContent
@@ -82,6 +83,23 @@ export async function POST(req: NextRequest) {
         if (projectId) {
             learningContext = await injectLearningContext(systemPrompt, projectId)
             systemPrompt = learningContext.systemPrompt
+        }
+
+        // [Agent Orchestration] Select and configure agent for this request
+        let agentResult: OrchestrationResult | null = null
+        try {
+            agentResult = await selectAgent({
+                prompt: content,
+                projectContext: systemPrompt,
+                preferredAgent: agentOverride
+            })
+            if (agentResult) {
+                // Agent system prompt includes persona, guardrails, and base context
+                systemPrompt = agentResult.systemPrompt
+                console.log(`[Agent] Selected: ${agentResult.agent.name} (${Math.round(agentResult.confidence * 100)}%)`)
+            }
+        } catch (e) {
+            console.warn('[Agent] Orchestration failed, using default prompt:', e)
         }
 
         // Get conversation memory
@@ -418,6 +436,14 @@ export async function POST(req: NextRequest) {
                 tokensOutput
             },
             routing: decision,
+            agent: agentResult ? {
+                id: agentResult.agent.id,
+                name: agentResult.agent.name,
+                icon: agentResult.agent.icon,
+                tier: agentResult.agent.tier,
+                confidence: agentResult.confidence,
+                reasoning: agentResult.reasoning
+            } : null,
             fallback: wasFallback ? {
                 originalProvider: decision.provider,
                 usedProvider: actualProvider,
