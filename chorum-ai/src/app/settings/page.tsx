@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
-import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download } from 'lucide-react'
 import Link from 'next/link'
 import clsx from 'clsx'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -493,7 +493,30 @@ function SettingsContent() {
                                     </div>
                                 </div>
 
-                                <div className="pt-4 flex justify-end">
+                                <div className="pt-4 flex justify-between items-center">
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const response = await fetch('/api/audit-logs')
+                                                if (!response.ok) throw new Error('Failed to export')
+                                                const blob = await response.blob()
+                                                const url = window.URL.createObjectURL(blob)
+                                                const a = document.createElement('a')
+                                                a.href = url
+                                                a.download = `chorum-audit-log-${new Date().toISOString().split('T')[0]}.md`
+                                                document.body.appendChild(a)
+                                                a.click()
+                                                window.URL.revokeObjectURL(url)
+                                                document.body.removeChild(a)
+                                            } catch (e) {
+                                                console.error('Failed to download audit logs:', e)
+                                            }
+                                        }}
+                                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Download Audit Logs
+                                    </button>
                                     <button
                                         onClick={(e) => handleUpdateSettings(e)}
                                         disabled={saving}

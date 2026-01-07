@@ -190,3 +190,21 @@ export const projectFileMetadata = pgTable('project_file_metadata', {
   updatedAt: timestamp('updated_at').defaultNow()
 })
 
+// --- Security Audit Logs ---
+
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  action: text('action').notNull(), // 'LLM_REQUEST' | 'SECURITY_CHECK' | etc.
+  provider: text('provider'),
+  endpoint: text('endpoint'),
+  model: text('model'),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+  details: jsonb('details').$type<Record<string, unknown>>(),
+  securityFlags: jsonb('security_flags').$type<{
+    httpsEnforced?: boolean
+    piiAnonymized?: boolean
+    sslValidated?: boolean
+  }>(),
+  createdAt: timestamp('created_at').defaultNow()
+})

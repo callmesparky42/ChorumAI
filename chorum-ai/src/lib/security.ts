@@ -3,6 +3,9 @@
  * Implements backend enforcement for security settings
  */
 
+import { db } from '@/lib/db'
+import { auditLogs } from '@/lib/db/schema'
+
 export interface SecuritySettings {
     enforceHttps: boolean
     anonymizePii: boolean
@@ -16,6 +19,8 @@ export interface AuditLogEntry {
     action: string
     provider?: string
     endpoint?: string
+    model?: string
+    projectId?: string
     details?: Record<string, unknown>
     securityFlags?: {
         httpsEnforced?: boolean
@@ -23,10 +28,6 @@ export interface AuditLogEntry {
         sslValidated?: boolean
     }
 }
-
-// In-memory audit log buffer (in production, this would go to persistent storage)
-const auditBuffer: AuditLogEntry[] = []
-const MAX_AUDIT_BUFFER = 1000
 
 /**
  * Validates that a URL uses HTTPS protocol
@@ -85,62 +86,83 @@ export function getTlsConfig(settings: SecuritySettings | null): { rejectUnautho
 }
 
 /**
- * Log an audit entry
+ * Log an audit entry to the database
  * When logAllRequests is enabled, logs all LLM requests/responses
  */
-export function logAuditEntry(entry: Omit<AuditLogEntry, 'timestamp'>): void {
-    const fullEntry: AuditLogEntry = {
-        ...entry,
-        timestamp: new Date()
-    }
-
-    // Add to buffer
-    auditBuffer.push(fullEntry)
-
-    // Rotate buffer if too large
-    if (auditBuffer.length > MAX_AUDIT_BUFFER) {
-        auditBuffer.shift()
-    }
-
-    // Also log to console in development
-    if (process.env.NODE_ENV === 'development') {
-        console.log(`[AUDIT] ${fullEntry.action}`, {
-            userId: fullEntry.userId,
-            provider: fullEntry.provider,
-            endpoint: fullEntry.endpoint,
-            securityFlags: fullEntry.securityFlags
+export async function logAuditEntry(entry: Omit<AuditLogEntry, 'timestamp'>): Promise<void> {
+    try {
+        await db.insert(auditLogs).values({
+            userId: entry.userId,
+            action: entry.action,
+            provider: entry.provider || null,
+            endpoint: entry.endpoint || null,
+            model: entry.model || null,
+            projectId: entry.projectId || null,
+            details: entry.details || null,
+            securityFlags: entry.securityFlags || null
         })
+
+        // Also log to console in development
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[AUDIT] ${entry.action}`, {
+                userId: entry.userId,
+                provider: entry.provider,
+                endpoint: entry.endpoint,
+                securityFlags: entry.securityFlags
+            })
+        }
+    } catch (e) {
+        // Log to console if DB write fails (don't break the request)
+        console.warn('[AUDIT] Failed to persist audit log:', e)
     }
 }
 
 /**
- * Get recent audit log entries for a user
+ * Get recent audit log entries for a user from database
  */
-export function getAuditLog(userId: string, limit: number = 50): AuditLogEntry[] {
-    return auditBuffer
-        .filter(entry => entry.userId === userId)
-        .slice(-limit)
+export async function getAuditLog(userId: string, limit: number = 100): Promise<AuditLogEntry[]> {
+    const { eq, desc } = await import('drizzle-orm')
+
+    const logs = await db.select()
+        .from(auditLogs)
+        .where(eq(auditLogs.userId, userId))
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(limit)
+
+    return logs.map(log => ({
+        timestamp: log.createdAt || new Date(),
+        userId: log.userId,
+        action: log.action,
+        provider: log.provider || undefined,
+        endpoint: log.endpoint || undefined,
+        model: log.model || undefined,
+        projectId: log.projectId || undefined,
+        details: log.details || undefined,
+        securityFlags: log.securityFlags || undefined
+    }))
 }
 
 /**
  * Log an LLM request with security flags
  */
-export function logLlmRequest(
+export async function logLlmRequest(
     userId: string,
     provider: string,
     endpoint: string,
     settings: SecuritySettings | null,
     additionalDetails?: Record<string, unknown>
-): void {
+): Promise<void> {
     if (!settings?.logAllRequests) {
         return
     }
 
-    logAuditEntry({
+    await logAuditEntry({
         userId,
         action: 'LLM_REQUEST',
         provider,
         endpoint,
+        model: additionalDetails?.model as string | undefined,
+        projectId: additionalDetails?.projectId as string | undefined,
         details: additionalDetails,
         securityFlags: {
             httpsEnforced: settings.enforceHttps,
@@ -148,6 +170,40 @@ export function logLlmRequest(
             sslValidated: settings.strictSsl
         }
     })
+}
+
+/**
+ * Export audit logs in a downloadable format
+ */
+export async function exportAuditLogs(userId: string): Promise<string> {
+    const logs = await getAuditLog(userId, 1000)
+
+    const lines = [
+        '# ChorumAI Audit Log Export',
+        `Generated: ${new Date().toISOString()}`,
+        `User ID: ${userId}`,
+        `Total Entries: ${logs.length}`,
+        '',
+        '---',
+        ''
+    ]
+
+    for (const log of logs) {
+        lines.push(`## ${log.action} - ${log.timestamp.toISOString()}`)
+        if (log.provider) lines.push(`- **Provider:** ${log.provider}`)
+        if (log.model) lines.push(`- **Model:** ${log.model}`)
+        if (log.endpoint) lines.push(`- **Endpoint:** ${log.endpoint}`)
+        if (log.projectId) lines.push(`- **Project:** ${log.projectId}`)
+        if (log.securityFlags) {
+            lines.push(`- **Security Flags:**`)
+            lines.push(`  - HTTPS Enforced: ${log.securityFlags.httpsEnforced ?? 'N/A'}`)
+            lines.push(`  - PII Anonymized: ${log.securityFlags.piiAnonymized ?? 'N/A'}`)
+            lines.push(`  - SSL Validated: ${log.securityFlags.sslValidated ?? 'N/A'}`)
+        }
+        lines.push('')
+    }
+
+    return lines.join('\n')
 }
 
 /**
