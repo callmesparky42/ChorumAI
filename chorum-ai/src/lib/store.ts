@@ -22,7 +22,7 @@ interface ChorumStore {
         projectId: string
         content: string
         providerOverride?: string
-        agent?: AgentDefinition | null
+        agentOverride?: string  // Agent ID to force, or 'auto' for orchestrator selection
     }) => Promise<void>
     clearMessages: () => void
 }
@@ -32,7 +32,7 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
     isLoading: false,
     addMessage: (msg) => set((state) => ({ messages: [...state.messages, msg] })),
     clearMessages: () => set({ messages: [] }),
-    sendMessage: async ({ projectId, content, providerOverride, agent }) => {
+    sendMessage: async ({ projectId, content, providerOverride, agentOverride }) => {
         set({ isLoading: true })
 
         // Add user message immediately
@@ -48,20 +48,8 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
             const requestBody: Record<string, unknown> = {
                 projectId,
                 content,
-                providerOverride
-            }
-
-            // Include agent info if selected
-            if (agent) {
-                requestBody.agent = {
-                    name: agent.name,
-                    role: agent.role,
-                    tier: agent.tier,
-                    persona: agent.persona,
-                    memory: agent.memory,
-                    guardrails: agent.guardrails,
-                    model: agent.model
-                }
+                providerOverride,
+                agentOverride: agentOverride === 'auto' ? undefined : agentOverride
             }
 
             const response = await fetch('/api/chat', {
@@ -84,12 +72,13 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
 
             const data = await response.json()
 
-            // Add assistant message with agent info
+            // Add assistant message with agent info from API (orchestrator-selected)
             if (data.message) {
                 const assistantMsg: Message = {
                     ...data.message,
-                    agentName: agent?.name,
-                    agentIcon: agent?.icon
+                    // Use agent from API response (orchestrator's choice) if available
+                    agentName: data.agent?.name,
+                    agentIcon: data.agent?.icon
                 }
                 set((state) => ({ messages: [...state.messages, assistantMsg] }))
             }
@@ -99,9 +88,7 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
             const errorMsg: Message = {
                 id: uuidv4(),
                 role: 'assistant',
-                content: `Error: ${error instanceof Error ? error.message : 'Failed to send message'}`,
-                agentName: agent?.name,
-                agentIcon: agent?.icon
+                content: `Error: ${error instanceof Error ? error.message : 'Failed to send message'}`
             }
             set((state) => ({ messages: [...state.messages, errorMsg] }))
         } finally {

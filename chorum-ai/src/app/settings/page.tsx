@@ -457,7 +457,7 @@ function SettingsContent() {
                                     <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
                                         <div className="flex-1 pr-8">
                                             <h3 className="font-medium text-white mb-1">Strict SSL Verification</h3>
-                                            <p className="text-sm text-gray-500">Enforce full SSL/TLS certificate validation for all provider connections. When enabled, self-signed, expired, or invalid certificates will cause requests to fail, protecting against certificate spoofing attacks. Disable only if you need to connect to development servers with self-signed certificates.</p>
+                                            <p className="text-sm text-gray-500">Enforce full SSL/TLS certificate validation for local provider connections (Ollama, LM Studio, custom endpoints). When enabled, self-signed or invalid certificates will cause requests to fail. Disable for enterprise setups with internal CA certificates or development servers using self-signed certs. Cloud providers (OpenAI, Anthropic, etc.) always use strict SSL.</p>
                                         </div>
                                         <button
                                             onClick={() => {

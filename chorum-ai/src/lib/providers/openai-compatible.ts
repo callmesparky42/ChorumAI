@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatResult, ProviderCallConfig } from './types'
+import { secureFetch } from '@/lib/secure-fetch'
 
 /**
  * Generic OpenAI-compatible provider
@@ -23,7 +24,8 @@ export async function callOpenAICompatible(
         headers['Authorization'] = `Bearer ${config.apiKey}`
     }
 
-    const response = await fetch(`${config.baseUrl}/chat/completions`, {
+    // Use secureFetch to respect strictSsl setting for enterprise deployments
+    const response = await secureFetch(`${config.baseUrl}/chat/completions`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -35,7 +37,8 @@ export async function callOpenAICompatible(
                     content: m.content
                 }))
             ]
-        })
+        }),
+        securitySettings: config.securitySettings
     })
 
     if (!response.ok) {

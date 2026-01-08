@@ -3,7 +3,7 @@
  * Unified interface for calling any LLM provider
  */
 
-import type { ChatMessage, ChatResult, ProviderCallConfig } from './types'
+import type { ChatMessage, ChatResult, ProviderCallConfig, SecuritySettings } from './types'
 import { callAnthropic } from './anthropic'
 import { callOpenAI } from './openai'
 import { callGoogle } from './google'
@@ -12,7 +12,7 @@ import { callDeepSeek } from './deepseek'
 import { callOllama } from './ollama'
 import { callOpenAICompatible } from './openai-compatible'
 
-export type { ChatMessage, ChatResult, ProviderCallConfig }
+export type { ChatMessage, ChatResult, ProviderCallConfig, SecuritySettings }
 
 export interface FullProviderConfig extends ProviderCallConfig {
     provider: string
@@ -31,7 +31,8 @@ export async function callProvider(
         apiKey: config.apiKey,
         model: config.model,
         baseUrl: config.baseUrl,
-        isLocal: config.isLocal
+        isLocal: config.isLocal,
+        securitySettings: config.securitySettings
     }
 
     switch (config.provider) {

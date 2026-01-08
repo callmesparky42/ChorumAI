@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Bot, Users } from 'lucide-react'
 import { Message } from './Message'
 import { ProviderSelector } from './ProviderSelector'
+import { AgentSelector } from './AgentSelector'
 import { CostMeter } from './CostMeter'
 import { useChorumStore } from '@/lib/store'
 import { useAgentStore } from '@/lib/agents/store'
@@ -13,6 +14,7 @@ import clsx from 'clsx'
 export function ChatPanel({ projectId }: { projectId?: string }) {
     const [message, setMessage] = useState('')
     const [selectedProvider, setSelectedProvider] = useState<string>('auto')
+    const [selectedAgent, setSelectedAgent] = useState<string>('auto')
     const messagesEndRef = useRef<HTMLDivElement>(null)
 
     const { messages, sendMessage, isLoading } = useChorumStore()
@@ -33,7 +35,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
             projectId,
             content: message,
             providerOverride: selectedProvider === 'auto' ? undefined : selectedProvider,
-            agent: activeAgent
+            agentOverride: selectedAgent
         })
 
         setMessage('')
@@ -137,13 +139,17 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                     </div>
 
                     <div className="flex flex-col gap-2 w-48">
+                        <AgentSelector
+                            value={selectedAgent}
+                            onChange={setSelectedAgent}
+                        />
                         <ProviderSelector
                             value={selectedProvider}
                             onChange={setSelectedProvider}
                         />
                         <button
                             onClick={handleSend}
-                            disabled={!message.trim() || isLoading || !activeAgent}
+                            disabled={!message.trim() || isLoading}
                             className="p-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg transition-colors flex justify-center text-white"
                         >
                             <Send className="w-5 h-5" />

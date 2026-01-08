@@ -119,19 +119,22 @@ export async function POST(req: NextRequest) {
             if (process.env.ANTHROPIC_API_KEY) {
                 providerConfigs.push({
                     provider: 'anthropic', model: 'claude-3-5-sonnet-20240620', apiKey: process.env.ANTHROPIC_API_KEY,
-                    capabilities: ['deep_reasoning', 'code_generation'], costPer1M: { input: 3, output: 15 }, dailyBudget: 10, spentToday: 0
+                    capabilities: ['deep_reasoning', 'code_generation'], costPer1M: { input: 3, output: 15 }, dailyBudget: 10, spentToday: 0,
+                    securitySettings: securitySettings || undefined
                 })
             }
             if (process.env.OPENAI_API_KEY) {
                 providerConfigs.push({
                     provider: 'openai', model: 'gpt-4-turbo', apiKey: process.env.OPENAI_API_KEY,
-                    capabilities: ['code_generation', 'general'], costPer1M: { input: 10, output: 30 }, dailyBudget: 10, spentToday: 0
+                    capabilities: ['code_generation', 'general'], costPer1M: { input: 10, output: 30 }, dailyBudget: 10, spentToday: 0,
+                    securitySettings: securitySettings || undefined
                 })
             }
             if (process.env.GOOGLE_AI_API_KEY) {
                 providerConfigs.push({
                     provider: 'google', model: 'gemini-1.5-pro', apiKey: process.env.GOOGLE_AI_API_KEY,
-                    capabilities: ['cost_efficient', 'long_context'], costPer1M: { input: 3.5, output: 10.5 }, dailyBudget: 5, spentToday: 0
+                    capabilities: ['cost_efficient', 'long_context'], costPer1M: { input: 3.5, output: 10.5 }, dailyBudget: 5, spentToday: 0,
+                    securitySettings: securitySettings || undefined
                 })
             }
         } else {
@@ -160,7 +163,9 @@ export async function POST(req: NextRequest) {
                 spentToday: spendByProvider[c.provider] || 0,
                 baseUrl: c.baseUrl || undefined,
                 isLocal: c.isLocal || false,
-                displayName: c.displayName || undefined
+                displayName: c.displayName || undefined,
+                // Pass security settings for SSL/TLS configuration
+                securitySettings: securitySettings || undefined
             }))
         }
 

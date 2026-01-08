@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatResult, ProviderCallConfig } from './types'
+import { secureFetch } from '@/lib/secure-fetch'
 
 const DEFAULT_OLLAMA_URL = 'http://localhost:11434'
 
@@ -10,7 +11,8 @@ export async function callOllama(
     const baseUrl = config.baseUrl || DEFAULT_OLLAMA_URL
 
     // Ollama uses its own API format
-    const response = await fetch(`${baseUrl}/api/chat`, {
+    // Use secureFetch to respect strictSsl setting for enterprise deployments
+    const response = await secureFetch(`${baseUrl}/api/chat`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -25,7 +27,8 @@ export async function callOllama(
                 }))
             ],
             stream: false
-        })
+        }),
+        securitySettings: config.securitySettings
     })
 
     if (!response.ok) {
