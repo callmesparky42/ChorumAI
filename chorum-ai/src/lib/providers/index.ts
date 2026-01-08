@@ -19,6 +19,33 @@ export interface FullProviderConfig extends ProviderCallConfig {
 }
 
 /**
+ * Default models for 'auto' mode per provider
+ * These are the best general-purpose models for each provider
+ */
+const DEFAULT_MODELS: Record<string, string> = {
+    anthropic: 'claude-sonnet-4-5-20250514',
+    openai: 'gpt-5.2',
+    google: 'gemini-2.5-flash',
+    mistral: 'mistral-large-latest',
+    deepseek: 'deepseek-chat',
+    perplexity: 'llama-3.1-sonar-large-128k-online',
+    xai: 'grok-2-latest',
+    glm: 'glm-4-plus',
+    ollama: 'llama3.3',
+    lmstudio: 'local-model'
+}
+
+/**
+ * Resolve 'auto' to the appropriate default model for a provider
+ */
+export function resolveModelForProvider(provider: string, model: string): string {
+    if (model === 'auto') {
+        return DEFAULT_MODELS[provider] || model
+    }
+    return model
+}
+
+/**
  * Call any supported LLM provider
  * Routes to the appropriate implementation based on provider type
  */
@@ -27,9 +54,12 @@ export async function callProvider(
     messages: ChatMessage[],
     systemPrompt: string
 ): Promise<ChatResult> {
+    // Resolve 'auto' to the default model for this provider
+    const resolvedModel = resolveModelForProvider(config.provider, config.model)
+
     const callConfig: ProviderCallConfig = {
         apiKey: config.apiKey,
-        model: config.model,
+        model: resolvedModel,
         baseUrl: config.baseUrl,
         isLocal: config.isLocal,
         securitySettings: config.securitySettings

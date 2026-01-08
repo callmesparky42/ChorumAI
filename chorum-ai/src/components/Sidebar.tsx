@@ -33,6 +33,27 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onDelete, onHover
     const [expanded, setExpanded] = useState(false)
     const [conversations, setConversations] = useState<Conversation[]>([])
     const [loadingConvos, setLoadingConvos] = useState(false)
+    const [conversationCount, setConversationCount] = useState<number | null>(null)
+
+    // Auto-fetch conversation count when component mounts or project becomes active
+    useEffect(() => {
+        const fetchConversationCount = async () => {
+            try {
+                const res = await fetch(`/api/conversations?projectId=${project.id}`)
+                if (res.ok) {
+                    const data = await res.json()
+                    setConversationCount(data.length)
+                    // Cache the data if we got it
+                    if (data.length > 0) {
+                        setConversations(data)
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load conversation count', e)
+            }
+        }
+        fetchConversationCount()
+    }, [project.id])
 
     const fetchConversations = async () => {
         if (conversations.length > 0) return // Already loaded
@@ -42,6 +63,7 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onDelete, onHover
             if (res.ok) {
                 const data = await res.json()
                 setConversations(data)
+                setConversationCount(data.length)
             }
         } catch (e) {
             console.error('Failed to load conversations', e)

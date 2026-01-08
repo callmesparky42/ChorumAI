@@ -14,6 +14,10 @@ export async function GET(req: NextRequest) {
         }
         const userId = session.user.id
 
+        // Check for debug mode
+        const { searchParams } = new URL(req.url)
+        const debug = searchParams.get('debug') === 'true'
+
         const providers = await db.query.providerCredentials.findMany({
             where: and(
                 eq(providerCredentials.userId, userId),
@@ -21,6 +25,20 @@ export async function GET(req: NextRequest) {
             ),
             orderBy: [desc(providerCredentials.model)]
         })
+
+        // Debug mode: return raw provider/model info
+        if (debug) {
+            return NextResponse.json({
+                message: 'Provider credentials (debug view)',
+                providers: providers.map(p => ({
+                    id: p.id,
+                    provider: p.provider,
+                    model: p.model,
+                    displayName: p.displayName,
+                    isLocal: p.isLocal
+                }))
+            })
+        }
 
         const today = new Date()
         today.setHours(0, 0, 0, 0)
