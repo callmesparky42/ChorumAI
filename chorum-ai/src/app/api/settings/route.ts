@@ -32,6 +32,14 @@ export async function GET() {
                 defaultProvider: null,
                 localFallbackModel: null,
                 priorityOrder: []
+            },
+            memorySettings: user.memorySettings || {
+                autoLearn: true,
+                learningMode: 'async',
+                injectContext: true,
+                autoSummarize: true,
+                validateResponses: true,
+                smartAgentRouting: true
             }
         })
     } catch (error) {
@@ -55,6 +63,7 @@ export async function PATCH(req: Request) {
         if (body.bio !== undefined) updateData.bio = body.bio
         if (body.securitySettings !== undefined) updateData.securitySettings = body.securitySettings
         if (body.fallbackSettings !== undefined) updateData.fallbackSettings = body.fallbackSettings
+        if (body.memorySettings !== undefined) updateData.memorySettings = body.memorySettings
         // Note: email changes should require verification, skipping for now
 
         await db.update(users).set(updateData).where(eq(users.id, session.user.id))

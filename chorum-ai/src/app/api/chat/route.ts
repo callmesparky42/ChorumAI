@@ -21,6 +21,8 @@ import { validateResponse } from '@/lib/learning/validator'
 import { updateConfidence } from '@/lib/learning/manager'
 import { validateProviderEndpoint, logLlmRequest, type SecuritySettings } from '@/lib/security'
 import { selectAgent, type OrchestrationResult } from '@/lib/agents/orchestrator'
+import { queueForLearning } from '@/lib/learning/queue'
+import { extractAndStoreLearnings } from '@/lib/learning/analyzer'
 
 export async function POST(req: NextRequest) {
     try {
@@ -30,11 +32,19 @@ export async function POST(req: NextRequest) {
         }
         const userId = session.user.id
 
-        // Fetch user settings (bio, security settings, fallback settings)
+        // Fetch user settings (bio, security settings, fallback settings, memory settings)
         const [user] = await db.select().from(users).where(eq(users.id, userId))
         const userBio = user?.bio
         const securitySettings = user?.securitySettings
         const fallbackSettings = user?.fallbackSettings
+        const memorySettings = user?.memorySettings || {
+            autoLearn: true,
+            learningMode: 'async' as const,
+            injectContext: true,
+            autoSummarize: true,
+            validateResponses: true,
+            smartAgentRouting: true
+        }
 
         const { projectId, content: rawContent, providerOverride, agentOverride } = await req.json()
 
@@ -87,19 +97,22 @@ export async function POST(req: NextRequest) {
 
         // [Agent Orchestration] Select and configure agent for this request
         let agentResult: OrchestrationResult | null = null
-        try {
-            agentResult = await selectAgent({
-                prompt: content,
-                projectContext: systemPrompt,
-                preferredAgent: agentOverride
-            })
-            if (agentResult) {
-                // Agent system prompt includes persona, guardrails, and base context
-                systemPrompt = agentResult.systemPrompt
-                console.log(`[Agent] Selected: ${agentResult.agent.name} (${Math.round(agentResult.confidence * 100)}%)`)
+        // Only run if smart agent routing is enabled
+        if (memorySettings.smartAgentRouting !== false) {
+            try {
+                agentResult = await selectAgent({
+                    prompt: content,
+                    projectContext: systemPrompt,
+                    preferredAgent: agentOverride
+                })
+                if (agentResult) {
+                    // Agent system prompt includes persona, guardrails, and base context
+                    systemPrompt = agentResult.systemPrompt
+                    console.log(`[Agent] Selected: ${agentResult.agent.name} (${Math.round(agentResult.confidence * 100)}%)`)
+                }
+            } catch (e) {
+                console.warn('[Agent] Orchestration failed, using default prompt:', e)
             }
-        } catch (e) {
-            console.warn('[Agent] Orchestration failed, using default prompt:', e)
         }
 
         // Get conversation memory
@@ -428,6 +441,45 @@ export async function POST(req: NextRequest) {
             }
         } catch (e) {
             console.warn('Failed to log to DB', e)
+        }
+
+        // [Semantic Memory Writer] Queue learning extraction if enabled
+        if (memorySettings.autoLearn && projectId) {
+            try {
+                if (memorySettings.learningMode === 'sync') {
+                    // Synchronous processing - adds latency but immediate learning
+                    const cheapestProvider = providerConfigs.sort((a: any, b: any) =>
+                        (a.costPer1M?.input || 0) - (b.costPer1M?.input || 0)
+                    )[0]
+                    if (cheapestProvider) {
+                        await extractAndStoreLearnings(
+                            projectId,
+                            content,
+                            response,
+                            {
+                                provider: cheapestProvider.provider,
+                                apiKey: cheapestProvider.apiKey,
+                                model: cheapestProvider.model,
+                                baseUrl: cheapestProvider.baseUrl,
+                                isLocal: cheapestProvider.isLocal || false
+                            },
+                            systemPrompt,
+                            assistantMsgId
+                        )
+                    }
+                } else {
+                    // Async processing - queue for background extraction
+                    await queueForLearning(
+                        projectId,
+                        userId,
+                        content,
+                        response,
+                        agentResult?.agent.name
+                    )
+                }
+            } catch (e) {
+                console.warn('[Learning] Failed to queue learning:', e)
+            }
         }
 
         return NextResponse.json({

@@ -20,6 +20,14 @@ export const users = pgTable('user', {
     localFallbackModel: string | null  // Ollama model to use as offline fallback
     priorityOrder: string[]  // Custom fallback order
   }>(),
+  memorySettings: jsonb('memory_settings').$type<{
+    autoLearn: boolean            // Extract patterns from conversations
+    learningMode: 'sync' | 'async' // Processing mode
+    injectContext: boolean        // Inject learned patterns into prompts
+    autoSummarize: boolean        // Auto-summarize old conversations
+    validateResponses: boolean    // Check against invariants
+    smartAgentRouting: boolean    // Auto-select agent per message
+  }>(),
   createdAt: timestamp('created_at').defaultNow()
 })
 
@@ -207,4 +215,20 @@ export const auditLogs = pgTable('audit_logs', {
     sslValidated?: boolean
   }>(),
   createdAt: timestamp('created_at').defaultNow()
+})
+
+// --- Learning Queue for Async Processing ---
+
+export const learningQueue = pgTable('learning_queue', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userMessage: text('user_message').notNull(),
+  assistantResponse: text('assistant_response').notNull(),
+  agentName: text('agent_name'),
+  status: text('status').notNull().default('pending'), // 'pending' | 'processing' | 'completed' | 'failed'
+  attempts: integer('attempts').default(0),
+  error: text('error'),
+  createdAt: timestamp('created_at').defaultNow(),
+  processedAt: timestamp('processed_at')
 })

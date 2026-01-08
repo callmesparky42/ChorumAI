@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
-import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download } from 'lucide-react'
+import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download, Brain, Zap } from 'lucide-react'
 import Link from 'next/link'
 import clsx from 'clsx'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -47,6 +47,14 @@ interface UserSettings {
         defaultProvider: string | null
         localFallbackModel: string | null
         priorityOrder: string[]
+    }
+    memorySettings: {
+        autoLearn: boolean
+        learningMode: 'sync' | 'async'
+        injectContext: boolean
+        autoSummarize: boolean
+        validateResponses: boolean
+        smartAgentRouting: boolean
     }
 }
 
@@ -224,6 +232,7 @@ function SettingsContent() {
         { id: 'providers', label: 'Providers', icon: Server },
         { id: 'general', label: 'General', icon: User },
         { id: 'security', label: 'Security', icon: Lock },
+        { id: 'memory', label: 'Memory', icon: Brain },
         { id: 'resilience', label: 'Resilience', icon: RefreshCw },
         { id: 'help', label: 'Help', icon: HelpCircle },
         { id: 'legal', label: 'Legal & Privacy', icon: FileText },
@@ -647,6 +656,201 @@ function SettingsContent() {
                                     </ul>
                                 </div>
 
+                                <div className="pt-4 flex justify-end">
+                                    <button
+                                        onClick={(e) => handleUpdateSettings(e)}
+                                        disabled={saving}
+                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                    >
+                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+                {/* Memory Tab */}
+                {activeTab === 'memory' && (
+                    <>
+                        <div className="mb-8">
+                            <h2 className="text-2xl font-semibold">Memory & Learning</h2>
+                            <p className="text-gray-400 mt-1">Control how ChorumAI learns from conversations and manages context.</p>
+                        </div>
+
+                        {loading ? (
+                            <div className="flex justify-center p-12"><Loader2 className="animate-spin text-gray-500" /></div>
+                        ) : !userSettings ? (
+                            <div className="text-red-400">Failed to load settings.</div>
+                        ) : (
+                            <div className="max-w-2xl space-y-6">
+                                {/* Learning & Context Section */}
+                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
+                                    <h3 className="text-lg font-medium flex items-center gap-2">
+                                        <Brain className="w-5 h-5 text-purple-400" />
+                                        Learning & Context
+                                    </h3>
+
+                                    {/* Auto-Learn Toggle */}
+                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                        <div className="flex-1 pr-8">
+                                            <h4 className="font-medium text-white mb-1">Auto-Learn Patterns</h4>
+                                            <p className="text-sm text-gray-500">Extract patterns, decisions, and invariants from conversations for future context.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, autoLearn: !userSettings.memorySettings?.autoLearn } }
+                                                setUserSettings(newSettings)
+                                            }}
+                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.autoLearn ? "bg-purple-500" : "bg-gray-700")}
+                                        >
+                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.autoLearn ? "left-7" : "left-1")} />
+                                        </button>
+                                    </div>
+
+                                    {/* Learning Mode Selector */}
+                                    {userSettings.memorySettings?.autoLearn && (
+                                        <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                            <div className="flex-1 pr-8">
+                                                <h4 className="font-medium text-white mb-1">Processing Mode</h4>
+                                                <p className="text-sm text-gray-500">
+                                                    {userSettings.memorySettings?.learningMode === 'async'
+                                                        ? 'Background processing - no latency impact'
+                                                        : 'Immediate processing - adds ~500-1000ms latency'}
+                                                </p>
+                                            </div>
+                                            <select
+                                                value={userSettings.memorySettings?.learningMode || 'async'}
+                                                onChange={(e) => {
+                                                    const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, learningMode: e.target.value as 'sync' | 'async' } }
+                                                    setUserSettings(newSettings)
+                                                }}
+                                                className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-2"
+                                            >
+                                                <option value="async">Async (Background)</option>
+                                                <option value="sync">Sync (Immediate)</option>
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    {/* Inject Context Toggle */}
+                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                        <div className="flex-1 pr-8">
+                                            <h4 className="font-medium text-white mb-1">Inject Learned Context</h4>
+                                            <p className="text-sm text-gray-500">Add patterns and invariants to prompts. Adds ~50-100ms latency.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, injectContext: !userSettings.memorySettings?.injectContext } }
+                                                setUserSettings(newSettings)
+                                            }}
+                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.injectContext !== false ? "bg-purple-500" : "bg-gray-700")}
+                                        >
+                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.injectContext !== false ? "left-7" : "left-1")} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Response Processing Section */}
+                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
+                                    <h3 className="text-lg font-medium flex items-center gap-2">
+                                        <Activity className="w-5 h-5 text-blue-400" />
+                                        Response Processing
+                                    </h3>
+
+                                    {/* Auto-Summarize Toggle */}
+                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                        <div className="flex-1 pr-8">
+                                            <h4 className="font-medium text-white mb-1">Auto-Summarize Conversations</h4>
+                                            <p className="text-sm text-gray-500">Compress old messages into summaries for context management. Adds ~800ms latency.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, autoSummarize: !userSettings.memorySettings?.autoSummarize } }
+                                                setUserSettings(newSettings)
+                                            }}
+                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.autoSummarize !== false ? "bg-blue-500" : "bg-gray-700")}
+                                        >
+                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.autoSummarize !== false ? "left-7" : "left-1")} />
+                                        </button>
+                                    </div>
+
+                                    {/* Validate Responses Toggle */}
+                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                        <div className="flex-1 pr-8">
+                                            <h4 className="font-medium text-white mb-1">Validate Against Invariants</h4>
+                                            <p className="text-sm text-gray-500">Check responses for rule violations. Adds ~100-200ms latency.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, validateResponses: !userSettings.memorySettings?.validateResponses } }
+                                                setUserSettings(newSettings)
+                                            }}
+                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.validateResponses !== false ? "bg-blue-500" : "bg-gray-700")}
+                                        >
+                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.validateResponses !== false ? "left-7" : "left-1")} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Agent Selection Section */}
+                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
+                                    <h3 className="text-lg font-medium flex items-center gap-2">
+                                        🤖 Agent Selection
+                                    </h3>
+
+                                    {/* Smart Agent Routing Toggle */}
+                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                        <div className="flex-1 pr-8">
+                                            <h4 className="font-medium text-white mb-1">Smart Agent Routing</h4>
+                                            <p className="text-sm text-gray-500">Auto-select the best agent for each message. Adds ~20-50ms latency. When OFF, uses manually selected agent only.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, smartAgentRouting: !userSettings.memorySettings?.smartAgentRouting } }
+                                                setUserSettings(newSettings)
+                                            }}
+                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.smartAgentRouting !== false ? "bg-green-500" : "bg-gray-700")}
+                                        >
+                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.smartAgentRouting !== false ? "left-7" : "left-1")} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Performance Mode Section */}
+                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h3 className="text-lg font-medium flex items-center gap-2">
+                                                <Zap className="w-5 h-5 text-yellow-400" />
+                                                Minimal Latency Mode
+                                            </h3>
+                                            <p className="text-sm text-gray-500 mt-1">Disables all background processing for fastest response times.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                const newSettings = {
+                                                    ...userSettings,
+                                                    memorySettings: {
+                                                        autoLearn: false,
+                                                        learningMode: 'async' as const,
+                                                        injectContext: false,
+                                                        autoSummarize: false,
+                                                        validateResponses: false,
+                                                        smartAgentRouting: false
+                                                    }
+                                                }
+                                                setUserSettings(newSettings)
+                                            }}
+                                            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                        >
+                                            <Zap className="w-4 h-4" />
+                                            Enable Minimal Mode
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Save Button */}
                                 <div className="pt-4 flex justify-end">
                                     <button
                                         onClick={(e) => handleUpdateSettings(e)}
