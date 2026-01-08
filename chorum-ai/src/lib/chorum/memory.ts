@@ -11,7 +11,117 @@ export interface ConversationMemory {
 }
 
 const DEFAULT_RECENT_LIMIT = 10
+const IMMEDIATE_CONTEXT_LIMIT = 3 // Always inject last 3 messages
 const SUMMARIZE_THRESHOLD = 20 // Summarize when this many messages exceed recent limit
+
+// Patterns that indicate user is referencing past conversation
+const HISTORY_REFERENCE_PATTERNS = [
+    // Explicit references
+    /\bas\s+we\s+(discussed|talked\s+about|mentioned|covered)/i,
+    /\blike\s+(last\s+time|before|earlier|previously)/i,
+    /\b(remember|recall)\s+(when|that|the)/i,
+    /\bthe\s+(bug|issue|problem|error|feature|thing)\s+(from|we\s+discussed)/i,
+    /\b(yesterday|last\s+week|earlier\s+today|this\s+morning)/i,
+    // Continuation references
+    /\bcontinue\s+(with|from|where)/i,
+    /\bback\s+to\s+(the|that|what)/i,
+    /\bwhat\s+(did|were)\s+(we|you)\s+(say|discuss|decide)/i,
+    /\b(same|that)\s+(approach|method|solution|fix)/i,
+    // Implicit history needs
+    /\bwhy\s+did\s+(we|you|i)\s+(choose|decide|go\s+with)/i,
+    /\bwhat\s+was\s+(the|that)\s+(reason|decision|conclusion)/i,
+    /\bcan\s+you\s+remind\s+me/i,
+    /\bwhere\s+were\s+we/i,
+]
+
+export type MemoryStrategy = 'immediate' | 'full' | 'summary_only'
+
+export interface RelevantMemoryResult extends ConversationMemory {
+    strategy: MemoryStrategy
+    historyReferenceDetected: boolean
+}
+
+/**
+ * Detect if user query references past conversation history
+ * Returns true if the query contains phrases like "as we discussed", "like last time", etc.
+ */
+export function detectHistoryReference(query: string): boolean {
+    const normalizedQuery = query.toLowerCase().trim()
+
+    for (const pattern of HISTORY_REFERENCE_PATTERNS) {
+        if (pattern.test(normalizedQuery)) {
+            return true
+        }
+    }
+
+    return false
+}
+
+/**
+ * Get relevant memory based on the current query
+ * Uses query-aware logic to determine how much history to inject:
+ * - If query references history → full context (10 messages + summary)
+ * - If no history reference → immediate context only (3 messages + summary)
+ */
+export async function getRelevantMemory(
+    projectId: string,
+    currentQuery: string,
+    maxMessages: number = DEFAULT_RECENT_LIMIT
+): Promise<RelevantMemoryResult> {
+    const needsHistory = detectHistoryReference(currentQuery)
+
+    // Get latest summary (always useful for context)
+    const latestSummary = await db.query.memorySummaries.findFirst({
+        where: eq(memorySummaries.projectId, projectId),
+        orderBy: [desc(memorySummaries.createdAt)]
+    })
+
+    if (!needsHistory) {
+        // Fast path: just use immediate context (last 3) + summary
+        const recentMessages = await db.query.messages.findMany({
+            where: and(
+                eq(messages.projectId, projectId),
+                eq(messages.isArchived, false)
+            ),
+            orderBy: [desc(messages.createdAt)],
+            limit: IMMEDIATE_CONTEXT_LIMIT
+        })
+
+        const chronological = recentMessages.reverse()
+
+        return {
+            summary: latestSummary?.summary || null,
+            recentMessages: chronological.map(m => ({
+                role: m.role,
+                content: m.content
+            })),
+            strategy: 'immediate',
+            historyReferenceDetected: false
+        }
+    }
+
+    // History reference detected: grab full context
+    const recentMessages = await db.query.messages.findMany({
+        where: and(
+            eq(messages.projectId, projectId),
+            eq(messages.isArchived, false)
+        ),
+        orderBy: [desc(messages.createdAt)],
+        limit: maxMessages
+    })
+
+    const chronological = recentMessages.reverse()
+
+    return {
+        summary: latestSummary?.summary || null,
+        recentMessages: chronological.map(m => ({
+            role: m.role,
+            content: m.content
+        })),
+        strategy: 'full',
+        historyReferenceDetected: true
+    }
+}
 
 /**
  * Get conversation memory for a project

@@ -1,3 +1,5 @@
+import type { ChatMessage, ChatResult, ProviderCallConfig } from '../providers/types'
+import { estimateTokens } from '../tokens'
 export type TaskType =
     | 'deep_reasoning'
     | 'code_generation'
@@ -46,6 +48,7 @@ export class ChorumRouter {
         taskType?: TaskType
         estimatedTokens?: number
         userOverride?: Provider
+        strategy?: string // 'control' | 'cost_optimized' | 'quality_optimized'
     }): Promise<RoutingDecision> {
         const taskType = opts.taskType || this.inferTaskType(opts.prompt)
         const estimatedTokens = opts.estimatedTokens || this.estimateTokens(opts.prompt)
@@ -88,13 +91,25 @@ export class ChorumRouter {
             const costA = this.calculateCost(a, estimatedTokens)
             const costB = this.calculateCost(b, estimatedTokens)
 
+            // Quality ranking
+            const qualityOrder: Record<string, number> = {
+                anthropic: 0, openai: 1, google: 2, perplexity: 3, xai: 4, mistral: 5, deepseek: 6, glm: 7,
+                ollama: 8, lmstudio: 8, 'openai-compatible': 8
+            }
+
+            // Strategy overrides
+            if (opts.strategy === 'cost_optimized') {
+                return costA - costB
+            }
+
+            if (opts.strategy === 'quality_optimized') {
+                const orderA = qualityOrder[a.provider] ?? 6
+                const orderB = qualityOrder[b.provider] ?? 6
+                return orderA - orderB
+            }
+
             // For deep reasoning, prefer quality over cost
             if (taskType === 'deep_reasoning') {
-                // Quality ranking: Anthropic > OpenAI > Google > Perplexity > xAI > Mistral > DeepSeek > GLM > Local
-                const qualityOrder: Record<string, number> = {
-                    anthropic: 0, openai: 1, google: 2, perplexity: 3, xai: 4, mistral: 5, deepseek: 6, glm: 7,
-                    ollama: 8, lmstudio: 8, 'openai-compatible': 8
-                }
                 const orderA = qualityOrder[a.provider] ?? 6
                 const orderB = qualityOrder[b.provider] ?? 6
                 return orderA - orderB
@@ -138,10 +153,16 @@ export class ChorumRouter {
     }
 
     private estimateTokens(prompt: string): number {
-        // Rough estimate: ~4 chars per token
-        const inputTokens = Math.ceil(prompt.length / 4)
-        // Assume output is similar length
-        return inputTokens * 2
+        // Use tiktoken for accurate estimation
+        const inputTokens = estimateTokens(prompt)
+        // Assume output represents a reasonable conversation turn, or could be parameterized
+        // For strict cost control, we might want to be conservative
+        return inputTokens + 500 // Assume 500 output tokens on average? Or just inputs. 
+        // usage in calculateCost assumes tokens is TOTAL (input+output) split 50/50 in original code
+        // let's stick to original returning a total, but make it more realistic.
+        // Original: input * 2.
+        // Let's do input + estimated_output.
+        return inputTokens * 1.5
     }
 
     private calculateCost(provider: ProviderConfig, tokens: number): number {

@@ -6,7 +6,7 @@ import { db } from '@/lib/db'
 import { messages, routingLog, usageLog, providerCredentials, projects, users } from '@/lib/db/schema'
 import { eq, and, gte } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
-import { getConversationMemory, buildMemoryContext } from '@/lib/chorum/memory'
+import { getRelevantMemory, buildMemoryContext, type MemoryStrategy } from '@/lib/chorum/memory'
 import { checkAndSummarize, buildSummarizationPrompt } from '@/lib/chorum/summarize'
 import { anonymizePii } from '@/lib/pii'
 import { callProvider, type FullProviderConfig } from '@/lib/providers'
@@ -23,6 +23,7 @@ import { validateProviderEndpoint, logLlmRequest, type SecuritySettings } from '
 import { selectAgent, type OrchestrationResult } from '@/lib/agents/orchestrator'
 import { queueForLearning } from '@/lib/learning/queue'
 import { extractAndStoreLearnings } from '@/lib/learning/analyzer'
+import { getExperimentVariant } from '@/lib/experiments'
 
 export async function POST(req: NextRequest) {
     try {
@@ -115,9 +116,16 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Get conversation memory
-        const memory = projectId ? await getConversationMemory(projectId) : { summary: null, recentMessages: [] }
+        // Get conversation memory (query-aware)
+        const memory = projectId
+            ? await getRelevantMemory(projectId, content)
+            : { summary: null, recentMessages: [], strategy: 'immediate' as MemoryStrategy, historyReferenceDetected: false }
         const memoryContext = buildMemoryContext(memory)
+
+        // Log memory strategy for observability
+        if (projectId && memory.strategy) {
+            console.log(`[Memory] Strategy: ${memory.strategy}, History ref: ${memory.historyReferenceDetected}, Messages: ${memory.recentMessages.length}`)
+        }
 
         // Get provider credentials
         const creds = await db.query.providerCredentials.findMany({
@@ -131,14 +139,14 @@ export async function POST(req: NextRequest) {
         if (creds.length === 0) {
             if (process.env.ANTHROPIC_API_KEY) {
                 providerConfigs.push({
-                    provider: 'anthropic', model: 'claude-3-5-sonnet-20240620', apiKey: process.env.ANTHROPIC_API_KEY,
+                    provider: 'anthropic', model: 'claude-sonnet-4-20250514', apiKey: process.env.ANTHROPIC_API_KEY,
                     capabilities: ['deep_reasoning', 'code_generation'], costPer1M: { input: 3, output: 15 }, dailyBudget: 10, spentToday: 0,
                     securitySettings: securitySettings || undefined
                 })
             }
             if (process.env.OPENAI_API_KEY) {
                 providerConfigs.push({
-                    provider: 'openai', model: 'gpt-4-turbo', apiKey: process.env.OPENAI_API_KEY,
+                    provider: 'openai', model: 'gpt-4o', apiKey: process.env.OPENAI_API_KEY,
                     capabilities: ['code_generation', 'general'], costPer1M: { input: 10, output: 30 }, dailyBudget: 10, spentToday: 0,
                     securitySettings: securitySettings || undefined
                 })
@@ -187,9 +195,12 @@ export async function POST(req: NextRequest) {
         }
 
         const router = new ChorumRouter(providerConfigs)
+        const routingStrategy = getExperimentVariant(userId, 'routing_strategy_v2')
+
         const decision = await router.route({
             prompt: content,
-            userOverride: providerOverride
+            userOverride: providerOverride,
+            strategy: routingStrategy
         })
 
         // Save user message
@@ -507,7 +518,12 @@ export async function POST(req: NextRequest) {
                 failedProviders
             } : null,
             validation: validationResult,
-            memoryUsed: memory.summary ? true : false,
+            memory: {
+                hasSummary: !!memory.summary,
+                strategy: memory.strategy,
+                historyReferenceDetected: memory.historyReferenceDetected,
+                messageCount: memory.recentMessages.length
+            },
             piiAnonymized: piiDetected
         })
 

@@ -1,8 +1,23 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
+import { auth } from '@/lib/auth'
 
 export async function GET() {
+    // Security: Require authentication
+    const session = await auth()
+    if (!session?.user?.id) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Security: Only allow in development mode
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json(
+            { error: 'Debug endpoint disabled in production' },
+            { status: 403 }
+        )
+    }
+
     try {
         // User table columns
         await db.execute(sql`ALTER TABLE "user" ADD COLUMN IF NOT EXISTS "bio" text`)

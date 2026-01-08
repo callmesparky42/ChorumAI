@@ -74,11 +74,29 @@ A unique cross-provider review system where one LLM reviews another's work:
 - **Memory Writeback**: Learned patterns are saved to project memory for future use
 - **Cost Tracking**: Shows review cost alongside original response cost
 
-### Conversation Memory
+### Semantic Memory System
 
-- **Message History**: Full conversation context passed to LLMs
-- **Auto-Summarization**: Long conversations are automatically summarized to preserve context while managing token usage
-- **Project Memory**: `.chorum/memory/` stores project-level patterns, decisions, and context
+A "Write Path" for memory that learns from every interaction, going beyond simple message history:
+- **Pattern Analyzer**: Background process that extracts coding patterns, architectural decisions, and project invariants.
+- **Context Injector**: Intelligently injects relevant learned patterns into the system prompt based on current context.
+- **Invariants**: Defines rules that must *never* be violated (e.g., "Always validate inputs"), enforced by the Validator.
+- **Project Wisdom**: `.chorum/memory/` stores evolving project knowledge as markdown, making it readable by both humans and agents.
+
+### Security & Privacy
+
+Enterprise-grade security features designed for data protection:
+- **PII Anonymization**: Automatically detects and redacts personal identifiable information before it leaves your machine.
+- **Audit Logs**: Comprehensive logging of all LLM interactions, including provider, model, cost, and security flags.
+- **HTTPS Enforcement**: Strict validation for all provider endpoints to prevent insecure data transmission.
+- **Strict SSL**: Enforces valid SSL certificates, rejecting self-signed certs (configurable).
+
+### Resilient Fallbacks & Local Models
+
+Chorum ensures your work never stops due to provider outages:
+- **Smart Fallback Chain**: If your primary provider (e.g., Claude) fails, requests automatically retry with the next best option (e.g., GPT-4).
+- **BYOLLM (Bring Your Own LLM)**: Full support for local models via **Ollama** and **LM Studio**.
+- **Offline Mode**: Seamlessly switch to local models when internet connectivity is lost or for maximum privacy.
+
 
 ### Cost Tracking
 

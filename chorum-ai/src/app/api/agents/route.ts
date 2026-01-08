@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
 import { AgentDefinition } from '@/lib/agents/types'
+import { auth } from '@/lib/auth'
 
 // Directory where custom agents are stored
 const AGENTS_DIR = path.join(process.cwd(), '.chorum', 'agents')
@@ -107,6 +108,11 @@ ${agent.guardrails.humanCheckpoint ? `
 // GET - List all custom agents
 export async function GET() {
   try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     await fs.mkdir(AGENTS_DIR, { recursive: true })
 
     const files = await fs.readdir(AGENTS_DIR)
@@ -128,6 +134,11 @@ export async function GET() {
 // POST - Save a custom agent
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const agent: AgentDefinition = await request.json()
 
     // Ensure directory exists

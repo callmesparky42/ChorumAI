@@ -1,21 +1,22 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
-import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download, Brain, Zap } from 'lucide-react'
+import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download, Brain, Zap, Sparkles, FolderOpen } from 'lucide-react'
+import { LearningDashboard } from '@/components/LearningDashboard'
 import Link from 'next/link'
 import clsx from 'clsx'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 // Provider presets for the UI
 const PROVIDER_PRESETS: Record<string, { name: string, models: string[], requiresKey: boolean, isLocal: boolean, defaultBaseUrl?: string }> = {
-    anthropic: { name: 'Anthropic (Claude)', models: ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20240620', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'], requiresKey: true, isLocal: false },
-    openai: { name: 'OpenAI (GPT)', models: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo', 'o1-preview'], requiresKey: true, isLocal: false },
-    google: { name: 'Google (Gemini)', models: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro'], requiresKey: true, isLocal: false },
+    anthropic: { name: 'Anthropic (Claude)', models: ['claude-sonnet-4-5-20250514', 'claude-sonnet-4-20250514', 'claude-haiku-4-5-20250514', 'claude-opus-4-5-20250514'], requiresKey: true, isLocal: false },
+    openai: { name: 'OpenAI (GPT)', models: ['gpt-5.2', 'gpt-5', 'gpt-4.1', 'gpt-4o', 'o1-preview', 'o1-mini'], requiresKey: true, isLocal: false },
+    google: { name: 'Google (Gemini)', models: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-pro'], requiresKey: true, isLocal: false },
     mistral: { name: 'Mistral AI', models: ['mistral-large-latest', 'mistral-medium-latest', 'codestral-latest'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.mistral.ai/v1' },
     deepseek: { name: 'DeepSeek', models: ['deepseek-chat', 'deepseek-coder'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.deepseek.com/v1' },
     perplexity: { name: 'Perplexity AI', models: ['llama-3.1-sonar-large-128k-online', 'llama-3.1-sonar-small-128k-online', 'llama-3.1-sonar-huge-128k-online'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.perplexity.ai' },
     xai: { name: 'xAI (Grok)', models: ['grok-2-latest', 'grok-2-vision-latest', 'grok-beta'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.x.ai/v1' },
     glm: { name: 'GLM-4 (Zhipu AI)', models: ['glm-4-plus', 'glm-4-long', 'glm-4-flash', 'glm-4-flashx'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
-    ollama: { name: 'Ollama (Local)', models: ['llama3', 'mistral', 'phi3', 'codellama', 'gemma2'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:11434' },
+    ollama: { name: 'Ollama (Local)', models: ['llama3.3', 'mistral', 'phi4', 'codellama', 'gemma2', 'glm4'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:11434' },
     lmstudio: { name: 'LM Studio (Local)', models: ['local-model'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:1234/v1' },
     'openai-compatible': { name: 'OpenAI-Compatible API', models: ['custom'], requiresKey: false, isLocal: true }
 }
@@ -65,6 +66,8 @@ function SettingsContent() {
     const activeTab = searchParams.get('tab') || 'providers'
 
     const [providers, setProviders] = useState<Provider[]>([])
+    const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
 
     const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
     const [loading, setLoading] = useState(true)
@@ -72,6 +75,7 @@ function SettingsContent() {
     const [showModal, setShowModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
     const [editingProvider, setEditingProvider] = useState<Provider | null>(null)
+    const [memorySubTab, setMemorySubTab] = useState<'settings' | 'knowledge'>('settings')
 
     // Form - Provider (for add)
     const [formProvider, setFormProvider] = useState('anthropic')
@@ -103,13 +107,24 @@ function SettingsContent() {
                 ])
                 if (settingsRes.ok) setUserSettings(await settingsRes.json())
                 if (providersRes?.ok) setProviders(await providersRes.json())
+            } else if (activeTab === 'knowledge') {
+                // Fetch projects for the project selector
+                const res = await fetch('/api/projects')
+                if (res.ok) {
+                    const data = await res.json()
+                    setProjects(data)
+                    // Auto-select first project if none selected
+                    if (!selectedProjectId && data.length > 0) {
+                        setSelectedProjectId(data[0].id)
+                    }
+                }
             } else {
                 setLoading(false)
             }
         } catch (e) {
             console.error(e)
         } finally {
-            // Only set loading false here if we fetched something. 
+            // Only set loading false here if we fetched something.
             // If static tab, we do it immediately.
             setLoading(false)
         }
@@ -232,7 +247,7 @@ function SettingsContent() {
         { id: 'providers', label: 'Providers', icon: Server },
         { id: 'general', label: 'General', icon: User },
         { id: 'security', label: 'Security', icon: Lock },
-        { id: 'memory', label: 'Memory', icon: Brain },
+        { id: 'memory', label: 'Memory & Learning', icon: Brain },
         { id: 'resilience', label: 'Resilience', icon: RefreshCw },
         { id: 'help', label: 'Help', icon: HelpCircle },
         { id: 'legal', label: 'Legal & Privacy', icon: FileText },
@@ -676,195 +691,268 @@ function SettingsContent() {
                         <div className="mb-8">
                             <h2 className="text-2xl font-semibold">Memory & Learning</h2>
                             <p className="text-gray-400 mt-1">Control how ChorumAI learns from conversations and manages context.</p>
+
+                            {/* Sub-tabs */}
+                            <div className="flex gap-1 mt-4 border-b border-gray-800">
+                                <button
+                                    onClick={() => setMemorySubTab('settings')}
+                                    className={clsx(
+                                        "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
+                                        memorySubTab === 'settings'
+                                            ? "border-blue-500 text-blue-400"
+                                            : "border-transparent text-gray-500 hover:text-gray-300"
+                                    )}
+                                >
+                                    Settings
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setMemorySubTab('knowledge')
+                                        // Fetch projects when switching to knowledge tab
+                                        if (projects.length === 0) {
+                                            fetch('/api/projects').then(res => res.ok && res.json().then(data => {
+                                                setProjects(data)
+                                                if (data.length > 0 && !selectedProjectId) setSelectedProjectId(data[0].id)
+                                            }))
+                                        }
+                                    }}
+                                    className={clsx(
+                                        "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-2",
+                                        memorySubTab === 'knowledge'
+                                            ? "border-purple-500 text-purple-400"
+                                            : "border-transparent text-gray-500 hover:text-gray-300"
+                                    )}
+                                >
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    Learned Knowledge
+                                </button>
+                            </div>
                         </div>
 
                         {loading ? (
                             <div className="flex justify-center p-12"><Loader2 className="animate-spin text-gray-500" /></div>
-                        ) : !userSettings ? (
-                            <div className="text-red-400">Failed to load settings.</div>
-                        ) : (
-                            <div className="max-w-2xl space-y-6">
-                                {/* Learning & Context Section */}
-                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
-                                    <h3 className="text-lg font-medium flex items-center gap-2">
-                                        <Brain className="w-5 h-5 text-purple-400" />
-                                        Learning & Context
-                                    </h3>
+                        ) : memorySubTab === 'settings' ? (
+                            /* Settings Sub-Tab */
+                            !userSettings ? (
+                                <div className="text-red-400">Failed to load settings.</div>
+                            ) : (
+                                <div className="max-w-2xl space-y-6">
+                                    {/* Learning & Context Section */}
+                                    <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
+                                        <h3 className="text-lg font-medium flex items-center gap-2">
+                                            <Brain className="w-5 h-5 text-purple-400" />
+                                            Learning & Context
+                                        </h3>
 
-                                    {/* Auto-Learn Toggle */}
-                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
-                                        <div className="flex-1 pr-8">
-                                            <h4 className="font-medium text-white mb-1">Auto-Learn Patterns</h4>
-                                            <p className="text-sm text-gray-500">Extract patterns, decisions, and invariants from conversations for future context.</p>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, autoLearn: !userSettings.memorySettings?.autoLearn } }
-                                                setUserSettings(newSettings)
-                                            }}
-                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.autoLearn ? "bg-purple-500" : "bg-gray-700")}
-                                        >
-                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.autoLearn ? "left-7" : "left-1")} />
-                                        </button>
-                                    </div>
-
-                                    {/* Learning Mode Selector */}
-                                    {userSettings.memorySettings?.autoLearn && (
+                                        {/* Auto-Learn Toggle */}
                                         <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
                                             <div className="flex-1 pr-8">
-                                                <h4 className="font-medium text-white mb-1">Processing Mode</h4>
-                                                <p className="text-sm text-gray-500">
-                                                    {userSettings.memorySettings?.learningMode === 'async'
-                                                        ? 'Background processing - no latency impact'
-                                                        : 'Immediate processing - adds ~500-1000ms latency'}
-                                                </p>
+                                                <h4 className="font-medium text-white mb-1">Auto-Learn Patterns</h4>
+                                                <p className="text-sm text-gray-500">Extract patterns, decisions, and invariants from conversations for future context.</p>
                                             </div>
-                                            <select
-                                                value={userSettings.memorySettings?.learningMode || 'async'}
-                                                onChange={(e) => {
-                                                    const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, learningMode: e.target.value as 'sync' | 'async' } }
+                                            <button
+                                                onClick={() => {
+                                                    const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, autoLearn: !userSettings.memorySettings?.autoLearn } }
                                                     setUserSettings(newSettings)
                                                 }}
-                                                className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-2"
+                                                className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.autoLearn ? "bg-purple-500" : "bg-gray-700")}
                                             >
-                                                <option value="async">Async (Background)</option>
-                                                <option value="sync">Sync (Immediate)</option>
-                                            </select>
+                                                <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.autoLearn ? "left-7" : "left-1")} />
+                                            </button>
                                         </div>
-                                    )}
 
-                                    {/* Inject Context Toggle */}
-                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
-                                        <div className="flex-1 pr-8">
-                                            <h4 className="font-medium text-white mb-1">Inject Learned Context</h4>
-                                            <p className="text-sm text-gray-500">Add patterns and invariants to prompts. Adds ~50-100ms latency.</p>
+                                        {/* Learning Mode Selector */}
+                                        {userSettings.memorySettings?.autoLearn && (
+                                            <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                                <div className="flex-1 pr-8">
+                                                    <h4 className="font-medium text-white mb-1">Processing Mode</h4>
+                                                    <p className="text-sm text-gray-500">
+                                                        {userSettings.memorySettings?.learningMode === 'async'
+                                                            ? 'Background processing - no latency impact'
+                                                            : 'Immediate processing - adds ~500-1000ms latency'}
+                                                    </p>
+                                                </div>
+                                                <select
+                                                    value={userSettings.memorySettings?.learningMode || 'async'}
+                                                    onChange={(e) => {
+                                                        const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, learningMode: e.target.value as 'sync' | 'async' } }
+                                                        setUserSettings(newSettings)
+                                                    }}
+                                                    className="bg-gray-800 border border-gray-700 text-gray-300 text-sm rounded-lg px-3 py-2"
+                                                >
+                                                    <option value="async">Async (Background)</option>
+                                                    <option value="sync">Sync (Immediate)</option>
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        {/* Inject Context Toggle */}
+                                        <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                            <div className="flex-1 pr-8">
+                                                <h4 className="font-medium text-white mb-1">Inject Learned Context</h4>
+                                                <p className="text-sm text-gray-500">Add patterns and invariants to prompts. Adds ~50-100ms latency.</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, injectContext: !userSettings.memorySettings?.injectContext } }
+                                                    setUserSettings(newSettings)
+                                                }}
+                                                className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.injectContext !== false ? "bg-purple-500" : "bg-gray-700")}
+                                            >
+                                                <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.injectContext !== false ? "left-7" : "left-1")} />
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => {
-                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, injectContext: !userSettings.memorySettings?.injectContext } }
-                                                setUserSettings(newSettings)
-                                            }}
-                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.injectContext !== false ? "bg-purple-500" : "bg-gray-700")}
-                                        >
-                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.injectContext !== false ? "left-7" : "left-1")} />
-                                        </button>
                                     </div>
-                                </div>
 
-                                {/* Response Processing Section */}
-                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
-                                    <h3 className="text-lg font-medium flex items-center gap-2">
-                                        <Activity className="w-5 h-5 text-blue-400" />
-                                        Response Processing
-                                    </h3>
+                                    {/* Response Processing Section */}
+                                    <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
+                                        <h3 className="text-lg font-medium flex items-center gap-2">
+                                            <Activity className="w-5 h-5 text-blue-400" />
+                                            Response Processing
+                                        </h3>
 
-                                    {/* Auto-Summarize Toggle */}
-                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
-                                        <div className="flex-1 pr-8">
-                                            <h4 className="font-medium text-white mb-1">Auto-Summarize Conversations</h4>
-                                            <p className="text-sm text-gray-500">Compress old messages into summaries for context management. Adds ~800ms latency.</p>
+                                        {/* Auto-Summarize Toggle */}
+                                        <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                            <div className="flex-1 pr-8">
+                                                <h4 className="font-medium text-white mb-1">Auto-Summarize Conversations</h4>
+                                                <p className="text-sm text-gray-500">Compress old messages into summaries for context management. Adds ~800ms latency.</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, autoSummarize: !userSettings.memorySettings?.autoSummarize } }
+                                                    setUserSettings(newSettings)
+                                                }}
+                                                className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.autoSummarize !== false ? "bg-blue-500" : "bg-gray-700")}
+                                            >
+                                                <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.autoSummarize !== false ? "left-7" : "left-1")} />
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => {
-                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, autoSummarize: !userSettings.memorySettings?.autoSummarize } }
-                                                setUserSettings(newSettings)
-                                            }}
-                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.autoSummarize !== false ? "bg-blue-500" : "bg-gray-700")}
-                                        >
-                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.autoSummarize !== false ? "left-7" : "left-1")} />
-                                        </button>
+
+                                        {/* Validate Responses Toggle */}
+                                        <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                            <div className="flex-1 pr-8">
+                                                <h4 className="font-medium text-white mb-1">Validate Against Invariants</h4>
+                                                <p className="text-sm text-gray-500">Check responses for rule violations. Adds ~100-200ms latency.</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, validateResponses: !userSettings.memorySettings?.validateResponses } }
+                                                    setUserSettings(newSettings)
+                                                }}
+                                                className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.validateResponses !== false ? "bg-blue-500" : "bg-gray-700")}
+                                            >
+                                                <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.validateResponses !== false ? "left-7" : "left-1")} />
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    {/* Validate Responses Toggle */}
-                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
-                                        <div className="flex-1 pr-8">
-                                            <h4 className="font-medium text-white mb-1">Validate Against Invariants</h4>
-                                            <p className="text-sm text-gray-500">Check responses for rule violations. Adds ~100-200ms latency.</p>
+                                    {/* Agent Selection Section */}
+                                    <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
+                                        <h3 className="text-lg font-medium flex items-center gap-2">
+                                            🤖 Agent Selection
+                                        </h3>
+
+                                        {/* Smart Agent Routing Toggle */}
+                                        <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                            <div className="flex-1 pr-8">
+                                                <h4 className="font-medium text-white mb-1">Smart Agent Routing</h4>
+                                                <p className="text-sm text-gray-500">Auto-select the best agent for each message. Adds ~20-50ms latency. When OFF, uses manually selected agent only.</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, smartAgentRouting: !userSettings.memorySettings?.smartAgentRouting } }
+                                                    setUserSettings(newSettings)
+                                                }}
+                                                className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.smartAgentRouting !== false ? "bg-green-500" : "bg-gray-700")}
+                                            >
+                                                <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.smartAgentRouting !== false ? "left-7" : "left-1")} />
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => {
-                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, validateResponses: !userSettings.memorySettings?.validateResponses } }
-                                                setUserSettings(newSettings)
-                                            }}
-                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.validateResponses !== false ? "bg-blue-500" : "bg-gray-700")}
-                                        >
-                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.validateResponses !== false ? "left-7" : "left-1")} />
-                                        </button>
                                     </div>
-                                </div>
 
-                                {/* Agent Selection Section */}
-                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
-                                    <h3 className="text-lg font-medium flex items-center gap-2">
-                                        🤖 Agent Selection
-                                    </h3>
-
-                                    {/* Smart Agent Routing Toggle */}
-                                    <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
-                                        <div className="flex-1 pr-8">
-                                            <h4 className="font-medium text-white mb-1">Smart Agent Routing</h4>
-                                            <p className="text-sm text-gray-500">Auto-select the best agent for each message. Adds ~20-50ms latency. When OFF, uses manually selected agent only.</p>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, smartAgentRouting: !userSettings.memorySettings?.smartAgentRouting } }
-                                                setUserSettings(newSettings)
-                                            }}
-                                            className={clsx("w-12 h-6 rounded-full transition-colors relative", userSettings.memorySettings?.smartAgentRouting !== false ? "bg-green-500" : "bg-gray-700")}
-                                        >
-                                            <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.smartAgentRouting !== false ? "left-7" : "left-1")} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Performance Mode Section */}
-                                <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h3 className="text-lg font-medium flex items-center gap-2">
-                                                <Zap className="w-5 h-5 text-yellow-400" />
-                                                Minimal Latency Mode
-                                            </h3>
-                                            <p className="text-sm text-gray-500 mt-1">Disables all background processing for fastest response times.</p>
-                                        </div>
-                                        <button
-                                            onClick={() => {
-                                                const newSettings = {
-                                                    ...userSettings,
-                                                    memorySettings: {
-                                                        autoLearn: false,
-                                                        learningMode: 'async' as const,
-                                                        injectContext: false,
-                                                        autoSummarize: false,
-                                                        validateResponses: false,
-                                                        smartAgentRouting: false
+                                    {/* Performance Mode Section */}
+                                    <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="text-lg font-medium flex items-center gap-2">
+                                                    <Zap className="w-5 h-5 text-yellow-400" />
+                                                    Minimal Latency Mode
+                                                </h3>
+                                                <p className="text-sm text-gray-500 mt-1">Disables all background processing for fastest response times.</p>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    const newSettings = {
+                                                        ...userSettings,
+                                                        memorySettings: {
+                                                            autoLearn: false,
+                                                            learningMode: 'async' as const,
+                                                            injectContext: false,
+                                                            autoSummarize: false,
+                                                            validateResponses: false,
+                                                            smartAgentRouting: false
+                                                        }
                                                     }
-                                                }
-                                                setUserSettings(newSettings)
-                                            }}
-                                            className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                                    setUserSettings(newSettings)
+                                                }}
+                                                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                            >
+                                                <Zap className="w-4 h-4" />
+                                                Enable Minimal Mode
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Save Button */}
+                                    <div className="pt-4 flex justify-end">
+                                        <button
+                                            onClick={(e) => handleUpdateSettings(e)}
+                                            disabled={saving}
+                                            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                                         >
-                                            <Zap className="w-4 h-4" />
-                                            Enable Minimal Mode
+                                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                            Save Changes
                                         </button>
                                     </div>
                                 </div>
-
-                                {/* Save Button */}
-                                <div className="pt-4 flex justify-end">
-                                    <button
-                                        onClick={(e) => handleUpdateSettings(e)}
-                                        disabled={saving}
-                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                                    >
-                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                                        Save Changes
-                                    </button>
+                            )
+                        ) : (
+                            /* Knowledge Sub-Tab */
+                            projects.length === 0 ? (
+                                <div className="text-center p-12 border border-dashed border-gray-800 rounded-xl">
+                                    <FolderOpen className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                                    <p className="text-gray-500 mb-2">No projects found</p>
+                                    <p className="text-sm text-gray-600">Create a project to start learning patterns from your conversations.</p>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="max-w-4xl">
+                                    {/* Project Selector */}
+                                    <div className="mb-6 flex items-center gap-4">
+                                        <label className="text-sm text-gray-400">Project:</label>
+                                        <select
+                                            value={selectedProjectId || ''}
+                                            onChange={(e) => setSelectedProjectId(e.target.value)}
+                                            className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white min-w-[200px]"
+                                        >
+                                            {projects.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Learning Dashboard */}
+                                    {selectedProjectId && (
+                                        <LearningDashboard
+                                            projectId={selectedProjectId}
+                                            projectName={projects.find(p => p.id === selectedProjectId)?.name}
+                                        />
+                                    )}
+                                </div>
+                            )
                         )}
                     </>
                 )}
+
 
                 {/* Help Tab */}
                 {activeTab === 'help' && (

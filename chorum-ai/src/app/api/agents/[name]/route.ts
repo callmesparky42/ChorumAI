@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
+import { auth } from '@/lib/auth'
 
 const AGENTS_DIR = path.join(process.cwd(), '.chorum', 'agents')
 
@@ -14,6 +15,11 @@ export async function DELETE(
   { params }: { params: Promise<{ name: string }> }
 ) {
   try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { name } = await params
     const filename = toFilename(decodeURIComponent(name))
     const filepath = path.join(AGENTS_DIR, filename)
