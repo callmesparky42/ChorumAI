@@ -57,8 +57,8 @@ export const useAgentStore = create<AgentStore>()(
           isCreatingAgent: false
         }))
 
-        // Auto-save to .chorum/agents/ (via API)
-        saveAgentToFile(newAgent)
+        // Auto-save to database (via API)
+        saveAgentToDb(newAgent)
 
         return newAgent
       },
@@ -75,7 +75,7 @@ export const useAgentStore = create<AgentStore>()(
         // Auto-save updated agent
         const agent = get().agents.find(a => a.id === id)
         if (agent && agent.isCustom) {
-          saveAgentToFile(agent)
+          saveAgentToDb(agent)
         }
       },
 
@@ -90,9 +90,9 @@ export const useAgentStore = create<AgentStore>()(
           activeAgent: state.activeAgent?.id === id ? null : state.activeAgent
         }))
 
-        // Delete from file system (via API)
+        // Delete from database (via API)
         if (agent) {
-          deleteAgentFile(agent.name)
+          deleteAgentRecord(agent.id)
         }
       },
 
@@ -114,7 +114,7 @@ export const useAgentStore = create<AgentStore>()(
           agents: [...state.agents, duplicate]
         }))
 
-        saveAgentToFile(duplicate)
+        saveAgentToDb(duplicate)
 
         return duplicate
       },
@@ -163,8 +163,8 @@ export const useAgentStore = create<AgentStore>()(
   )
 )
 
-// Helper functions for file persistence
-async function saveAgentToFile(agent: AgentDefinition) {
+// Helper functions for database persistence
+async function saveAgentToDb(agent: AgentDefinition) {
   try {
     await fetch('/api/agents', {
       method: 'POST',
@@ -172,17 +172,17 @@ async function saveAgentToFile(agent: AgentDefinition) {
       body: JSON.stringify(agent)
     })
   } catch (error) {
-    console.error('Failed to save agent to file:', error)
+    console.error('Failed to save agent to database:', error)
   }
 }
 
-async function deleteAgentFile(agentName: string) {
+async function deleteAgentRecord(agentId: string) {
   try {
-    await fetch(`/api/agents/${encodeURIComponent(agentName)}`, {
+    await fetch(`/api/agents/${encodeURIComponent(agentId)}`, {
       method: 'DELETE'
     })
   } catch (error) {
-    console.error('Failed to delete agent file:', error)
+    console.error('Failed to delete agent record:', error)
   }
 }
 

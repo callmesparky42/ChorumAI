@@ -9,7 +9,7 @@
  */
 
 import { AgentDefinition, AgentTier } from './types'
-import { getAgent, listAgents, getAgentsByTier, buildAgentSystemPrompt } from './registry'
+import { getAgent, listAgents, buildAgentSystemPrompt } from './registry'
 import { ChorumRouter, TaskType } from '@/lib/chorum/router'
 
 // Task type to agent mapping - which agents are best suited for which tasks
@@ -53,6 +53,7 @@ export interface OrchestrationResult {
 }
 
 export interface OrchestrationRequest {
+    userId?: string
     prompt: string
     taskType?: TaskType
     preferredAgent?: string
@@ -69,7 +70,7 @@ export interface OrchestrationRequest {
 export async function selectAgent(request: OrchestrationRequest): Promise<OrchestrationResult | null> {
     // If user explicitly requested an agent, use it
     if (request.preferredAgent) {
-        const agent = await getAgent(request.preferredAgent)
+        const agent = await getAgent(request.preferredAgent, request.userId)
         if (agent) {
             return {
                 agent,
@@ -86,7 +87,7 @@ export async function selectAgent(request: OrchestrationRequest): Promise<Orches
     }
 
     // Score all agents based on the prompt
-    const scores = await scoreAgentsForPrompt(request.prompt, request.taskType, request.tier)
+    const scores = await scoreAgentsForPrompt(request.prompt, request.taskType, request.tier, request.userId)
 
     if (scores.length === 0) {
         return null
@@ -94,7 +95,7 @@ export async function selectAgent(request: OrchestrationRequest): Promise<Orches
 
     // Best match
     const best = scores[0]
-    const agent = await getAgent(best.agentId)
+    const agent = await getAgent(best.agentId, request.userId)
 
     if (!agent) {
         return null
@@ -128,9 +129,10 @@ interface AgentScore {
 async function scoreAgentsForPrompt(
     prompt: string,
     taskType?: TaskType,
-    preferredTier?: AgentTier
+    preferredTier?: AgentTier,
+    userId?: string
 ): Promise<AgentScore[]> {
-    const agents = await listAgents()
+    const agents = await listAgents(userId)
     const promptLower = prompt.toLowerCase()
     const scores: AgentScore[] = []
 
@@ -217,9 +219,9 @@ function estimateComplexity(prompt: string): 'high' | 'medium' | 'low' {
 /**
  * Get recommended agent for a task type
  */
-export async function getRecommendedAgent(taskType: TaskType): Promise<AgentDefinition | null> {
+export async function getRecommendedAgent(taskType: TaskType, userId?: string): Promise<AgentDefinition | null> {
     const agentIds = TASK_AGENT_MAP[taskType] || ['writer']
-    return await getAgent(agentIds[0])
+    return await getAgent(agentIds[0], userId)
 }
 
 /**
@@ -229,7 +231,8 @@ export async function getRecommendedAgent(taskType: TaskType): Promise<AgentDefi
 export async function checkHandoff(
     currentAgent: AgentDefinition,
     responseContent: string,
-    requestPrompt: string
+    requestPrompt: string,
+    userId?: string
 ): Promise<AgentDefinition | null> {
     // Check if escalation is needed based on response content
     const escalationTriggers = [
@@ -242,7 +245,7 @@ export async function checkHandoff(
 
     for (const trigger of escalationTriggers) {
         if (trigger.pattern.test(responseContent)) {
-            const targetAgent = await getAgent(trigger.target)
+            const targetAgent = await getAgent(trigger.target, userId)
             if (targetAgent && targetAgent.id !== currentAgent.id) {
                 return targetAgent
             }
@@ -252,7 +255,7 @@ export async function checkHandoff(
     // Check agent's own escalation rules
     if (currentAgent.guardrails.escalateTo) {
         // This is simplified - in production would check more conditions
-        return await getAgent(currentAgent.guardrails.escalateTo)
+        return await getAgent(currentAgent.guardrails.escalateTo, userId)
     }
 
     return null

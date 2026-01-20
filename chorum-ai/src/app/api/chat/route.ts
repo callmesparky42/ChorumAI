@@ -3,11 +3,12 @@ import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { ChorumRouter } from '@/lib/chorum/router'
 import { db } from '@/lib/db'
-import { messages, routingLog, usageLog, providerCredentials, projects, users } from '@/lib/db/schema'
+import { messages, routingLog, usageLog, providerCredentials, projects, users, conversations } from '@/lib/db/schema'
 import { eq, and, gte } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { getRelevantMemory, buildMemoryContext, type MemoryStrategy } from '@/lib/chorum/memory'
 import { checkAndSummarize, buildSummarizationPrompt } from '@/lib/chorum/summarize'
+import { generateConversationTitle } from '@/lib/chorum/title'
 import { anonymizePii } from '@/lib/pii'
 import { callProvider, type FullProviderConfig } from '@/lib/providers'
 import {
@@ -47,7 +48,11 @@ export async function POST(req: NextRequest) {
             smartAgentRouting: true
         }
 
-        const { projectId, content: rawContent, providerOverride, agentOverride } = await req.json()
+        const { projectId, conversationId: existingConversationId, content: rawContent, images, providerOverride, agentOverride } = await req.json()
+
+        // Track if this is a new conversation (for sidebar refresh)
+        let isNewConversation = false
+        let conversationId = existingConversationId
 
         // Apply PII anonymization if enabled
         let content = rawContent
@@ -102,6 +107,7 @@ export async function POST(req: NextRequest) {
         if (memorySettings.smartAgentRouting !== false) {
             try {
                 agentResult = await selectAgent({
+                    userId,
                     prompt: content,
                     projectContext: systemPrompt,
                     preferredAgent: agentOverride
@@ -203,12 +209,29 @@ export async function POST(req: NextRequest) {
             strategy: routingStrategy
         })
 
+        // Create new conversation if needed
+        if (!conversationId && projectId) {
+            try {
+                const [newConversation] = await db.insert(conversations).values({
+                    projectId,
+                    title: null // Will be generated async after first response
+                }).returning()
+                conversationId = newConversation.id
+                isNewConversation = true
+                console.log(`[Conversation] Created new conversation: ${conversationId}`)
+            } catch (e) {
+                console.warn('Failed to create conversation:', e)
+            }
+        }
+
         // Save user message
         try {
             await db.insert(messages).values({
                 projectId,
+                conversationId,
                 role: 'user',
-                content
+                content,
+                images // Save base64 images in DB
             })
         } catch (e) {
             console.warn('Failed to save user message to DB', e)
@@ -217,7 +240,7 @@ export async function POST(req: NextRequest) {
         // Build full message array with memory
         const fullMessages = [
             ...memoryContext,
-            { role: 'user' as const, content }
+            { role: 'user' as const, content, images }
         ]
 
         let response: string
@@ -312,7 +335,7 @@ export async function POST(req: NextRequest) {
                 // Use fallback-aware call
                 const result = await callProviderWithFallback(
                     fallbackConfig,
-                    fullMessages.map(m => ({ role: m.role, content: m.content })),
+                    fullMessages.map(m => ({ role: m.role, content: m.content, images: m.images })),
                     systemPrompt
                 )
 
@@ -332,7 +355,7 @@ export async function POST(req: NextRequest) {
                         baseUrl: selectedConfig.baseUrl,
                         isLocal: selectedConfig.isLocal
                     },
-                    fullMessages.map(m => ({ role: m.role, content: m.content })),
+                    fullMessages.map(m => ({ role: m.role, content: m.content, images: m.images })),
                     systemPrompt
                 )
 
@@ -396,6 +419,7 @@ export async function POST(req: NextRequest) {
             await db.insert(messages).values({
                 id: assistantMsgId,
                 projectId,
+                conversationId,
                 role: 'assistant',
                 content: response,
                 provider: actualProvider, // Use actual provider (may differ if fallback)
@@ -450,6 +474,30 @@ export async function POST(req: NextRequest) {
                     return result.content
                 }).catch(err => console.warn('Summarization failed:', err))
             }
+
+            // [Conversation Title] Generate title for new conversations (async)
+            if (isNewConversation && conversationId) {
+                const cheapestProvider = providerConfigs.sort((a, b) =>
+                    (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
+                )[0]
+
+                generateConversationTitle(content, {
+                    provider: cheapestProvider.provider,
+                    apiKey: cheapestProvider.apiKey,
+                    model: cheapestProvider.model,
+                    baseUrl: cheapestProvider.baseUrl,
+                    isLocal: cheapestProvider.isLocal
+                }).then(async (title) => {
+                    try {
+                        await db.update(conversations)
+                            .set({ title, updatedAt: new Date() })
+                            .where(eq(conversations.id, conversationId))
+                        console.log(`[Conversation] Title generated: "${title}"`)
+                    } catch (e) {
+                        console.warn('[Conversation] Failed to save title:', e)
+                    }
+                }).catch(err => console.warn('[Conversation] Title generation failed:', err))
+            }
         } catch (e) {
             console.warn('Failed to log to DB', e)
         }
@@ -459,7 +507,7 @@ export async function POST(req: NextRequest) {
             try {
                 if (memorySettings.learningMode === 'sync') {
                     // Synchronous processing - adds latency but immediate learning
-                    const cheapestProvider = providerConfigs.sort((a: any, b: any) =>
+                    const cheapestProvider = providerConfigs.sort((a, b) =>
                         (a.costPer1M?.input || 0) - (b.costPer1M?.input || 0)
                     )[0]
                     if (cheapestProvider) {
@@ -524,13 +572,17 @@ export async function POST(req: NextRequest) {
                 historyReferenceDetected: memory.historyReferenceDetected,
                 messageCount: memory.recentMessages.length
             },
+            conversation: {
+                id: conversationId,
+                isNew: isNewConversation
+            },
             piiAnonymized: piiDetected
         })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Chat error:', error)
         // Return structured error info if available, otherwise generic
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        const errorMessage = error instanceof Error ? error.message : String(error)
         // If Postgres invalid input syntax for type uuid
         if (errorMessage.includes('invalid input syntax for type uuid')) {
             return NextResponse.json({ error: 'Invalid Project ID format' }, { status: 400 })

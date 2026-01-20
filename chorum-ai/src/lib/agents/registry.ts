@@ -87,8 +87,8 @@ export async function parseAgentFile(filePath: string): Promise<AgentDefinition 
         }
 
         return agent
-    } catch (e) {
-        console.warn(`Failed to parse agent file: ${filePath}`, e)
+    } catch (e: unknown) {
+        console.warn(`Failed to parse agent file: ${filePath}`, e instanceof Error ? e.message : e)
         return null
     }
 }
@@ -194,34 +194,32 @@ function isBuiltInAgent(name: string): boolean {
 }
 
 /**
- * Load all agents from .chorum/agents/
- * Returns both built-in agents (from MD files) and custom agents
+ * Load all built-in agents from .chorum/agents/
  */
-export async function loadAllAgents(): Promise<AgentDefinition[]> {
+export async function loadBuiltInAgents(): Promise<AgentDefinition[]> {
     // Check cache
     if (agentCache && Date.now() - lastCacheTime < CACHE_TTL) {
-        return Array.from(agentCache.values())
+        return Array.from(agentCache.values()).filter(a => a.isBuiltIn)
     }
 
     const agents: AgentDefinition[] = []
+    const builtInNames = [
+        'analyst', 'architect', 'code-reviewer', 'debugger',
+        'researcher', 'writer', 'editor', 'copywriter',
+        'fact-checker', 'planner', 'translator', 'tutor',
+        'summarizer', 'coordinator'
+    ]
 
     try {
-        // Ensure directory exists
-        await fs.mkdir(AGENTS_DIR, { recursive: true })
-
-        const files = await fs.readdir(AGENTS_DIR)
-        const mdFiles = files.filter(f => f.endsWith('.md') && !f.startsWith('_'))
-
-        for (const file of mdFiles) {
-            const agent = await parseAgentFile(path.join(AGENTS_DIR, file))
+        for (const name of builtInNames) {
+            const filePath = path.join(AGENTS_DIR, `${name}.md`)
+            const agent = await parseAgentFile(filePath)
             if (agent) {
                 agents.push(agent)
             }
         }
-    } catch (e) {
-        console.warn('Failed to load agents from directory, using built-in definitions', e)
-
-        // Fallback to hardcoded definitions
+    } catch (e: unknown) {
+        console.warn('Failed to load built-in agents from directory, using hardcoded definitions', e instanceof Error ? e.message : e)
         for (const agent of BUILT_IN_AGENTS) {
             agents.push({
                 ...agent,
@@ -233,52 +231,122 @@ export async function loadAllAgents(): Promise<AgentDefinition[]> {
     }
 
     // Update cache
-    agentCache = new Map(agents.map(a => [a.id, a]))
+    if (!agentCache) agentCache = new Map()
+    for (const a of agents) {
+        agentCache.set(a.id, a)
+    }
     lastCacheTime = Date.now()
 
     return agents
 }
 
 /**
- * Get a specific agent by ID or name
+ * Load custom agents for a specific user from the database
  */
-export async function getAgent(nameOrId: string): Promise<AgentDefinition | null> {
-    const agents = await loadAllAgents()
-    const normalized = nameOrId.toLowerCase().replace(/\s+/g, '-')
+export async function loadUserAgents(userId: string): Promise<AgentDefinition[]> {
+    const { db } = await import('@/lib/db')
+    const { customAgents } = await import('@/lib/db/schema')
+    const { eq } = await import('drizzle-orm')
 
-    return agents.find(a =>
-        a.id === normalized ||
-        a.name.toLowerCase() === nameOrId.toLowerCase()
-    ) || null
+    try {
+        const agents = await db.query.customAgents.findMany({
+            where: eq(customAgents.userId, userId)
+        })
+
+        return agents.map(a => ({
+            ...a.config,
+            id: a.id,
+            isCustom: true,
+            isBuiltIn: false,
+            createdAt: a.createdAt?.toISOString(),
+            updatedAt: a.updatedAt?.toISOString()
+        }))
+    } catch (e: unknown) {
+        console.error(`Failed to load user agents for ${userId}`, e instanceof Error ? e.message : e)
+        return []
+    }
 }
 
 /**
- * List all available agents
+ * Get a specific agent by ID or name
  */
-export async function listAgents(): Promise<{ id: string; name: string; icon: string; tier: AgentTier; role: string }[]> {
-    const agents = await loadAllAgents()
-    return agents.map(a => ({
+export async function getAgent(nameOrId: string, userId?: string): Promise<AgentDefinition | null> {
+    const builtIns = await loadBuiltInAgents()
+    const normalized = nameOrId.toLowerCase().replace(/\s+/g, '-')
+
+    const builtIn = builtIns.find(a =>
+        a.id === normalized ||
+        a.name.toLowerCase() === nameOrId.toLowerCase()
+    )
+
+    if (builtIn) return builtIn
+
+    if (userId) {
+        const userAgents = await loadUserAgents(userId)
+        return userAgents.find(a =>
+            a.id === nameOrId || // ID match (UUID)
+            a.name.toLowerCase() === nameOrId.toLowerCase()
+        ) || null
+    }
+
+    return null
+}
+
+/**
+ * List all available agents (built-in + optionally user-specific)
+ */
+export async function listAgents(userId?: string): Promise<{ id: string; name: string; icon: string; tier: AgentTier; role: string; isCustom: boolean }[]> {
+    const builtIns = await loadBuiltInAgents()
+    const result = builtIns.map(a => ({
         id: a.id,
         name: a.name,
         icon: a.icon,
         tier: a.tier,
-        role: a.role
+        role: a.role,
+        isCustom: false
     }))
+
+    if (userId) {
+        const userAgents = await loadUserAgents(userId)
+        result.push(...userAgents.map(a => ({
+            id: a.id,
+            name: a.name,
+            icon: a.icon,
+            tier: a.tier,
+            role: a.role,
+            isCustom: true
+        })))
+    }
+
+    return result
 }
 
 /**
  * Get agents by tier
  */
-export async function getAgentsByTier(tier: AgentTier): Promise<AgentDefinition[]> {
-    const agents = await loadAllAgents()
+export async function getAgentsByTier(tier: AgentTier, userId?: string): Promise<AgentDefinition[]> {
+    const builtIns = await loadBuiltInAgents()
+    const agents = [...builtIns]
+
+    if (userId) {
+        const userAgents = await loadUserAgents(userId)
+        agents.push(...userAgents)
+    }
+
     return agents.filter(a => a.tier === tier)
 }
 
 /**
  * Get agent for a specific capability
  */
-export async function getAgentForCapability(capability: string): Promise<AgentDefinition | null> {
-    const agents = await loadAllAgents()
+export async function getAgentForCapability(capability: string, userId?: string): Promise<AgentDefinition | null> {
+    const builtIns = await loadBuiltInAgents()
+    const agents = [...builtIns]
+
+    if (userId) {
+        const userAgents = await loadUserAgents(userId)
+        agents.push(...userAgents)
+    }
 
     // Find agent that has this capability
     return agents.find(a =>
