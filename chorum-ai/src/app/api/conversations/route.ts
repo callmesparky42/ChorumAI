@@ -1,7 +1,7 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { messages, projects } from '@/lib/db/schema'
-import { desc, eq, and, sql } from 'drizzle-orm'
+import { messages, projects, conversations } from '@/lib/db/schema'
+import { desc, eq, and, sql, count } from 'drizzle-orm'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
@@ -24,32 +24,51 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Project not found' }, { status: 404 })
         }
 
-        // Get conversations - group messages by date to create "conversation threads"
-        // Each distinct day of conversation is a "thread" for now
-        const conversations = await db
+        // Get real conversations from the conversations table
+        const conversationList = await db
             .select({
-                date: sql<string>`DATE(${messages.createdAt})`.as('conversation_date'),
-                firstMessageId: sql<string>`MIN(${messages.id})`.as('first_msg'),
-                lastMessageAt: sql<Date>`MAX(${messages.createdAt})`.as('last_msg'),
-                messageCount: sql<number>`COUNT(*)`.as('msg_count'),
+                id: conversations.id,
+                title: conversations.title,
+                createdAt: conversations.createdAt,
+                updatedAt: conversations.updatedAt,
+                messageCount: sql<number>`(
+                    SELECT COUNT(*) FROM messages
+                    WHERE messages.conversation_id = ${conversations.id}
+                )`.as('message_count'),
                 preview: sql<string>`(
-                    SELECT content FROM messages m2 
-                    WHERE m2.project_id = ${projectId} 
-                      AND DATE(m2.created_at) = DATE(${messages.createdAt})
-                      AND m2.role = 'user'
-                    ORDER BY m2.created_at ASC
+                    SELECT content FROM messages
+                    WHERE messages.conversation_id = ${conversations.id}
+                      AND messages.role = 'user'
+                    ORDER BY messages.created_at ASC
                     LIMIT 1
                 )`.as('preview')
             })
-            .from(messages)
-            .where(eq(messages.projectId, projectId))
-            .groupBy(sql`DATE(${messages.createdAt})`)
-            .orderBy(desc(sql`DATE(${messages.createdAt})`))
-            .limit(20)
+            .from(conversations)
+            .where(eq(conversations.projectId, projectId))
+            .orderBy(desc(conversations.updatedAt))
+            .limit(50)
 
-        return NextResponse.json(conversations)
+        // Transform to consistent format
+        const result = conversationList.map(c => ({
+            id: c.id,
+            title: c.title || (c.preview ? truncatePreview(c.preview) : 'New Conversation'),
+            preview: c.preview,
+            messageCount: Number(c.messageCount) || 0,
+            createdAt: c.createdAt,
+            updatedAt: c.updatedAt
+        }))
+
+        return NextResponse.json(result)
     } catch (error) {
         console.error('Error fetching conversations:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     }
+}
+
+function truncatePreview(text: string): string {
+    const cleaned = text.replace(/\s+/g, ' ').trim()
+    if (cleaned.length <= 40) return cleaned
+    const truncated = cleaned.substring(0, 40)
+    const lastSpace = truncated.lastIndexOf(' ')
+    return lastSpace > 20 ? truncated.substring(0, lastSpace) + '...' : truncated + '...'
 }

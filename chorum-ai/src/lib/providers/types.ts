@@ -5,6 +5,7 @@
 export interface ChatMessage {
     role: 'user' | 'assistant' | 'system'
     content: string
+    images?: string[] // base64 data URLs
 }
 
 export interface ChatResult {

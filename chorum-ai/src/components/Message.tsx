@@ -11,6 +11,7 @@ interface MessageProps {
         id: string
         role: string
         content: string
+        images?: string[] | null
         provider?: string | null
         costUsd?: string | null
         agentName?: string
@@ -103,6 +104,22 @@ export function Message({ message, previousUserMessage }: MessageProps) {
                             {message.content}
                         </ReactMarkdown>
                     </div>
+
+                    {/* Render Images */}
+                    {message.images && message.images.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {message.images.map((img, idx) => (
+                                <div key={idx} className="relative group max-w-sm rounded-lg overflow-hidden border border-gray-700/50">
+                                    <img
+                                        src={img}
+                                        alt="attached content"
+                                        className="max-h-64 object-contain cursor-zoom-in hover:brightness-110 transition-all shadow-lg"
+                                        onClick={() => window.open(img, '_blank')}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {!isUser && (

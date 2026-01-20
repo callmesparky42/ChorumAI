@@ -15,10 +15,22 @@ export async function callOpenAI(
         model: config.model,
         messages: [
             { role: 'system', content: systemPrompt },
-            ...messages.map(m => ({
-                role: m.role as 'user' | 'assistant' | 'system',
-                content: m.content
-            }))
+            ...messages.map(m => {
+                if (m.images && m.images.length > 0) {
+                    const content: any[] = [{ type: 'text', text: m.content }]
+                    m.images.forEach(img => {
+                        content.push({
+                            type: 'image_url',
+                            image_url: { url: img }
+                        })
+                    })
+                    return { role: m.role as 'user' | 'assistant', content }
+                }
+                return {
+                    role: m.role as 'user' | 'assistant' | 'system',
+                    content: m.content
+                }
+            })
         ]
     })
 

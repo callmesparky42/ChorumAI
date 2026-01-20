@@ -7,6 +7,7 @@ export interface ConversationMemory {
     recentMessages: Array<{
         role: string
         content: string
+        images?: string[]
     }>
 }
 
@@ -93,7 +94,8 @@ export async function getRelevantMemory(
             summary: latestSummary?.summary || null,
             recentMessages: chronological.map(m => ({
                 role: m.role,
-                content: m.content
+                content: m.content,
+                images: m.images as string[] | undefined
             })),
             strategy: 'immediate',
             historyReferenceDetected: false
@@ -116,7 +118,8 @@ export async function getRelevantMemory(
         summary: latestSummary?.summary || null,
         recentMessages: chronological.map(m => ({
             role: m.role,
-            content: m.content
+            content: m.content,
+            images: m.images as string[] | undefined
         })),
         strategy: 'full',
         historyReferenceDetected: true
@@ -154,7 +157,8 @@ export async function getConversationMemory(
         summary: latestSummary?.summary || null,
         recentMessages: chronological.map(m => ({
             role: m.role,
-            content: m.content
+            content: m.content,
+            images: m.images as string[] | undefined
         }))
     }
 }
@@ -162,8 +166,8 @@ export async function getConversationMemory(
 /**
  * Build context messages for LLM from memory
  */
-export function buildMemoryContext(memory: ConversationMemory): Array<{ role: 'user' | 'assistant'; content: string }> {
-    const contextMessages: Array<{ role: 'user' | 'assistant'; content: string }> = []
+export function buildMemoryContext(memory: ConversationMemory): Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }> {
+    const contextMessages: Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }> = []
 
     // Add summary as a "previous context" user message if exists
     if (memory.summary) {
@@ -181,7 +185,8 @@ export function buildMemoryContext(memory: ConversationMemory): Array<{ role: 'u
     for (const msg of memory.recentMessages) {
         contextMessages.push({
             role: msg.role as 'user' | 'assistant',
-            content: msg.content
+            content: msg.content,
+            images: msg.images || undefined
         })
     }
 

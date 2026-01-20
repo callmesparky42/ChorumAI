@@ -14,10 +14,29 @@ export async function callAnthropic(
     // Filter out system messages - Anthropic uses separate system param
     const chatMessages = messages
         .filter(m => m.role !== 'system')
-        .map(m => ({
-            role: m.role as 'user' | 'assistant',
-            content: m.content
-        }))
+        .map(m => {
+            if (m.images && m.images.length > 0) {
+                const content: any[] = [{ type: 'text', text: m.content }]
+                m.images.forEach(img => {
+                    const match = img.match(/^data:(image\/\w+);base64,(.+)$/)
+                    if (match) {
+                        content.push({
+                            type: 'image',
+                            source: {
+                                type: 'base64',
+                                media_type: match[1] as any,
+                                data: match[2]
+                            }
+                        })
+                    }
+                })
+                return { role: m.role as 'user' | 'assistant', content }
+            }
+            return {
+                role: m.role as 'user' | 'assistant',
+                content: m.content
+            }
+        })
 
     const result = await anthropic.messages.create({
         model: config.model,

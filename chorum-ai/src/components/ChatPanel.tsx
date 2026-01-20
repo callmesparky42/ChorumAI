@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, Users } from 'lucide-react'
+import { Send, Bot, Users, Plus, X, Image as ImageIcon } from 'lucide-react'
 import { Message } from './Message'
 import { ProviderSelector } from './ProviderSelector'
 import { AgentSelector } from './AgentSelector'
@@ -15,7 +15,11 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
     const [message, setMessage] = useState('')
     const [selectedProvider, setSelectedProvider] = useState<string>('auto')
     const [selectedAgent, setSelectedAgent] = useState<string>('auto')
+    const [images, setImages] = useState<string[]>([])
+    const [isDragging, setIsDragging] = useState(false)
+
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const { messages, sendMessage, isLoading } = useChorumStore()
     const { activeAgent } = useAgentStore()
@@ -24,6 +28,54 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files
+        if (!files) return
+        processFiles(files)
+    }
+
+    const processFiles = (files: FileList | File[]) => {
+        Array.from(files).forEach(file => {
+            if (!file.type.startsWith('image/')) return
+            // Check file size (limit to 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File too large (max 5MB)')
+                return
+            }
+
+            const reader = new FileReader()
+            reader.onload = (e) => {
+                const base64 = e.target?.result as string
+                setImages(prev => {
+                    if (prev.includes(base64)) return prev
+                    return [...prev, base64].slice(-5) // Limit to 5 images
+                })
+            }
+            reader.readAsDataURL(file)
+        })
+    }
+
+    const removeImage = (index: number) => {
+        setImages(prev => prev.filter((_, i) => i !== index))
+    }
+
+    const onDragOver = (e: React.DragEvent) => {
+        e.preventDefault()
+        setIsDragging(true)
+    }
+
+    const onDragLeave = () => {
+        setIsDragging(false)
+    }
+
+    const onDrop = (e: React.DragEvent) => {
+        e.preventDefault()
+        setIsDragging(false)
+        if (e.dataTransfer.files) {
+            processFiles(Array.from(e.dataTransfer.files))
+        }
+    }
 
     // Calculate total session cost
     const sessionCost = messages.reduce((acc, msg) => acc + (Number(msg.costUsd) || 0), 0)
@@ -34,11 +86,13 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
         await sendMessage({
             projectId,
             content: message,
+            images: images.length > 0 ? images : undefined,
             providerOverride: selectedProvider === 'auto' ? undefined : selectedProvider,
             agentOverride: selectedAgent
         })
 
         setMessage('')
+        setImages([])
     }
 
     return (
@@ -120,22 +174,67 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
             <div className="border-t border-gray-800 p-4">
                 <div className="flex items-end gap-3">
                     <div className="flex-1">
-                        <textarea
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault()
-                                    handleSend()
+                        <div
+                            className={clsx(
+                                "relative flex-1 group",
+                                isDragging && "after:absolute after:inset-0 after:bg-blue-500/10 after:border-2 after:border-blue-500 after:border-dashed after:rounded-lg"
+                            )}
+                            onDragOver={onDragOver}
+                            onDragLeave={onDragLeave}
+                            onDrop={onDrop}
+                        >
+                            {/* Image Previews */}
+                            {images.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-2 p-2 bg-gray-900/50 rounded-lg border border-gray-800">
+                                    {images.map((img, idx) => (
+                                        <div key={idx} className="relative group/img w-20 h-20 rounded-md overflow-hidden border border-gray-700">
+                                            <img src={img} alt="preview" className="w-full h-full object-cover" />
+                                            <button
+                                                onClick={() => removeImage(idx)}
+                                                className="absolute top-1 right-1 p-1 bg-red-500 rounded-full opacity-0 group-hover/img:opacity-100 transition-opacity text-white"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault()
+                                        handleSend()
+                                    }
+                                }}
+                                placeholder={activeAgent
+                                    ? `Ask ${activeAgent.name}...`
+                                    : "Type a message..."
                                 }
-                            }}
-                            placeholder={activeAgent
-                                ? `Ask ${activeAgent.name}...`
-                                : "Type a message..."
-                            }
-                            className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 resize-none"
-                            rows={3}
-                        />
+                                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 resize-none"
+                                rows={3}
+                            />
+
+                            <div className="absolute left-3 bottom-3 flex gap-2">
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="p-1.5 hover:bg-gray-700 rounded-md transition-colors text-gray-400 hover:text-white"
+                                    title="Add image"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileSelect}
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex flex-col gap-2 w-48">
