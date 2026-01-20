@@ -1,9 +1,11 @@
 import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { promises as fs } from 'fs'
-import path from 'path'
+import { db } from '@/lib/db'
+import { projectLearningPaths, projects } from '@/lib/db/schema'
+import { and, eq } from 'drizzle-orm'
 
 interface PatternRequest {
+  projectId: string
   patterns: string[]
   source: 'peer-review' | 'agent' | 'manual'
   focus?: string
@@ -17,111 +19,84 @@ export async function POST(req: NextRequest) {
     }
 
     const body: PatternRequest = await req.json()
-    const { patterns, source, focus } = body
+    const { projectId, patterns, source, focus } = body
+
+    if (!projectId) {
+      return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
+    }
 
     if (!patterns || patterns.length === 0) {
       return NextResponse.json({ error: 'No patterns provided' }, { status: 400 })
     }
 
-    // Path to the patterns.md file in .chorum directory
-    const patternsFile = path.join(process.cwd(), '.chorum', 'memory', 'patterns.md')
+    // Verify project ownership
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.userId, session.user.id)))
 
-    // Ensure directory exists
-    await fs.mkdir(path.dirname(patternsFile), { recursive: true })
-
-    // Read existing content or create default structure
-    let existingContent = ''
-    try {
-      existingContent = await fs.readFile(patternsFile, 'utf-8')
-    } catch {
-      // File doesn't exist, create with default structure
-      existingContent = `# Learned Patterns
-
-Patterns discovered during development that should be applied consistently.
-
----
-
-## Code Patterns
-
-## Security Patterns
-
-## Architecture Patterns
-
-## Review Insights
-
----
-
-*Patterns are automatically added by peer reviews and agent learning.*
-`
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Format new patterns
-    const timestamp = new Date().toISOString().split('T')[0]
-    const sourceLabel = source === 'peer-review' ? 'Peer Review' : source === 'agent' ? 'Agent Learning' : 'Manual'
-    const focusLabel = focus ? ` (${focus})` : ''
+    // Insert patterns into database
+    const insertData = patterns.map(p => ({
+      projectId,
+      type: 'pattern',
+      content: p,
+      context: focus ? `Focus: ${focus}` : `Source: ${source}`,
+      metadata: { source, focus, timestamp: new Date().toISOString() }
+    }))
 
-    const newPatternSection = `
-### ${sourceLabel}${focusLabel} - ${timestamp}
-
-${patterns.map(p => `- ${p}`).join('\n')}
-`
-
-    // Find the appropriate section to insert based on focus
-    let sectionHeader = '## Review Insights'
-    if (focus === 'code') sectionHeader = '## Code Patterns'
-    else if (focus === 'security') sectionHeader = '## Security Patterns'
-    else if (focus === 'architecture') sectionHeader = '## Architecture Patterns'
-
-    // Insert patterns after the appropriate section header
-    const sectionIndex = existingContent.indexOf(sectionHeader)
-    if (sectionIndex !== -1) {
-      const insertPoint = existingContent.indexOf('\n', sectionIndex) + 1
-      existingContent =
-        existingContent.slice(0, insertPoint) +
-        newPatternSection +
-        existingContent.slice(insertPoint)
-    } else {
-      // Append to end if section not found
-      existingContent += '\n' + newPatternSection
-    }
-
-    // Write updated content
-    await fs.writeFile(patternsFile, existingContent, 'utf-8')
+    await db.insert(projectLearningPaths).values(insertData)
 
     return NextResponse.json({
       success: true,
-      patternsAdded: patterns.length,
-      file: '.chorum/memory/patterns.md'
+      patternsAdded: patterns.length
     })
 
-  } catch (error: any) {
-    console.error('Pattern writeback error:', error)
+  } catch (error: unknown) {
+    console.error('Pattern write error:', error instanceof Error ? error.message : error)
     return NextResponse.json(
-      { error: `Failed to save patterns: ${error.message}` },
+      { error: `Failed to save patterns: ${error instanceof Error ? error.message : String(error)}` },
       { status: 500 }
     )
   }
 }
 
-// GET endpoint to retrieve current patterns
-export async function GET() {
+// GET endpoint to retrieve current patterns from database
+export async function GET(req: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const patternsFile = path.join(process.cwd(), '.chorum', 'memory', 'patterns.md')
+    const { searchParams } = new URL(req.url)
+    const projectId = searchParams.get('projectId')
 
-    try {
-      const content = await fs.readFile(patternsFile, 'utf-8')
-      return NextResponse.json({ content })
-    } catch {
-      return NextResponse.json({ content: null, message: 'No patterns file found' })
+    if (!projectId) {
+      return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
     }
-  } catch (error: any) {
+
+    // Verify project ownership
+    const [project] = await db.select().from(projects)
+      .where(and(eq(projects.id, projectId), eq(projects.userId, session.user.id)))
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    const patterns = await db.query.projectLearningPaths.findMany({
+      where: and(
+        eq(projectLearningPaths.projectId, projectId),
+        eq(projectLearningPaths.type, 'pattern')
+      )
+    })
+
+    return NextResponse.json({ patterns })
+  } catch (error: unknown) {
+    console.error('Pattern read error:', error instanceof Error ? error.message : error)
     return NextResponse.json(
-      { error: `Failed to read patterns: ${error.message}` },
+      { error: `Failed to read patterns: ${error instanceof Error ? error.message : String(error)}` },
       { status: 500 }
     )
   }
