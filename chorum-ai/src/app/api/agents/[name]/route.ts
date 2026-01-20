@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs/promises'
-import path from 'path'
 import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { customAgents } from '@/lib/db/schema'
+import { and, eq } from 'drizzle-orm'
 
-const AGENTS_DIR = path.join(process.cwd(), '.chorum', 'agents')
-
-function toFilename(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '.md'
-}
-
-// DELETE - Remove a custom agent
+// DELETE - Remove a custom agent for the current user
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ name: string }> }
+  { params }: { params: Promise<{ name: string }> } // Keeping 'name' param for now but using it as ID
 ) {
   try {
     const session = await auth()
@@ -20,26 +15,25 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { name } = await params
-    const filename = toFilename(decodeURIComponent(name))
-    const filepath = path.join(AGENTS_DIR, filename)
+    const { name: id } = await params
 
-    // Check if file exists
-    try {
-      await fs.access(filepath)
-    } catch {
+    const [deleted] = await db.delete(customAgents)
+      .where(and(
+        eq(customAgents.id, id),
+        eq(customAgents.userId, session.user.id)
+      ))
+      .returning()
+
+    if (!deleted) {
       return NextResponse.json(
-        { error: 'Agent not found' },
+        { error: 'Agent not found or unauthorized' },
         { status: 404 }
       )
     }
 
-    // Delete the file
-    await fs.unlink(filepath)
-
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Failed to delete agent:', error)
+  } catch (error: unknown) {
+    console.error('Failed to delete agent:', error instanceof Error ? error.message : error)
     return NextResponse.json(
       { error: 'Failed to delete agent' },
       { status: 500 }
