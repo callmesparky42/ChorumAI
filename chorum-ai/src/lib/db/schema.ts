@@ -1,5 +1,6 @@
 import { pgTable, text, uuid, timestamp, decimal, integer, jsonb, boolean, primaryKey } from 'drizzle-orm/pg-core'
 import type { AdapterAccount } from "next-auth/adapters"
+import type { AgentDefinition } from '@/lib/agents/types'
 
 export const users = pgTable('user', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -121,11 +122,21 @@ export const projects = pgTable('projects', {
   createdAt: timestamp('created_at').defaultNow()
 })
 
+export const conversations = pgTable('conversations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  title: text('title'), // AI-generated title from first message (null until generated)
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+})
+
 export const messages = pgTable('messages', {
   id: uuid('id').primaryKey().defaultRandom(),
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'cascade' }), // Nullable for backward compat
   role: text('role').notNull(), // 'user' | 'assistant'
   content: text('content').notNull(),
+  images: jsonb('images').$type<string[]>(), // Array of base64 image strings or URLs
   provider: text('provider'), // Which LLM answered (null for user messages)
   costUsd: decimal('cost_usd', { precision: 10, scale: 6 }),
   tokensInput: integer('tokens_input'),
@@ -231,4 +242,14 @@ export const learningQueue = pgTable('learning_queue', {
   error: text('error'),
   createdAt: timestamp('created_at').defaultNow(),
   processedAt: timestamp('processed_at')
+})
+// --- Custom Agents ---
+
+export const customAgents = pgTable('custom_agents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  config: jsonb('config').$type<AgentDefinition>().notNull(), // Full AgentDefinition from types.ts
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
 })
