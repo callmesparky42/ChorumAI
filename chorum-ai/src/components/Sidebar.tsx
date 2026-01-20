@@ -1,8 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Plus, Folder, Loader2, Settings, X, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react'
+import { Plus, Folder, Loader2, Settings, X, ChevronDown, ChevronRight, MessageSquare, PlusCircle } from 'lucide-react'
 import clsx from 'clsx'
 import Link from 'next/link'
+import { useChorumStore } from '@/lib/store'
 
 interface Project {
     id: string
@@ -13,11 +14,12 @@ interface Project {
 }
 
 interface Conversation {
-    date: string
-    firstMessageId: string
-    lastMessageAt: string
-    messageCount: number
+    id: string
+    title: string
     preview: string | null
+    messageCount: number
+    createdAt: string
+    updatedAt: string
 }
 
 interface ProjectItemProps {
@@ -25,38 +27,22 @@ interface ProjectItemProps {
     isActive: boolean
     isHovered: boolean
     onSelect: () => void
+    onSelectConversation: (conversationId: string) => void
+    onNewConversation: () => void
     onDelete: (e: React.MouseEvent) => void
     onHover: (id: string | null) => void
+    refreshTrigger: number
 }
 
-function ProjectItem({ project, isActive, isHovered, onSelect, onDelete, onHover }: ProjectItemProps) {
+function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversation, onNewConversation, onDelete, onHover, refreshTrigger }: ProjectItemProps) {
     const [expanded, setExpanded] = useState(false)
     const [conversations, setConversations] = useState<Conversation[]>([])
     const [loadingConvos, setLoadingConvos] = useState(false)
     const [conversationCount, setConversationCount] = useState<number | null>(null)
 
-    // Auto-fetch conversation count when component mounts or project becomes active
-    useEffect(() => {
-        const fetchConversationCount = async () => {
-            try {
-                const res = await fetch(`/api/conversations?projectId=${project.id}`)
-                if (res.ok) {
-                    const data = await res.json()
-                    setConversationCount(data.length)
-                    // Cache the data if we got it
-                    if (data.length > 0) {
-                        setConversations(data)
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to load conversation count', e)
-            }
-        }
-        fetchConversationCount()
-    }, [project.id])
-
-    const fetchConversations = async () => {
-        if (conversations.length > 0) return // Already loaded
+    // Fetch conversations when component mounts, project becomes active, or refresh is triggered
+    const fetchConversations = async (force = false) => {
+        if (!force && conversations.length > 0 && !isActive) return
         setLoadingConvos(true)
         try {
             const res = await fetch(`/api/conversations?projectId=${project.id}`)
@@ -71,6 +57,26 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onDelete, onHover
             setLoadingConvos(false)
         }
     }
+
+    // Initial fetch
+    useEffect(() => {
+        fetchConversations()
+    }, [project.id])
+
+    // Refresh when trigger changes (new conversation created)
+    useEffect(() => {
+        if (refreshTrigger > 0 && isActive) {
+            fetchConversations(true)
+        }
+    }, [refreshTrigger, isActive])
+
+    // Auto-expand active project
+    useEffect(() => {
+        if (isActive && !expanded) {
+            setExpanded(true)
+            fetchConversations(true)
+        }
+    }, [isActive])
 
     const handleExpand = (e: React.MouseEvent) => {
         e.stopPropagation()
@@ -119,6 +125,18 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onDelete, onHover
             {/* Conversations */}
             {expanded && (
                 <div className="ml-6 mt-1 space-y-0.5">
+                    {/* New Chat Button */}
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onNewConversation()
+                        }}
+                        className="w-full text-left px-2 py-1.5 rounded text-xs text-blue-400 hover:bg-blue-600/10 hover:text-blue-300 flex items-center gap-2 transition-colors"
+                    >
+                        <PlusCircle className="w-3 h-3 shrink-0" />
+                        <span>New Chat</span>
+                    </button>
+
                     {loadingConvos && (
                         <div className="flex items-center gap-2 text-xs text-gray-600 py-1 px-2">
                             <Loader2 className="w-3 h-3 animate-spin" /> Loading...
@@ -129,16 +147,17 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onDelete, onHover
                     )}
                     {conversations.map((convo) => (
                         <button
-                            key={convo.date}
-                            onClick={onSelect}
+                            key={convo.id}
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onSelectConversation(convo.id)
+                            }}
                             className="w-full text-left px-2 py-1.5 rounded text-xs text-gray-500 hover:bg-gray-900 hover:text-gray-300 flex items-center gap-2 transition-colors"
+                            title={convo.preview || convo.title}
                         >
                             <MessageSquare className="w-3 h-3 shrink-0 text-gray-600" />
                             <span className="truncate flex-1">
-                                {convo.preview
-                                    ? convo.preview.substring(0, 30) + (convo.preview.length > 30 ? '...' : '')
-                                    : new Date(convo.date).toLocaleDateString()
-                                }
+                                {convo.title}
                             </span>
                             <span className="text-gray-700 text-[10px]">{convo.messageCount}</span>
                         </button>
@@ -152,13 +171,17 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onDelete, onHover
 interface Props {
     activeProjectId?: string | null
     onSelectProject: (projectId: string) => void
+    onSelectConversation?: (conversationId: string) => void
 }
 
-export function Sidebar({ activeProjectId, onSelectProject }: Props) {
+export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation }: Props) {
     const [projects, setProjects] = useState<Project[]>([])
     const [loading, setLoading] = useState(true)
     const [showNewProjectModal, setShowNewProjectModal] = useState(false)
     const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null)
+
+    // Get refresh trigger from store
+    const { conversationRefreshTrigger, startNewConversation } = useChorumStore()
 
     // New Project Form State
     const [newName, setNewName] = useState('')
@@ -261,9 +284,18 @@ export function Sidebar({ activeProjectId, onSelectProject }: Props) {
                             project={project}
                             isActive={activeProjectId === project.id}
                             onSelect={() => onSelectProject(project.id)}
+                            onSelectConversation={(convId) => {
+                                onSelectProject(project.id)
+                                onSelectConversation?.(convId)
+                            }}
+                            onNewConversation={() => {
+                                onSelectProject(project.id)
+                                startNewConversation()
+                            }}
                             onDelete={(e) => handleDeleteProject(e, project.id)}
                             onHover={setHoveredProjectId}
                             isHovered={hoveredProjectId === project.id}
+                            refreshTrigger={conversationRefreshTrigger}
                         />
                     ))}
 

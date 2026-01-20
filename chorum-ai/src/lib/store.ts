@@ -6,6 +6,7 @@ interface Message {
     id: string
     role: 'user' | 'assistant'
     content: string
+    images?: string[] // base64 strings
     provider?: string
     costUsd?: string
     tokensInput?: number
@@ -17,37 +18,83 @@ interface Message {
 interface ChorumStore {
     messages: Message[]
     isLoading: boolean
+    currentConversationId: string | null
+    conversationRefreshTrigger: number // Increment to trigger sidebar refresh
     addMessage: (msg: Message) => void
     sendMessage: (params: {
         projectId: string
         content: string
+        images?: string[]
         providerOverride?: string
         agentOverride?: string  // Agent ID to force, or 'auto' for orchestrator selection
     }) => Promise<void>
+    loadConversation: (conversationId: string) => Promise<void>
     clearMessages: () => void
+    startNewConversation: () => void
+    triggerConversationRefresh: () => void
 }
 
 export const useChorumStore = create<ChorumStore>((set, get) => ({
     messages: [],
     isLoading: false,
+    currentConversationId: null,
+    conversationRefreshTrigger: 0,
     addMessage: (msg) => set((state) => ({ messages: [...state.messages, msg] })),
-    clearMessages: () => set({ messages: [] }),
-    sendMessage: async ({ projectId, content, providerOverride, agentOverride }) => {
+    clearMessages: () => set({ messages: [], currentConversationId: null }),
+    startNewConversation: () => set({ messages: [], currentConversationId: null }),
+    triggerConversationRefresh: () => set((state) => ({
+        conversationRefreshTrigger: state.conversationRefreshTrigger + 1
+    })),
+    loadConversation: async (conversationId: string) => {
+        set({ isLoading: true })
+        try {
+            const response = await fetch(`/api/conversations/${conversationId}/messages`)
+            if (!response.ok) {
+                throw new Error('Failed to load conversation')
+            }
+            const data = await response.json()
+
+            // Transform messages to our format
+            const loadedMessages: Message[] = data.messages.map((msg: any) => ({
+                id: msg.id,
+                role: msg.role,
+                content: msg.content,
+                provider: msg.provider,
+                costUsd: msg.costUsd,
+                tokensInput: msg.tokensInput,
+                tokensOutput: msg.tokensOutput
+            }))
+
+            set({
+                messages: loadedMessages,
+                currentConversationId: conversationId
+            })
+        } catch (error) {
+            console.error('Failed to load conversation:', error)
+        } finally {
+            set({ isLoading: false })
+        }
+    },
+    sendMessage: async ({ projectId, content, images, providerOverride, agentOverride }) => {
         set({ isLoading: true })
 
         // Add user message immediately
         const userMsg: Message = {
             id: uuidv4(),
             role: 'user',
-            content
+            content,
+            images
         }
         set((state) => ({ messages: [...state.messages, userMsg] }))
 
         try {
-            // Build request with agent context
+            // Build request with agent context and conversation ID
+            const { currentConversationId } = get()
             const requestBody: Record<string, unknown> = {
                 projectId,
+                conversationId: currentConversationId,
                 content,
+                images,
                 providerOverride,
                 agentOverride: agentOverride === 'auto' ? undefined : agentOverride
             }
@@ -71,6 +118,15 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
             }
 
             const data = await response.json()
+
+            // Update conversation ID if this was a new conversation
+            if (data.conversation?.isNew && data.conversation?.id) {
+                set({ currentConversationId: data.conversation.id })
+                // Trigger sidebar refresh for new conversations
+                set((state) => ({
+                    conversationRefreshTrigger: state.conversationRefreshTrigger + 1
+                }))
+            }
 
             // Add assistant message with agent info from API (orchestrator-selected)
             if (data.message) {

@@ -78,6 +78,11 @@ function SettingsContent() {
     const [editingProvider, setEditingProvider] = useState<Provider | null>(null)
     const [memorySubTab, setMemorySubTab] = useState<'settings' | 'knowledge'>('settings')
 
+    // Manual summarization state
+    const [summarizing, setSummarizing] = useState(false)
+    const [summarizeResult, setSummarizeResult] = useState<{ success: boolean; message: string } | null>(null)
+    const [summarizeProjectId, setSummarizeProjectId] = useState<string | null>(null)
+
     // Form - Provider (for add)
     const [formProvider, setFormProvider] = useState('anthropic')
     const [formModel, setFormModel] = useState('claude-sonnet-4-20250514')
@@ -108,6 +113,20 @@ function SettingsContent() {
                 ])
                 if (settingsRes.ok) setUserSettings(await settingsRes.json())
                 if (providersRes?.ok) setProviders(await providersRes.json())
+            } else if (activeTab === 'memory') {
+                // Fetch settings and projects for memory tab
+                const [settingsRes, projectsRes] = await Promise.all([
+                    fetch('/api/settings'),
+                    fetch('/api/projects')
+                ])
+                if (settingsRes.ok) setUserSettings(await settingsRes.json())
+                if (projectsRes.ok) {
+                    const data = await projectsRes.json()
+                    setProjects(data)
+                    if (!summarizeProjectId && data.length > 0) {
+                        setSummarizeProjectId(data[0].id)
+                    }
+                }
             } else if (activeTab === 'knowledge') {
                 // Fetch projects for the project selector
                 const res = await fetch('/api/projects')
@@ -711,10 +730,14 @@ function SettingsContent() {
                                         setMemorySubTab('knowledge')
                                         // Fetch projects when switching to knowledge tab
                                         if (projects.length === 0) {
-                                            fetch('/api/projects').then(res => res.ok && res.json().then(data => {
-                                                setProjects(data)
-                                                if (data.length > 0 && !selectedProjectId) setSelectedProjectId(data[0].id)
-                                            }))
+                                            fetch('/api/projects').then(res => {
+                                                if (res.ok) {
+                                                    res.json().then(data => {
+                                                        setProjects(data)
+                                                        if (data.length > 0 && !selectedProjectId) setSelectedProjectId(data[0].id)
+                                                    })
+                                                }
+                                            })
                                         }
                                     }}
                                     className={clsx(
@@ -828,6 +851,78 @@ function SettingsContent() {
                                                 <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.autoSummarize !== false ? "left-7" : "left-1")} />
                                             </button>
                                         </div>
+
+                                        {/* Manual Summarize - shown when auto-summarize is OFF */}
+                                        {userSettings.memorySettings?.autoSummarize === false && (
+                                            <div className="p-4 bg-gray-950 rounded-lg border border-gray-800 space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h4 className="font-medium text-white mb-1">Manual Summarization</h4>
+                                                        <p className="text-sm text-gray-500">Manually trigger summarization for a project when needed.</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <select
+                                                        value={summarizeProjectId || ''}
+                                                        onChange={(e) => {
+                                                            setSummarizeProjectId(e.target.value)
+                                                            setSummarizeResult(null)
+                                                        }}
+                                                        className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                                                    >
+                                                        {projects.length === 0 && (
+                                                            <option value="">No projects available</option>
+                                                        )}
+                                                        {projects.map(p => (
+                                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!summarizeProjectId) return
+                                                            setSummarizing(true)
+                                                            setSummarizeResult(null)
+                                                            try {
+                                                                const res = await fetch('/api/summarize', {
+                                                                    method: 'POST',
+                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                    body: JSON.stringify({ projectId: summarizeProjectId })
+                                                                })
+                                                                const data = await res.json()
+                                                                if (data.success) {
+                                                                    setSummarizeResult({ success: true, message: data.message })
+                                                                } else {
+                                                                    setSummarizeResult({ success: false, message: data.message || data.error })
+                                                                }
+                                                            } catch (e: any) {
+                                                                setSummarizeResult({ success: false, message: e.message })
+                                                            } finally {
+                                                                setSummarizing(false)
+                                                            }
+                                                        }}
+                                                        disabled={summarizing || !summarizeProjectId || projects.length === 0}
+                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2"
+                                                    >
+                                                        {summarizing ? (
+                                                            <>
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                                Summarizing...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <RefreshCw className="w-4 h-4" />
+                                                                Summarize Now
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                                {summarizeResult && (
+                                                    <p className={clsx("text-sm", summarizeResult.success ? "text-green-400" : "text-yellow-400")}>
+                                                        {summarizeResult.message}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
 
                                         {/* Validate Responses Toggle */}
                                         <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
