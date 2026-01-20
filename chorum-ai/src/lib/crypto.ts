@@ -16,9 +16,7 @@ function getKey() {
     // For safety, let's assume they might put a random string and we hash it to 32 bytes?
     // No, strict hex is better. But for demo resilience:
     if (keyHex.length !== 64) {
-        console.warn('ENCRYPTION_KEY should be a 64-character hex string (32 bytes). Using a weak fallback hash for demo.')
-        const { createHash } = require('crypto')
-        return createHash('sha256').update(keyHex).digest()
+        throw new Error('ENCRYPTION_KEY must be a 64-character hex string (32 bytes).')
     }
     return Buffer.from(keyHex, 'hex')
 }
