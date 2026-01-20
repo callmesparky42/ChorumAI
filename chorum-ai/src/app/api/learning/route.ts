@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { projects } from '@/lib/db/schema'
+import { projects, projectLearningPaths } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import {
     getProjectLearning,
@@ -88,8 +88,8 @@ export async function GET(req: NextRequest) {
         const items = await getProjectLearning(projectId)
         return NextResponse.json({ items })
 
-    } catch (error: any) {
-        console.error('Learning GET error:', error)
+    } catch (error: unknown) {
+        console.error('Learning GET error:', error instanceof Error ? error.message : error)
         return NextResponse.json({ error: 'Failed to fetch learning items' }, { status: 500 })
     }
 }
@@ -143,8 +143,8 @@ export async function POST(req: NextRequest) {
         const item = await addLearningItem(input)
         return NextResponse.json({ item }, { status: 201 })
 
-    } catch (error: any) {
-        console.error('Learning POST error:', error)
+    } catch (error: unknown) {
+        console.error('Learning POST error:', error instanceof Error ? error.message : error)
         return NextResponse.json({ error: 'Failed to create learning item' }, { status: 500 })
     }
 }
@@ -168,6 +168,20 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: 'id is required' }, { status: 400 })
         }
 
+        // Verify ownership
+        const item = await db.query.projectLearningPaths.findFirst({
+            where: eq(projectLearningPaths.id, id)
+        })
+
+        if (!item) {
+            return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+        }
+
+        const hasAccess = await verifyProjectAccess(session.user.id, item.projectId)
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        }
+
         // Build update object
         const updates: Record<string, unknown> = {}
         if (content !== undefined) updates.content = content
@@ -179,14 +193,10 @@ export async function PATCH(req: NextRequest) {
         }
 
         const updated = await updateLearningItem(id, updates)
-        if (!updated) {
-            return NextResponse.json({ error: 'Item not found' }, { status: 404 })
-        }
-
         return NextResponse.json({ item: updated })
 
-    } catch (error: any) {
-        console.error('Learning PATCH error:', error)
+    } catch (error: unknown) {
+        console.error('Learning PATCH error:', error instanceof Error ? error.message : error)
         return NextResponse.json({ error: 'Failed to update learning item' }, { status: 500 })
     }
 }
@@ -209,15 +219,25 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: 'id is required' }, { status: 400 })
         }
 
-        const deleted = await deleteLearningItem(id)
-        if (!deleted) {
+        // Verify ownership
+        const item = await db.query.projectLearningPaths.findFirst({
+            where: eq(projectLearningPaths.id, id)
+        })
+
+        if (!item) {
             return NextResponse.json({ error: 'Item not found' }, { status: 404 })
         }
 
+        const hasAccess = await verifyProjectAccess(session.user.id, item.projectId)
+        if (!hasAccess) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        }
+
+        const deleted = await deleteLearningItem(id)
         return NextResponse.json({ success: true })
 
-    } catch (error: any) {
-        console.error('Learning DELETE error:', error)
+    } catch (error: unknown) {
+        console.error('Learning DELETE error:', error instanceof Error ? error.message : error)
         return NextResponse.json({ error: 'Failed to delete learning item' }, { status: 500 })
     }
 }
