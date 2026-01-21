@@ -29,8 +29,38 @@ export const users = pgTable('user', {
     validateResponses: boolean    // Check against invariants
     smartAgentRouting: boolean    // Auto-select agent per message
   }>(),
+  // Onboarding tracking
+  onboardingCompleted: boolean('onboarding_completed').default(false),
+  onboardingStep: integer('onboarding_step').default(0), // 0=not started, 1-5=in progress, 6=complete
+  onboardingData: jsonb('onboarding_data').$type<OnboardingData>(),
   createdAt: timestamp('created_at').defaultNow()
 })
+
+// Onboarding data shape stored in users.onboardingData
+export type OnboardingData = {
+  // Step completion tracking
+  completedSteps: ('welcome' | 'environment' | 'database' | 'providers' | 'preferences')[]
+
+  // Environment setup (step 2)
+  envConfigured: boolean
+  envValidatedAt?: string // ISO timestamp
+
+  // Database connection (step 3)
+  databaseConnected: boolean
+  databaseTestedAt?: string
+
+  // Providers (step 4)
+  providersConfigured: string[] // List of provider names added
+  primaryProvider?: string
+
+  // Preferences (step 5)
+  preferencesSet: boolean
+
+  // Metadata
+  startedAt: string
+  completedAt?: string
+  setupSource: 'wizard' | 'cli' | 'manual'
+}
 
 export const accounts = pgTable(
   "account",

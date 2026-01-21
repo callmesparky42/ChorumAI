@@ -5,9 +5,16 @@ export default auth((req) => {
     const isLoggedIn = !!req.auth
     const isAuthPage = req.nextUrl.pathname.startsWith('/login')
     const isAuthApi = req.nextUrl.pathname.startsWith('/api/auth')
+    const isOnboardingPage = req.nextUrl.pathname.startsWith('/onboarding')
+    const isOnboardingApi = req.nextUrl.pathname.startsWith('/api/onboarding')
 
     // Allow auth API routes
     if (isAuthApi) {
+        return NextResponse.next()
+    }
+
+    // Allow onboarding routes (pre-auth setup wizard)
+    if (isOnboardingPage || isOnboardingApi) {
         return NextResponse.next()
     }
 

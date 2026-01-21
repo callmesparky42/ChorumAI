@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
 import { ChatPanel } from '@/components/ChatPanel'
 import { AgentPanel } from '@/components/AgentPanel'
+import { ResizableLayout } from '@/components/ResizableLayout'
 import { useChorumStore } from '@/lib/store'
 
 function ChorumContent() {
@@ -26,27 +27,27 @@ function ChorumContent() {
   }, [loadConversation])
 
   return (
-    <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
-      {/* Sidebar - 256px */}
-      <Sidebar
-        activeProjectId={activeProjectId}
-        onSelectProject={handleSelectProject}
-        onSelectConversation={handleSelectConversation}
+    <div className="h-screen bg-[#0A0A0A] text-[#F5F5F5] overflow-hidden">
+      <ResizableLayout
+        left={
+          <Sidebar
+            activeProjectId={activeProjectId}
+            onSelectProject={handleSelectProject}
+            onSelectConversation={handleSelectConversation}
+          />
+        }
+        center={<ChatPanel projectId={activeProjectId || undefined} />}
+        right={<AgentPanel projectId={activeProjectId || undefined} />}
       />
-
-      {/* Chat - flex-1 */}
-      <ChatPanel projectId={activeProjectId || undefined} />
-
-      {/* Agent Panel - 320px */}
-      <AgentPanel projectId={activeProjectId || undefined} />
     </div>
   )
 }
 
 export default function ChorumPage() {
   return (
-    <Suspense fallback={<div className="h-screen bg-gray-950 flex items-center justify-center text-gray-500">Loading...</div>}>
+    <Suspense fallback={<div className="h-screen bg-[#0A0A0A] flex items-center justify-center text-[#737373]">Loading...</div>}>
       <ChorumContent />
     </Suspense>
   )
 }
+

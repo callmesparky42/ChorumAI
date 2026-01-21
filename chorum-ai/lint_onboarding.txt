@@ -1,0 +1,27 @@
+
+C:\Users\dmill\Documents\GitHub\ChorumAI\chorum-ai\src\components\onboarding\shared\ProviderCard.tsx
+  5:8  warning  'Image' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\dmill\Documents\GitHub\ChorumAI\chorum-ai\src\components\onboarding\steps\CompleteStep.tsx
+  10:3  warning  'Rocket' is defined but never used                  @typescript-eslint/no-unused-vars
+  23:9  warning  'providerCount' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\dmill\Documents\GitHub\ChorumAI\chorum-ai\src\components\onboarding\steps\EnvironmentStep.tsx
+  6:23  warning  'TextInput' is defined but never used     @typescript-eslint/no-unused-vars
+  7:25  warning  'ExternalLink' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\dmill\Documents\GitHub\ChorumAI\chorum-ai\src\components\onboarding\steps\ProvidersStep.tsx
+  36:5  warning  'updateProvider' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\dmill\Documents\GitHub\ChorumAI\chorum-ai\src\lib\onboarding\types.ts
+  191:34  error  The `{}` ("empty object") type allows any non-nullish value, including literals like `0` and `""`.
+- If that's what you want, disable this lint rule with an inline comment or configure the 'allowObjectTypes' rule option.
+- If you want a type meaning "any object", you probably want `object` instead.
+- If you want a type meaning "any value", you probably want `unknown` instead  @typescript-eslint/no-empty-object-type
+  231:41  error  The `{}` ("empty object") type allows any non-nullish value, including literals like `0` and `""`.
+- If that's what you want, disable this lint rule with an inline comment or configure the 'allowObjectTypes' rule option.
+- If you want a type meaning "any object", you probably want `object` instead.
+- If you want a type meaning "any value", you probably want `unknown` instead  @typescript-eslint/no-empty-object-type
+
+Γ£û 8 problems (2 errors, 6 warnings)
+
