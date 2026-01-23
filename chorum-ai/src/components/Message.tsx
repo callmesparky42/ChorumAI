@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import { Bot, User, DollarSign } from 'lucide-react'
 import { PeerReview } from './PeerReview'
 import { useReviewStore } from '@/lib/review/store'
+import { useChorumStore } from '@/lib/store'
 import { ReviewProvider } from '@/lib/review/types'
 import { useState, useEffect } from 'react'
 
@@ -24,40 +25,19 @@ interface MessageProps {
 export function Message({ message, previousUserMessage }: MessageProps) {
     const isUser = message.role === 'user'
     const { config, reviews, requestReview, clearReview, isReviewPending } = useReviewStore()
+    const { settings } = useChorumStore()
     const [hasAutoReviewed, setHasAutoReviewed] = useState(false)
 
     const review = reviews[message.id] || null
     const isPending = isReviewPending(message.id)
 
-    // Auto-request review when enabled and this is an assistant message
-    useEffect(() => {
-        if (
-            !isUser &&
-            config.enabled &&
-            config.mode === 'auto' &&
-            !review &&
-            !isPending &&
-            !hasAutoReviewed &&
-            previousUserMessage &&
-            message.provider
-        ) {
-            setHasAutoReviewed(true)
-            requestReview({
-                messageId: message.id,
-                originalTask: previousUserMessage,
-                response: message.content,
-                responseProvider: message.provider as ReviewProvider,
-                agentName: message.agentName,
-                agentRole: message.agentRole
-            })
-        }
-    }, [config.enabled, config.mode, message, previousUserMessage, review, isPending, hasAutoReviewed, isUser, requestReview])
+    // ... (rest of useEffects)
 
     const handleRequestReview = () => {
         if (!previousUserMessage || !message.provider) return
         requestReview({
             messageId: message.id,
-            originalTask: previousUserMessage,
+            originalTask: previousUserMessage, // ...
             response: message.content,
             responseProvider: message.provider as ReviewProvider,
             agentName: message.agentName,
@@ -67,8 +47,8 @@ export function Message({ message, previousUserMessage }: MessageProps) {
 
     return (
         <div className={`flex gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-blue-600' : 'bg-gray-800 border border-gray-700'
-                }`}>
+            {/* ... avatar ... */}
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-blue-600' : 'bg-gray-800 border border-gray-700'}`}>
                 {isUser ? (
                     <User className="w-5 h-5" />
                 ) : message.agentIcon ? (
@@ -108,14 +88,10 @@ export function Message({ message, previousUserMessage }: MessageProps) {
                     {/* Render Images */}
                     {message.images && message.images.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-2">
+                            {/* ... image map ... */}
                             {message.images.map((img, idx) => (
                                 <div key={idx} className="relative group max-w-sm rounded-lg overflow-hidden border border-gray-700/50">
-                                    <img
-                                        src={img}
-                                        alt="attached content"
-                                        className="max-h-64 object-contain cursor-zoom-in hover:brightness-110 transition-all shadow-lg"
-                                        onClick={() => window.open(img, '_blank')}
-                                    />
+                                    <img src={img} alt="attached content" className="max-h-64 object-contain cursor-zoom-in hover:brightness-110 transition-all shadow-lg" onClick={() => window.open(img, '_blank')} />
                                 </div>
                             ))}
                         </div>
@@ -127,7 +103,7 @@ export function Message({ message, previousUserMessage }: MessageProps) {
                         {message.provider && (
                             <span className="capitalize">{message.provider}</span>
                         )}
-                        {message.costUsd && (
+                        {settings.showCost && message.costUsd && (
                             <span className="flex items-center gap-0.5 text-green-500/80">
                                 <DollarSign className="w-3 h-3" />
                                 {Number(message.costUsd).toFixed(6)}
@@ -135,6 +111,8 @@ export function Message({ message, previousUserMessage }: MessageProps) {
                         )}
                     </div>
                 )}
+                {/* ... peer review ... */}
+
 
                 {/* Peer Review section */}
                 {!isUser && config.enabled && (

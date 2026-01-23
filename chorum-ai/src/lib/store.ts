@@ -20,6 +20,8 @@ interface ChorumStore {
     isLoading: boolean
     currentConversationId: string | null
     conversationRefreshTrigger: number // Increment to trigger sidebar refresh
+    isAgentPanelOpen: boolean
+    toggleAgentPanel: () => void
     addMessage: (msg: Message) => void
     sendMessage: (params: {
         projectId: string
@@ -32,13 +34,29 @@ interface ChorumStore {
     clearMessages: () => void
     startNewConversation: () => void
     triggerConversationRefresh: () => void
+
+    // Settings
+    settings: {
+        showCost: boolean
+    }
+    updateSettings: (settings: Partial<ChorumStore['settings']>) => void
 }
 
 export const useChorumStore = create<ChorumStore>((set, get) => ({
+    // Default Settings
+    settings: {
+        showCost: false
+    },
+    updateSettings: (newSettings) => set((state) => ({
+        settings: { ...state.settings, ...newSettings }
+    })),
+
     messages: [],
     isLoading: false,
     currentConversationId: null,
     conversationRefreshTrigger: 0,
+    isAgentPanelOpen: false, // Closed by default per "Sovereign Minimalism"
+    toggleAgentPanel: () => set((state) => ({ isAgentPanelOpen: !state.isAgentPanelOpen })),
     addMessage: (msg) => set((state) => ({ messages: [...state.messages, msg] })),
     clearMessages: () => set({ messages: [], currentConversationId: null }),
     startNewConversation: () => set({ messages: [], currentConversationId: null }),

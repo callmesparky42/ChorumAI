@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, decimal, integer, jsonb, boolean, primaryKey } from 'drizzle-orm/pg-core'
+import { pgTable, text, uuid, timestamp, decimal, integer, jsonb, boolean, primaryKey, vector } from 'drizzle-orm/pg-core'
 import type { AdapterAccount } from "next-auth/adapters"
 import type { AgentDefinition } from '@/lib/agents/types'
 
@@ -216,6 +216,13 @@ export const projectLearningPaths = pgTable('project_learning_paths', {
   content: text('content').notNull(),
   context: text('context'), // Trigger/Description
   metadata: jsonb('metadata'), // e.g. { source_message_id: "...", learned_from_user: "..." }
+
+  // Relevance Gating Fields
+  embedding: vector('embedding', { dimensions: 384 }), // vector(384) for all-MiniLM-L6-v2
+  domains: jsonb('domains').$type<string[]>().default([]),
+  usageCount: integer('usage_count').default(0),
+  lastUsedAt: timestamp('last_used_at'),
+
   createdAt: timestamp('created_at').defaultNow()
 })
 

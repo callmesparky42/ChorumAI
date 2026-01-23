@@ -83,8 +83,12 @@ function checkInvariant(response: string, invariant: LearningItem): boolean {
         }
 
         case 'regex': {
-            // Use provided regex pattern
+            // Use provided regex pattern with ReDoS protection
             try {
+                if (!isRegexSafe(checkValue)) {
+                    console.warn(`[Validator] Potentially dangerous regex pattern rejected in invariant ${invariant.id}: ${checkValue.substring(0, 50)}...`)
+                    return false
+                }
                 const regex = new RegExp(checkValue, 'i')
                 return regex.test(response)
             } catch {
@@ -113,6 +117,33 @@ function checkInvariant(response: string, invariant: LearningItem): boolean {
  */
 function escapeRegex(str: string): string {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** Maximum allowed regex pattern length (ReDoS prevention) */
+const MAX_REGEX_LENGTH = 500
+
+/**
+ * Check if a regex pattern is potentially dangerous (ReDoS).
+ * Detects common vulnerable patterns like nested quantifiers.
+ */
+function isRegexSafe(pattern: string): boolean {
+    // Length check
+    if (pattern.length > MAX_REGEX_LENGTH) return false
+
+    // Detect nested quantifiers: (a+)+, (a*)+, (a+)*, (a*)*
+    // These can cause catastrophic backtracking
+    const nestedQuantifiers = /(\([^)]*[+*][^)]*\))[+*]/
+    if (nestedQuantifiers.test(pattern)) return false
+
+    // Detect overlapping alternations with quantifiers: (a|a)+
+    const overlappingAlternation = /\([^)]*\|[^)]*\)[+*]/
+    if (overlappingAlternation.test(pattern)) return false
+
+    // Detect excessive quantifier nesting: a{1,100}{1,100}
+    const excessiveNesting = /\{[^}]+\}\s*\{/
+    if (excessiveNesting.test(pattern)) return false
+
+    return true
 }
 
 /**

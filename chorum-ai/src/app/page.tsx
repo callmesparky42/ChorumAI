@@ -12,7 +12,7 @@ function ChorumContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const activeProjectId = searchParams.get('project')
-  const { loadConversation, startNewConversation } = useChorumStore()
+  const { loadConversation, startNewConversation, isAgentPanelOpen } = useChorumStore()
 
   const handleSelectProject = useCallback((projectId: string) => {
     const params = new URLSearchParams(searchParams)
@@ -38,6 +38,7 @@ function ChorumContent() {
         }
         center={<ChatPanel projectId={activeProjectId || undefined} />}
         right={<AgentPanel projectId={activeProjectId || undefined} />}
+        rightCollapsed={!isAgentPanelOpen}
       />
     </div>
   )

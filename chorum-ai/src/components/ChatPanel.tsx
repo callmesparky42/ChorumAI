@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, Users, Plus, X, Image as ImageIcon } from 'lucide-react'
+import { Send, Bot, Users, Plus, X, Image as ImageIcon, PanelRight, PanelRightClose, Zap, Paperclip } from 'lucide-react'
 import { Message } from './Message'
 import { ProviderSelector } from './ProviderSelector'
 import { AgentSelector } from './AgentSelector'
@@ -21,7 +21,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const { messages, sendMessage, isLoading } = useChorumStore()
+    const { messages, sendMessage, isLoading, isAgentPanelOpen, toggleAgentPanel } = useChorumStore()
     const { activeAgent } = useAgentStore()
     const { config: reviewConfig, updateConfig: updateReviewConfig } = useReviewStore()
 
@@ -115,12 +115,11 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-4">
-                    <CostMeter cost={sessionCost} />
+                <div className="flex items-center gap-2">
                     <button
                         onClick={() => updateReviewConfig({ enabled: !reviewConfig.enabled })}
                         className={clsx(
-                            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors',
+                            'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors',
                             reviewConfig.enabled
                                 ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
                                 : 'bg-gray-800/50 text-gray-500 hover:text-gray-400 border border-gray-700'
@@ -128,7 +127,20 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                         title="Phone a Friend - Get second opinion from another LLM"
                     >
                         <Users className="w-4 h-4" />
-                        <span className="hidden sm:inline">Review</span>
+                        <span className="hidden lg:inline">Review</span>
+                    </button>
+
+                    <button
+                        onClick={toggleAgentPanel}
+                        className={clsx(
+                            "p-2 rounded-lg transition-colors border",
+                            isAgentPanelOpen
+                                ? "bg-blue-600/10 text-blue-400 border-blue-500/30"
+                                : "text-gray-500 hover:text-gray-400 border-transparent hover:bg-gray-800"
+                        )}
+                        title={isAgentPanelOpen ? "Close Agent Drawer" : "Open Agent Drawer"}
+                    >
+                        {isAgentPanelOpen ? <PanelRightClose className="w-5 h-5" /> : <PanelRight className="w-5 h-5" />}
                     </button>
                 </div>
             </div>
@@ -171,27 +183,46 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
             </div>
 
             {/* Input */}
-            <div className="border-t border-gray-800 p-4">
-                <div className="flex items-end gap-3">
-                    <div className="flex-1">
-                        <div
-                            className={clsx(
-                                "relative flex-1 group",
-                                isDragging && "after:absolute after:inset-0 after:bg-blue-500/10 after:border-2 after:border-blue-500 after:border-dashed after:rounded-lg"
+            <div className="border-t border-gray-800 p-6 bg-gray-950">
+                <div className="max-w-4xl mx-auto">
+                    <div
+                        className={clsx(
+                            "relative flex flex-col bg-gray-900 border border-gray-800 rounded-xl transition-all shadow-sm",
+                            "focus-within:border-gray-700 focus-within:ring-1 focus-within:ring-gray-800",
+                            isDragging && "ring-2 ring-blue-500/50 border-blue-500 bg-blue-500/5"
+                        )}
+                        onDragOver={onDragOver}
+                        onDragLeave={onDragLeave}
+                        onDrop={onDrop}
+                    >
+                        {/* Omnibar Header: Agent & Context */}
+                        <div className="flex items-center gap-2 p-1.5 border-b border-gray-800/50">
+                            <AgentSelector
+                                value={selectedAgent}
+                                onChange={setSelectedAgent}
+                                mode="omnibar"
+                            />
+
+                            {/* Context Indicator (Placeholder logic) */}
+                            {(activeAgent || selectedAgent !== 'auto') && (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-medium border border-blue-500/20">
+                                    <Zap className="w-3 h-3" />
+                                    <span>Context Active</span>
+                                </div>
                             )}
-                            onDragOver={onDragOver}
-                            onDragLeave={onDragLeave}
-                            onDrop={onDrop}
-                        >
+                        </div>
+
+                        {/* Input Area */}
+                        <div className="p-3">
                             {/* Image Previews */}
                             {images.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mb-2 p-2 bg-gray-900/50 rounded-lg border border-gray-800">
+                                <div className="flex flex-wrap gap-2 mb-3">
                                     {images.map((img, idx) => (
-                                        <div key={idx} className="relative group/img w-20 h-20 rounded-md overflow-hidden border border-gray-700">
+                                        <div key={idx} className="relative group/img w-16 h-16 rounded-lg overflow-hidden border border-gray-700 shadow-sm">
                                             <img src={img} alt="preview" className="w-full h-full object-cover" />
                                             <button
                                                 onClick={() => removeImage(idx)}
-                                                className="absolute top-1 right-1 p-1 bg-red-500 rounded-full opacity-0 group-hover/img:opacity-100 transition-opacity text-white"
+                                                className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-red-500"
                                             >
                                                 <X className="w-3 h-3" />
                                             </button>
@@ -213,17 +244,21 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                                     ? `Ask ${activeAgent.name}...`
                                     : "Type a message..."
                                 }
-                                className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 resize-none"
-                                rows={3}
+                                className="w-full bg-transparent border-none text-gray-200 placeholder-gray-500 focus:ring-0 resize-none p-0 text-base min-h-[60px]"
+                                rows={1}
+                                style={{ minHeight: '60px' }}
                             />
+                        </div>
 
-                            <div className="absolute left-3 bottom-3 flex gap-2">
+                        {/* Omnibar Footer: Actions & Send */}
+                        <div className="flex items-center justify-between p-2 pt-0">
+                            <div className="flex items-center gap-1">
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="p-1.5 hover:bg-gray-700 rounded-md transition-colors text-gray-400 hover:text-white"
-                                    title="Add image"
+                                    className="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-gray-300 transition-colors"
+                                    title="Attach image"
                                 >
-                                    <Plus className="w-5 h-5" />
+                                    <Paperclip className="w-4 h-4" />
                                 </button>
                                 <input
                                     type="file"
@@ -234,25 +269,29 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                                     className="hidden"
                                 />
                             </div>
+
+                            <div className="flex items-center gap-2">
+                                <ProviderSelector
+                                    value={selectedProvider}
+                                    onChange={setSelectedProvider}
+                                    mode="omnibar"
+                                />
+                                <div className="h-4 w-px bg-gray-800 mx-1" />
+                                <button
+                                    onClick={handleSend}
+                                    disabled={!message.trim() || isLoading}
+                                    className="p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg transition-colors flex items-center justify-center text-white shadow-sm"
+                                >
+                                    <Send className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 w-48">
-                        <AgentSelector
-                            value={selectedAgent}
-                            onChange={setSelectedAgent}
-                        />
-                        <ProviderSelector
-                            value={selectedProvider}
-                            onChange={setSelectedProvider}
-                        />
-                        <button
-                            onClick={handleSend}
-                            disabled={!message.trim() || isLoading}
-                            className="p-3 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg transition-colors flex justify-center text-white"
-                        >
-                            <Send className="w-5 h-5" />
-                        </button>
+                    <div className="text-center mt-3">
+                        <div className="text-[10px] text-gray-600">
+                            <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for new line
+                        </div>
                     </div>
                 </div>
             </div>

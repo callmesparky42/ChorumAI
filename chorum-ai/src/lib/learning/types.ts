@@ -29,6 +29,11 @@ export interface LearningItem {
     content: string
     context?: string | null
     metadata?: LearningItemMetadata | null
+    // Relevance Gating
+    embedding?: number[] | null
+    domains?: string[] | null
+    usageCount?: number
+    lastUsedAt?: Date | null
     createdAt: Date | null
 }
 

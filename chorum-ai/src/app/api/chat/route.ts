@@ -93,13 +93,6 @@ export async function POST(req: NextRequest) {
             systemPrompt += `\n\n## About the User\n${userBio.trim()}`
         }
 
-        // [Learning System] Inject Patterns, Invariants, and Critical File context
-        // Returns cached data to avoid double DB call during validation
-        let learningContext: LearningContext | null = null
-        if (projectId) {
-            learningContext = await injectLearningContext(systemPrompt, projectId)
-            systemPrompt = learningContext.systemPrompt
-        }
 
         // [Agent Orchestration] Select and configure agent for this request
         let agentResult: OrchestrationResult | null = null
@@ -131,6 +124,27 @@ export async function POST(req: NextRequest) {
         // Log memory strategy for observability
         if (projectId && memory.strategy) {
             console.log(`[Memory] Strategy: ${memory.strategy}, History ref: ${memory.historyReferenceDetected}, Messages: ${memory.recentMessages.length}`)
+        }
+
+        // [Learning System] Relevance Gating Injection
+        // Returns cached data to avoid double DB call during validation
+        let learningContext: LearningContext | null = null
+        if (projectId) {
+            // Use conversation depth from memory context
+            const depth = memory.recentMessages.length + (existingConversationId ? 10 : 0) // Estimate if just partial fetch
+            // Or just use memory.recentMessages.length as explicit context depth
+
+            learningContext = await injectLearningContext(
+                systemPrompt,
+                projectId,
+                content,
+                memory.recentMessages.length
+            )
+            systemPrompt = learningContext.systemPrompt
+
+            if (learningContext.relevance) {
+                console.log(`[Relevance] ${learningContext.relevance.complexity} query → Injected ${learningContext.relevance.itemsSelected} items (${learningContext.relevance.latencyMs}ms)`)
+            }
         }
 
         // Get provider credentials

@@ -24,3 +24,35 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== Minimal Background-Adaptive Scrollbar ===== */
+/* Thin scrollbar with no visible track - uses Azure brand color (#4FC3F7) */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(79, 195, 247, 0.25) transparent;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(79, 195, 247, 0.25);
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 195, 247, 0.5);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

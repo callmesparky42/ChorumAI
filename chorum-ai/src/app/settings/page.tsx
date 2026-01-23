@@ -5,6 +5,7 @@ import { LearningDashboard } from '@/components/LearningDashboard'
 import Link from 'next/link'
 import clsx from 'clsx'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useChorumStore } from '@/lib/store'
 
 // Provider presets for the UI
 // 'auto' means the router will select the best model based on task type
@@ -77,6 +78,9 @@ function SettingsContent() {
     const [showEditModal, setShowEditModal] = useState(false)
     const [editingProvider, setEditingProvider] = useState<Provider | null>(null)
     const [memorySubTab, setMemorySubTab] = useState<'settings' | 'knowledge'>('settings')
+
+    // Global Store Settings
+    const { settings, updateSettings } = useChorumStore()
 
     // Manual summarization state
     const [summarizing, setSummarizing] = useState(false)
@@ -319,6 +323,29 @@ function SettingsContent() {
                             </button>
                         </div>
 
+                        {/* Total Usage Summary */}
+                        {!loading && providers.length > 0 && (
+                            <div className="bg-blue-600/10 border border-blue-500/20 rounded-xl p-4 mb-6 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                                        <DollarSign className="w-5 h-5 text-blue-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-gray-400 font-medium">Total Usage Today</p>
+                                        <p className="text-2xl font-bold text-white">
+                                            ${providers.reduce((acc, p) => acc + (Number(p.spentToday) || 0), 0).toFixed(4)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-sm text-gray-400 font-medium">Total Daily Budget</p>
+                                    <p className="text-lg font-semibold text-gray-200">
+                                        ${providers.reduce((acc, p) => acc + (Number(p.dailyBudget) || 0), 0).toFixed(2)}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {loading ? (
                             <div className="flex justify-center p-12"><Loader2 className="animate-spin text-gray-500" /></div>
                         ) : providers.length === 0 ? (
@@ -438,6 +465,28 @@ function SettingsContent() {
                                 </div>
                             </form>
                         )}
+
+                        {/* UI Preferences (Client-side only) */}
+                        <div className="mt-8">
+                            <h3 className="text-xl font-semibold mb-4">UI Preferences</h3>
+                            <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
+                                <div className="flex items-center justify-between p-4 bg-gray-950 rounded-lg border border-gray-800">
+                                    <div className="flex-1 pr-8">
+                                        <h4 className="font-medium text-white mb-1">Show Message Costs</h4>
+                                        <p className="text-sm text-gray-500">Display the estimated cost (USD) for each AI response in the chat thread.</p>
+                                    </div>
+                                    <button
+                                        onClick={() => updateSettings({ showCost: !settings.showCost })}
+                                        className={clsx(
+                                            "w-12 h-6 rounded-full transition-colors relative",
+                                            settings.showCost ? "bg-green-500" : "bg-gray-700"
+                                        )}
+                                    >
+                                        <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", settings.showCost ? "left-7" : "left-1")} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </>
                 )}
 

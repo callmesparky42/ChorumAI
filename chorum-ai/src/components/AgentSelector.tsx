@@ -6,6 +6,7 @@ import clsx from 'clsx'
 interface Props {
     value: string
     onChange: (val: string) => void
+    mode?: 'default' | 'omnibar'
 }
 
 interface AgentInfo {
@@ -16,7 +17,7 @@ interface AgentInfo {
     role: string
 }
 
-export function AgentSelector({ value, onChange }: Props) {
+export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
     const [agents, setAgents] = useState<AgentInfo[]>([])
     const [isOpen, setIsOpen] = useState(false)
 
@@ -41,25 +42,22 @@ export function AgentSelector({ value, onChange }: Props) {
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg w-full p-2.5 focus:ring-blue-500 focus:border-blue-500 hover:bg-gray-750"
+                className={clsx(
+                    "flex items-center gap-2 rounded-lg transition-colors",
+                    mode === 'default'
+                        ? "bg-gray-800 border border-gray-700 text-gray-300 text-xs w-full p-2.5 hover:bg-gray-750"
+                        : "bg-transparent hover:bg-gray-800 text-gray-300 text-sm px-2 py-1.5 border border-transparent hover:border-gray-700"
+                )}
             >
                 {value === 'auto' ? (
                     <>
                         <Bot className="w-4 h-4 text-gray-500" />
-                        <span>Auto Agent</span>
+                        <span className="font-medium">Auto Agent</span>
                     </>
                 ) : selectedAgent ? (
                     <>
                         <span className="text-base">{selectedAgent.icon}</span>
-                        <span>{selectedAgent.name}</span>
-                        <span className={clsx(
-                            'text-[10px] px-1.5 py-0.5 rounded ml-auto',
-                            selectedAgent.tier === 'reasoning' && 'bg-purple-500/20 text-purple-400',
-                            selectedAgent.tier === 'balanced' && 'bg-blue-500/20 text-blue-400',
-                            selectedAgent.tier === 'fast' && 'bg-green-500/20 text-green-400'
-                        )}>
-                            {selectedAgent.tier}
-                        </span>
+                        <span className="font-medium">{selectedAgent.name}</span>
                     </>
                 ) : (
                     <>
@@ -67,6 +65,7 @@ export function AgentSelector({ value, onChange }: Props) {
                         <span>{value}</span>
                     </>
                 )}
+                <div className={clsx("w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-t-4 border-t-gray-500 ml-1")} />
             </button>
 
             {isOpen && (

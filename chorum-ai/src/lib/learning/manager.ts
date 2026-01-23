@@ -20,13 +20,18 @@ import type {
 // Learning Items CRUD
 // ============================================================================
 
+/** Maximum learning items to fetch per project (DoS prevention) */
+const MAX_LEARNING_ITEMS = 1000
+
 /**
  * Get all learning items for a project.
+ * Limited to MAX_LEARNING_ITEMS to prevent memory exhaustion.
  */
 export async function getProjectLearning(projectId: string): Promise<LearningItem[]> {
     const items = await db.select()
         .from(projectLearningPaths)
         .where(eq(projectLearningPaths.projectId, projectId))
+        .limit(MAX_LEARNING_ITEMS)
 
     return items.map(item => ({
         ...item,

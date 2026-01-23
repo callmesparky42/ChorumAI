@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Plus, Folder, Loader2, Settings, X, ChevronDown, ChevronRight, MessageSquare, PlusCircle } from 'lucide-react'
+import { Plus, Folder, Loader2, Settings, X, ChevronDown, ChevronRight, MessageSquare, PlusCircle, Upload, Archive, User } from 'lucide-react'
+import { ProjectSettingsModal } from './ProjectSettingsModal'
 import clsx from 'clsx'
 import Link from 'next/link'
 import { useChorumStore } from '@/lib/store'
@@ -32,9 +33,10 @@ interface ProjectItemProps {
     onDelete: (e: React.MouseEvent) => void
     onHover: (id: string | null) => void
     refreshTrigger: number
+    onOpenSettings: (e: React.MouseEvent) => void
 }
 
-function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversation, onNewConversation, onDelete, onHover, refreshTrigger }: ProjectItemProps) {
+function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversation, onNewConversation, onDelete, onHover, refreshTrigger, onOpenSettings }: ProjectItemProps) {
     const [expanded, setExpanded] = useState(false)
     const [conversations, setConversations] = useState<Conversation[]>([])
     const [loadingConvos, setLoadingConvos] = useState(false)
@@ -102,7 +104,7 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
                 <button
                     onClick={onSelect}
                     className={clsx(
-                        "flex-1 text-left px-2 py-2 rounded-lg text-sm transition-all flex items-center gap-2",
+                        "flex-1 text-left px-2 py-1.5 rounded-lg text-sm transition-all flex items-center gap-2",
                         isActive
                             ? "bg-blue-600/10 text-blue-400 font-medium"
                             : "text-gray-400 hover:bg-gray-900 hover:text-gray-200"
@@ -112,13 +114,22 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
                     <span className="truncate flex-1">{project.name}</span>
                 </button>
                 {isHovered && (
-                    <button
-                        onClick={onDelete}
-                        className="absolute right-2 top-2 p-1 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
-                        title="Delete project"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="absolute right-2 top-2 flex items-center gap-1">
+                        <button
+                            onClick={onOpenSettings}
+                            className="p-1 text-gray-500 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                            title="Project Settings"
+                        >
+                            <Settings className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                            onClick={onDelete}
+                            className="p-1 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
+                            title="Delete project"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -179,6 +190,8 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
     const [loading, setLoading] = useState(true)
     const [showNewProjectModal, setShowNewProjectModal] = useState(false)
     const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null)
+    const [settingsProject, setSettingsProject] = useState<Project | null>(null)
+    const [isImporting, setIsImporting] = useState(false)
 
     // Get refresh trigger from store
     const { conversationRefreshTrigger, startNewConversation } = useChorumStore()
@@ -264,9 +277,41 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
         }
     }
 
+    const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setIsImporting(true)
+        try {
+            const text = await file.text()
+            const exportData = JSON.parse(text)
+
+            const res = await fetch('/api/import/project', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ exportData, options: { mergeExisting: false, importConversations: true } })
+            })
+
+            const result = await res.json()
+            if (res.ok && result.success) {
+                alert(`Project imported successfully! Imported ${result.stats.patternsImported} patterns.`)
+                fetchProjects() // Refresh list
+                onSelectProject(result.projectId)
+            } else {
+                throw new Error(result.error || 'Import failed')
+            }
+        } catch (error) {
+            console.error('Import failed', error)
+            alert('Failed to import project. Please check the file format.')
+        } finally {
+            setIsImporting(false)
+            e.target.value = '' // Reset input
+        }
+    }
+
     return (
         <>
-            <div className="w-64 bg-gray-950 border-r border-gray-800 flex flex-col">
+            <div className="w-full bg-gray-950 border-r border-gray-800 flex flex-col">
                 {/* Logo */}
                 <div className="p-4 border-b border-gray-800">
                     <img src="/logo.png" alt="Chorum AI" className="w-full h-auto object-contain" />
@@ -274,7 +319,16 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
 
                 <div className="p-4 border-b border-gray-800 flex items-center justify-between">
                     <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Projects</h2>
-                    {loading && <Loader2 className="w-3 h-3 text-gray-500 animate-spin" />}
+                    <div className="flex items-center gap-2">
+                        {loading && <Loader2 className="w-3 h-3 text-gray-500 animate-spin" />}
+                        <button
+                            onClick={() => setShowNewProjectModal(true)}
+                            className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-colors"
+                            title="New Project"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -295,7 +349,12 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
                             onDelete={(e) => handleDeleteProject(e, project.id)}
                             onHover={setHoveredProjectId}
                             isHovered={hoveredProjectId === project.id}
+
                             refreshTrigger={conversationRefreshTrigger}
+                            onOpenSettings={(e) => {
+                                e.stopPropagation()
+                                setSettingsProject(project)
+                            }}
                         />
                     ))}
 
@@ -305,23 +364,39 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
                 </div>
 
 
-                <div className="p-3 border-t border-gray-800 space-y-2">
+                <div className="p-3 border-t border-gray-800 flex items-center justify-between gap-1">
                     <Link
                         href="/settings"
-                        className="w-full py-2.5 hover:bg-gray-900 rounded-lg text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2"
+                        className="p-2 hover:bg-gray-900 rounded-lg text-gray-400 hover:text-white transition-colors"
+                        title="Settings"
                     >
-                        <Settings className="w-4 h-4" />
-                        Settings
+                        <Settings className="w-5 h-5" />
                     </Link>
-                    <button
-                        onClick={() => setShowNewProjectModal(true)}
-                        className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white transition-colors flex items-center justify-center gap-2"
+
+                    <label
+                        className="p-2 hover:bg-gray-900 rounded-lg text-gray-400 hover:text-white transition-colors cursor-pointer"
+                        title="Import Project"
                     >
-                        <Plus className="w-4 h-4" />
-                        New Project
+                        {isImporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+                        <input type="file" accept=".json" className="hidden" onChange={handleImportProject} disabled={isImporting} />
+                    </label>
+
+                    <button
+                        className="p-2 hover:bg-gray-900 rounded-lg text-gray-400 hover:text-white transition-colors"
+                        title="User Profile"
+                    >
+                        <User className="w-5 h-5" />
                     </button>
                 </div>
             </div>
+
+            {/* Settings Modal */}
+            {settingsProject && (
+                <ProjectSettingsModal
+                    project={settingsProject}
+                    onClose={() => setSettingsProject(null)}
+                />
+            )}
 
             {/* Modal */}
             {showNewProjectModal && (
