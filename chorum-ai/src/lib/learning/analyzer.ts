@@ -9,6 +9,7 @@ import { db } from '@/lib/db'
 import { projectLearningPaths } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { callProvider, type FullProviderConfig } from '@/lib/providers'
+import { embeddings } from '@/lib/chorum/embeddings'
 import crypto from 'crypto'
 
 export interface ExtractedLearning {
@@ -164,13 +165,29 @@ export async function storeLearnings(
             continue
         }
 
+        // Generate embedding
+        let embedding: number[] | null = null
+        try {
+            // Context helps clarify the embedding space
+            const textToEmbed = learning.context
+                ? `${learning.content} ${learning.context}`
+                : learning.content
+
+            embedding = await embeddings.embed(textToEmbed)
+        } catch (e) {
+            console.error('[Analyzer] Failed to generate embedding:', e)
+            // We continue without embedding, but log it. 
+            // The system will fallback to recency/type scoring.
+        }
+
         // Insert new learning
         await db.insert(projectLearningPaths).values({
             projectId,
             type: learning.type,
             content: learning.content,
             context: learning.context,
-            metadata: sourceMessageId ? { source_message_id: sourceMessageId } : undefined
+            metadata: sourceMessageId ? { source_message_id: sourceMessageId } : undefined,
+            embedding
         })
 
         stored++

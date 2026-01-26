@@ -105,7 +105,7 @@ export function ResizableLayout({ left, center, right, rightCollapsed = false }:
 
             {/* Center Panel */}
             <div
-                className="bg-[#141414] overflow-hidden flex-shrink-0 flex flex-col"
+                className="bg-[#141414] overflow-hidden flex-shrink-0 flex flex-col min-h-0"
                 style={{ width: `${centerWidth}%` }}
             >
                 {center}

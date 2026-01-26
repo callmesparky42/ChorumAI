@@ -86,6 +86,24 @@ const ConversationSchema = z.object({
     messages: z.array(MessageSchema),
 })
 
+const LinkSchema = z.object({
+    id: z.string(),
+    fromId: z.string(),
+    toId: z.string(),
+    linkType: z.string(),
+    strength: z.string(),
+    source: z.string(),
+    createdAt: z.string().nullable(),
+})
+
+const CooccurrenceSchema = z.object({
+    itemA: z.string(),
+    itemB: z.string(),
+    count: z.number(),
+    positiveCount: z.number(),
+    lastSeen: z.string().nullable(),
+})
+
 export const ExportPayloadSchema = z.object({
     metadata: MetadataSchema,
     project: ProjectSchema,
@@ -95,6 +113,8 @@ export const ExportPayloadSchema = z.object({
         decisions: z.array(LearningItemSchema),
         invariants: z.array(LearningItemSchema),
         goldenPaths: z.array(LearningItemSchema),
+        links: z.array(LinkSchema),
+        cooccurrences: z.array(CooccurrenceSchema),
     }),
     confidence: ConfidenceSchema.nullable(),
     criticalFiles: z.array(FileMetadataSchema),
@@ -107,13 +127,13 @@ export function validateExportPayload(data: unknown): { valid: boolean; error?: 
     const result = ExportPayloadSchema.safeParse(data)
     if (!result.success) {
         // Handle both Zod v3 and v4 error formats
-        const issues = result.error.issues || result.error.errors || []
+        const issues = result.error.issues || []
         const errorMsg = issues.length > 0
-            ? issues.map((e: { path?: (string | number)[]; message?: string }) =>
+            ? issues.map((e: any) =>
                 `${(e.path || []).join('.')}: ${e.message || 'Invalid'}`
-              ).join(', ')
+            ).join(', ')
             : result.error.message || 'Validation failed'
         return { valid: false, error: errorMsg }
     }
-    return { valid: true, data: result.data as ExportPayload }
+    return { valid: true, data: result.data as unknown as ExportPayload }
 }

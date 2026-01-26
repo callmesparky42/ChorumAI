@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, decimal, integer, jsonb, boolean, primaryKey, vector } from 'drizzle-orm/pg-core'
+import { pgTable, text, uuid, timestamp, decimal, integer, jsonb, boolean, primaryKey, vector, unique } from 'drizzle-orm/pg-core'
 import type { AdapterAccount } from "next-auth/adapters"
 import type { AgentDefinition } from '@/lib/agents/types'
 
@@ -216,6 +216,7 @@ export const projectLearningPaths = pgTable('project_learning_paths', {
   content: text('content').notNull(),
   context: text('context'), // Trigger/Description
   metadata: jsonb('metadata'), // e.g. { source_message_id: "...", learned_from_user: "..." }
+  source: text('source').default('web-ui'), // 'web-ui' | 'claude-code' | 'cursor' | 'h4x0r' | etc.
 
   // Relevance Gating Fields
   embedding: vector('embedding', { dimensions: 384 }), // vector(384) for all-MiniLM-L6-v2
@@ -289,4 +290,85 @@ export const customAgents = pgTable('custom_agents', {
   config: jsonb('config').$type<AgentDefinition>().notNull(), // Full AgentDefinition from types.ts
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
+})
+
+// --- Zettelkasten Graph Tables ---
+
+export const learningLinks = pgTable('learning_links', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  fromId: uuid('from_id').notNull().references(() => projectLearningPaths.id, { onDelete: 'cascade' }),
+  toId: uuid('to_id').notNull().references(() => projectLearningPaths.id, { onDelete: 'cascade' }),
+  linkType: text('link_type').notNull(), // 'supports' | 'contradicts' | 'supersedes' | 'protects'
+  strength: decimal('strength', { precision: 3, scale: 2 }).default('0.5'), // 0.00 to 1.00
+  source: text('source').default('inferred'), // 'inferred' | 'co-occurrence' | 'user'
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+}, (t) => ({
+  unqLink: unique('learning_links_unq').on(t.fromId, t.toId, t.linkType)
+}))
+
+export const learningCooccurrence = pgTable('learning_cooccurrence', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  itemA: uuid('item_a').notNull().references(() => projectLearningPaths.id, { onDelete: 'cascade' }),
+  itemB: uuid('item_b').notNull().references(() => projectLearningPaths.id, { onDelete: 'cascade' }),
+  count: integer('count').default(1),
+  positiveCount: integer('positive_count').default(0),
+  lastSeen: timestamp('last_seen').defaultNow()
+}, (t) => ({
+  unqCooccurrence: unique('learning_cooccurrence_unq').on(t.itemA, t.itemB)
+}))
+
+// --- MCP Server Mode Tables ---
+
+// API Tokens for MCP authentication
+export const apiTokens = pgTable('api_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  token: text('token').notNull().unique(), // Format: chorum_xxxxxxxxxxxx
+  name: text('name').default('Default'), // User-friendly label
+  permissions: jsonb('permissions').$type<{
+    read: boolean
+    write: boolean
+    projects: string[] | 'all' // Specific project IDs or 'all'
+  }>().default({ read: true, write: true, projects: 'all' }),
+  lastUsedAt: timestamp('last_used_at'),
+  expiresAt: timestamp('expires_at'), // null = never expires
+  createdAt: timestamp('created_at').defaultNow(),
+  revokedAt: timestamp('revoked_at')
+})
+
+// Pending learnings queue (human-in-the-loop for writes)
+export const pendingLearnings = pgTable('pending_learnings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // 'pattern' | 'antipattern' | 'decision' | 'invariant' | 'goldenPath'
+  content: text('content').notNull(),
+  context: text('context'),
+  source: text('source').notNull(), // 'claude-code' | 'cursor' | 'windsurf' | 'h4x0r' | 'web-ui'
+  sourceMetadata: jsonb('source_metadata').$type<{
+    agentVersion?: string
+    sessionId?: string
+    conversationId?: string
+  }>(),
+  status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'denied'
+  reviewedAt: timestamp('reviewed_at'),
+  reviewerNotes: text('reviewer_notes'),
+  createdAt: timestamp('created_at').defaultNow()
+})
+
+// MCP interaction log for confidence scoring
+export const mcpInteractionLog = pgTable('mcp_interaction_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  source: text('source').notNull(), // 'claude-code' | 'cursor' | etc.
+  toolName: text('tool_name').notNull(), // 'query_memory' | 'get_invariants' | etc.
+  queryType: text('query_type'), // 'trivial' | 'moderate' | 'complex' | 'critical'
+  tokensReturned: integer('tokens_returned'),
+  itemsReturned: integer('items_returned'),
+  latencyMs: integer('latency_ms'),
+  createdAt: timestamp('created_at').defaultNow()
 })

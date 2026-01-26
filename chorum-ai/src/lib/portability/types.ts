@@ -76,6 +76,24 @@ export interface ExportedConversation {
     messages: ExportedMessage[]
 }
 
+export interface ExportedLink {
+    id: string
+    fromId: string // References original ID
+    toId: string   // References original ID
+    linkType: string
+    strength: string
+    source: string
+    createdAt: string | null
+}
+
+export interface ExportedCooccurrence {
+    itemA: string // References original ID
+    itemB: string // References original ID
+    count: number
+    positiveCount: number
+    lastSeen: string | null
+}
+
 export interface ExportPayload {
     metadata: ExportMetadata
     project: ExportedProject
@@ -85,6 +103,8 @@ export interface ExportPayload {
         decisions: ExportedLearningItem[]
         invariants: ExportedLearningItem[]
         goldenPaths: ExportedLearningItem[]
+        links: ExportedLink[]
+        cooccurrences: ExportedCooccurrence[]
     }
     confidence: ExportedConfidence | null
     criticalFiles: ExportedFileMetadata[]
@@ -108,5 +128,6 @@ export interface ImportResult {
         agentsImported: number
         conversationsImported: number
         filesImported: number
+        linksImported: number
     }
 }

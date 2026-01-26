@@ -272,7 +272,7 @@ export function buildFallbackChain(
         p => p.provider !== primaryProvider && cloudProviders.includes(p.provider)
     )
 
-    // Build local fallbacks
+    // Build local fallbacks - inherit securitySettings from primary provider
     const localFallbacks: FullProviderConfig[] = []
 
     if (localProviders?.ollama) {
@@ -281,7 +281,8 @@ export function buildFallbackChain(
             apiKey: 'not-needed',
             model: localProviders.ollama,
             baseUrl: 'http://localhost:11434',
-            isLocal: true
+            isLocal: true,
+            securitySettings: primary.securitySettings // Inherit security settings
         })
     }
 
@@ -291,7 +292,8 @@ export function buildFallbackChain(
             apiKey: 'not-needed',
             model: localProviders.lmstudio,
             baseUrl: 'http://localhost:1234/v1',
-            isLocal: true
+            isLocal: true,
+            securitySettings: primary.securitySettings // Inherit security settings
         })
     }
 

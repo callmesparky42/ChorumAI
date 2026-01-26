@@ -1,23 +1,21 @@
-import { pipeline, type FeatureExtractionPipeline } from '@xenova/transformers'
-
-/** Retry configuration for model loading */
-const RETRY_CONFIG = {
-    maxAttempts: 3,
-    baseDelayMs: 1000,
-    maxDelayMs: 10000
-}
-
 /**
  * EmbeddingsService
- * Singleton service to handle local vector embedding generation using Transformers.js.
- * Uses 'all-MiniLM-L6-v2' (quantized) which runs efficiently on CPU.
+ * Singleton service for generating vector embeddings.
+ *
+ * Primary: OpenAI text-embedding-3-small (384 dimensions to match schema)
+ * Fallback: Zero vector (graceful degradation)
  */
+
+import OpenAI from 'openai'
+
+const EMBEDDING_DIMENSIONS = 384
+const EMBEDDING_MODEL = 'text-embedding-3-small'
+
 class EmbeddingsService {
     private static instance: EmbeddingsService
-    private pipe: FeatureExtractionPipeline | null = null
-    private modelName = 'Xenova/all-MiniLM-L6-v2'
-    private isLoading = false
-    private loadError: Error | null = null
+    private openai: OpenAI | null = null
+    private isDisabled = false
+    private initAttempted = false
 
     private constructor() { }
 
@@ -29,97 +27,121 @@ class EmbeddingsService {
     }
 
     /**
-     * Sleep utility for retry delays
+     * Initialize OpenAI client
      */
-    private sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms))
+    private init() {
+        if (this.initAttempted) return
+        this.initAttempted = true
+
+        const apiKey = process.env.OPENAI_API_KEY
+        if (!apiKey) {
+            console.warn('[Embeddings] OPENAI_API_KEY not set - embeddings disabled')
+            this.isDisabled = true
+            return
+        }
+
+        try {
+            this.openai = new OpenAI({ apiKey })
+            console.log('[Embeddings] OpenAI client initialized')
+        } catch (error) {
+            console.error('[Embeddings] Failed to initialize OpenAI:', error)
+            this.isDisabled = true
+        }
     }
 
     /**
-     * Calculate exponential backoff delay with jitter
+     * Check if embeddings are available
      */
-    private getRetryDelay(attempt: number): number {
-        const exponentialDelay = RETRY_CONFIG.baseDelayMs * Math.pow(2, attempt)
-        const jitter = Math.random() * 0.3 * exponentialDelay // 0-30% jitter
-        return Math.min(exponentialDelay + jitter, RETRY_CONFIG.maxDelayMs)
-    }
-
-    /**
-     * Initializes the model pipeline with retry logic.
-     * Uses exponential backoff on failure.
-     */
-    private async init() {
-        if (this.pipe) return
-        if (this.isLoading) {
-            // Wait for existing load
-            while (this.isLoading) {
-                await this.sleep(100)
-            }
-            if (this.pipe) return
-            // If loading failed, throw the error
-            if (this.loadError) throw this.loadError
-        }
-
-        this.isLoading = true
-        this.loadError = null
-
-        for (let attempt = 0; attempt < RETRY_CONFIG.maxAttempts; attempt++) {
-            try {
-                if (attempt > 0) {
-                    console.log(`[Embeddings] Retry attempt ${attempt + 1}/${RETRY_CONFIG.maxAttempts}...`)
-                } else {
-                    console.log(`[Embeddings] Loading model ${this.modelName}...`)
-                }
-
-                this.pipe = await pipeline('feature-extraction', this.modelName, {
-                    quantized: true, // drastically reduces size/memory
-                })
-                console.log('[Embeddings] Model loaded successfully')
-                this.isLoading = false
-                return
-            } catch (error) {
-                const isLastAttempt = attempt === RETRY_CONFIG.maxAttempts - 1
-                console.error(`[Embeddings] Failed to load model (attempt ${attempt + 1}):`, error)
-
-                if (isLastAttempt) {
-                    this.loadError = error instanceof Error ? error : new Error(String(error))
-                    this.isLoading = false
-                    throw this.loadError
-                }
-
-                const delay = this.getRetryDelay(attempt)
-                console.log(`[Embeddings] Retrying in ${Math.round(delay)}ms...`)
-                await this.sleep(delay)
-            }
-        }
+    public isAvailable(): boolean {
+        if (!this.initAttempted) this.init()
+        return !this.isDisabled && this.openai !== null
     }
 
     /**
      * Generates a 384-dimensional embedding vector for the given text.
+     * Returns zero vector if embeddings are unavailable.
      */
     public async embed(text: string): Promise<number[]> {
-        await this.init()
-        if (!this.pipe) throw new Error('Embeddings model unavailable')
+        if (!this.initAttempted) this.init()
 
-        // Normalize text (trim, lower?) - standard is usually raw but trimmed
+        // Return zero vector if disabled
+        if (this.isDisabled || !this.openai) {
+            return new Array(EMBEDDING_DIMENSIONS).fill(0)
+        }
+
+        // Normalize text
         const cleanText = text.trim().replace(/\s+/g, ' ')
+        if (!cleanText) {
+            return new Array(EMBEDDING_DIMENSIONS).fill(0)
+        }
 
-        if (!cleanText) return new Array(384).fill(0)
+        try {
+            const response = await this.openai.embeddings.create({
+                model: EMBEDDING_MODEL,
+                input: cleanText,
+                dimensions: EMBEDDING_DIMENSIONS
+            })
 
-        // Generate embedding
-        // pooling: 'mean' averages token embeddings to get sentence embedding
-        // normalize: true produces unit vectors (required for cosine similarity)
-        const output = await this.pipe(cleanText, { pooling: 'mean', normalize: true })
+            const embedding = response.data[0].embedding
 
-        // Output.data is Float32Array, convert to number[]
-        return Array.from(output.data)
+            // Normalize to unit vector for cosine similarity
+            const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0))
+            if (magnitude > 0) {
+                return embedding.map(val => val / magnitude)
+            }
+            return embedding
+        } catch (error) {
+            console.error('[Embeddings] OpenAI embedding failed:', error)
+            return new Array(EMBEDDING_DIMENSIONS).fill(0)
+        }
     }
 
     /**
-     * Warm up the model (optional calling on app start)
+     * Batch embed multiple texts (more efficient for bulk operations)
+     */
+    public async embedBatch(texts: string[]): Promise<number[][]> {
+        if (!this.initAttempted) this.init()
+
+        if (this.isDisabled || !this.openai || texts.length === 0) {
+            return texts.map(() => new Array(EMBEDDING_DIMENSIONS).fill(0))
+        }
+
+        // Clean texts
+        const cleanTexts = texts.map(t => t.trim().replace(/\s+/g, ' ')).filter(t => t)
+        if (cleanTexts.length === 0) {
+            return texts.map(() => new Array(EMBEDDING_DIMENSIONS).fill(0))
+        }
+
+        try {
+            const response = await this.openai.embeddings.create({
+                model: EMBEDDING_MODEL,
+                input: cleanTexts,
+                dimensions: EMBEDDING_DIMENSIONS
+            })
+
+            // Normalize each embedding
+            return response.data.map(item => {
+                const embedding = item.embedding
+                const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0))
+                if (magnitude > 0) {
+                    return embedding.map(val => val / magnitude)
+                }
+                return embedding
+            })
+        } catch (error) {
+            console.error('[Embeddings] OpenAI batch embedding failed:', error)
+            return texts.map(() => new Array(EMBEDDING_DIMENSIONS).fill(0))
+        }
+    }
+
+    /**
+     * Warm up (just ensures client is initialized)
      */
     public async warmup() {
-        await this.init()
+        this.init()
+        if (this.isAvailable()) {
+            console.log('[Embeddings] Ready (OpenAI text-embedding-3-small)')
+        }
     }
 }
 

@@ -12,7 +12,9 @@ import {
     memorySummaries,
     customAgents,
     conversations,
-    messages
+    messages,
+    learningLinks,
+    learningCooccurrence
 } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import {
@@ -22,7 +24,9 @@ import {
     ExportedFileMetadata,
     ExportedMemorySummary,
     ExportedCustomAgent,
-    ExportedConversation
+    ExportedConversation,
+    ExportedLink,
+    ExportedCooccurrence
 } from './types'
 
 interface ExportOptions {
@@ -61,6 +65,31 @@ export async function exportProject(userId: string, projectId: string, options: 
     const decisions = learningPaths.filter(l => l.type === 'decision').map(mapLearningItem)
     const invariants = learningPaths.filter(l => l.type === 'invariant').map(mapLearningItem)
     const goldenPaths = learningPaths.filter(l => l.type === 'golden_path').map(mapLearningItem)
+
+    // 2b. Fetch Graph Data
+    const linksRaw = await db.query.learningLinks.findMany({
+        where: eq(learningLinks.projectId, projectId)
+    })
+    const links: ExportedLink[] = linksRaw.map(l => ({
+        id: l.id,
+        fromId: l.fromId,
+        toId: l.toId,
+        linkType: l.linkType,
+        strength: l.strength?.toString() || '0.5',
+        source: l.source || 'inferred',
+        createdAt: l.createdAt?.toISOString() ?? null
+    }))
+
+    const cooccurrencesRaw = await db.query.learningCooccurrence.findMany({
+        where: eq(learningCooccurrence.projectId, projectId)
+    })
+    const cooccurrences: ExportedCooccurrence[] = cooccurrencesRaw.map(c => ({
+        itemA: c.itemA,
+        itemB: c.itemB,
+        count: c.count || 0,
+        positiveCount: c.positiveCount || 0,
+        lastSeen: c.lastSeen?.toISOString() ?? null
+    }))
 
     // 3. Fetch Confidence
     const confidenceIdx = await db.query.projectConfidence.findFirst({
@@ -151,7 +180,9 @@ export async function exportProject(userId: string, projectId: string, options: 
             antipatterns,
             decisions,
             invariants,
-            goldenPaths
+            goldenPaths,
+            links,
+            cooccurrences
         },
         confidence: confidenceIdx ? {
             score: confidenceIdx.score?.toString() ?? '100.00',

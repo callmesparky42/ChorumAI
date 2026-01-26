@@ -5,6 +5,7 @@ import { providerCredentials, usageLog } from '@/lib/db/schema'
 import { eq, and, desc, gte } from 'drizzle-orm'
 import { encrypt } from '@/lib/crypto'
 import { getDefaultBaseUrl } from '@/lib/providers'
+import { writeProviderKeyToEnv } from '@/lib/env'
 
 export async function GET(req: NextRequest) {
     try {
@@ -158,6 +159,15 @@ export async function POST(req: NextRequest) {
             isLocal: isLocalProvider,
             displayName: displayName || null
         }).returning()
+
+        // Write API key to .env.local for persistence (cloud providers only)
+        if (apiKey && !isLocalProvider) {
+            const envResult = await writeProviderKeyToEnv(provider, apiKey)
+            if (!envResult.success) {
+                console.warn(`[Providers] Failed to write to .env.local: ${envResult.error}`)
+                // Don't fail the request - DB storage is primary
+            }
+        }
 
         return NextResponse.json({
             ...newProvider,

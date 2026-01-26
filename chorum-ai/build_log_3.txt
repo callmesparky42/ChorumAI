@@ -1,0 +1,31 @@
+
+> chorum-ai@0.1.0 build
+> next build
+
+ΓÜá Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\dmill\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\dmill\Documents\GitHub\ChorumAI\chorum-ai\package-lock.json
+
+Γû▓ Next.js 16.1.1 (Turbopack)
+- Environments: .env.local
+
+ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 3.5s
+  Running TypeScript ...
+Failed to compile.
+
+./src/lib/portability/validator.ts:110:60
+Type error: Property 'errors' does not exist on type 'ZodError<{ metadata: { exportVersion: string; exportedAt: string; source: string; chorumVersion?: string | undefined; }; project: { id: string; name: string; description: string | null; techStack: string[] | null; customInstructions: string | null; }; ... 5 more ...; conversations?: { ...; }[] | undefined; }>'.
+
+  108 |     if (!result.success) {
+  109 |         // Handle both Zod v3 and v4 error formats
+> 110 |         const issues = result.error.issues || result.error.errors || []
+      |                                                            ^
+  111 |         const errorMsg = issues.length > 0
+  112 |             ? issues.map((e: { path?: (string | number)[]; message?: string }) =>
+  113 |                 `${(e.path || []).join('.')}: ${e.message || 'Invalid'}`
+Next.js build worker exited with code: 1 and signal: null

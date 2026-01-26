@@ -395,6 +395,10 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
                 <ProjectSettingsModal
                     project={settingsProject}
                     onClose={() => setSettingsProject(null)}
+                    onUpdate={(updatedProject) => {
+                        setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p))
+                        setSettingsProject(updatedProject)
+                    }}
                 />
             )}
 

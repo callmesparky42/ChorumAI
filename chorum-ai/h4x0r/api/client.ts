@@ -385,6 +385,25 @@ class ChorumApiClient {
 
     return response.json() as Promise<{ version: string; memoryCount: number; providersConfigured: string[] }>;
   }
+  async repairMemory(options: {
+    projectId?: string;
+  }): Promise<{ updated: number; failed: number }> {
+    await this.ensureInit();
+
+    const response = await fetch(`${this.baseUrl}/api/cli/memory/repair`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(options),
+    });
+
+    if (!response.ok) {
+      const error = new Error(await response.text()) as ApiError;
+      error.status = response.status;
+      throw error;
+    }
+
+    return response.json() as Promise<{ updated: number; failed: number }>;
+  }
 }
 
 export const chorumApi = new ChorumApiClient();

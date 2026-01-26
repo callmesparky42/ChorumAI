@@ -124,9 +124,14 @@ export async function processQueue(userId?: string): Promise<{ processed: number
 
 /**
  * Get a cheap provider config for the user (for learning extraction)
+ * 
+ * Priority:
+ * 1. User's configured cloud providers (cheaper ones first)
+ * 2. Environment API keys (Anthropic, OpenAI, Google)
+ * 3. Local providers if explicitly configured with a specific model
  */
 async function getProviderForUser(userId: string): Promise<FullProviderConfig | null> {
-    // Get user's active providers, preferring cheaper ones
+    // Get user's active providers
     const providers = await db.select()
         .from(providerCredentials)
         .where(
@@ -136,25 +141,78 @@ async function getProviderForUser(userId: string): Promise<FullProviderConfig | 
             )
         )
 
-    if (providers.length === 0) {
-        return null
-    }
+    // Separate cloud and local providers
+    const cloudProviders = providers.filter(p => !p.isLocal)
+    const localProviders = providers.filter(p => p.isLocal)
 
-    // Prefer cheaper models for background processing
-    const cheapOrder = ['deepseek', 'mistral', 'openai', 'anthropic', 'google']
-    const sorted = providers.sort((a, b) => {
-        return cheapOrder.indexOf(a.provider) - cheapOrder.indexOf(b.provider)
+    // Prefer cheaper cloud models for background processing
+    const cheapOrder = ['deepseek', 'mistral', 'google', 'openai', 'anthropic', 'perplexity', 'xai', 'glm']
+    const sortedCloud = cloudProviders.sort((a, b) => {
+        const aIndex = cheapOrder.indexOf(a.provider)
+        const bIndex = cheapOrder.indexOf(b.provider)
+        return (aIndex === -1 ? 100 : aIndex) - (bIndex === -1 ? 100 : bIndex)
     })
 
-    const selected = sorted[0]
-
-    return {
-        provider: selected.provider,
-        apiKey: decrypt(selected.apiKeyEncrypted),
-        model: selected.model,
-        baseUrl: selected.baseUrl || undefined,
-        isLocal: selected.isLocal || false
+    // Use a cloud provider if available
+    if (sortedCloud.length > 0) {
+        const selected = sortedCloud[0]
+        return {
+            provider: selected.provider,
+            apiKey: decrypt(selected.apiKeyEncrypted),
+            model: selected.model,
+            baseUrl: selected.baseUrl || undefined,
+            isLocal: false
+        }
     }
+
+    // Fall back to environment API keys (cheap models for background tasks)
+    if (process.env.GOOGLE_AI_API_KEY) {
+        return {
+            provider: 'google',
+            apiKey: process.env.GOOGLE_AI_API_KEY,
+            model: 'gemini-2.0-flash-lite',
+            isLocal: false
+        }
+    }
+    if (process.env.ANTHROPIC_API_KEY) {
+        return {
+            provider: 'anthropic',
+            apiKey: process.env.ANTHROPIC_API_KEY,
+            model: 'claude-3-haiku-20240307',
+            isLocal: false
+        }
+    }
+    if (process.env.OPENAI_API_KEY) {
+        return {
+            provider: 'openai',
+            apiKey: process.env.OPENAI_API_KEY,
+            model: 'gpt-4o-mini',
+            isLocal: false
+        }
+    }
+
+    // Only use local providers if explicitly configured with a real model (not 'auto')
+    // This avoids the "llama3.3 not found" issue when model resolves to default
+    if (localProviders.length > 0) {
+        const selected = localProviders[0]
+        // Skip if model is 'auto' or empty (would resolve to hardcoded default)
+        if (!selected.model || selected.model === 'auto') {
+            console.warn(`[Queue] Skipping local provider ${selected.provider} - no specific model configured`)
+            return null
+        }
+        console.log(`[Queue] Using local provider ${selected.provider} with model ${selected.model}`)
+        return {
+            provider: selected.provider,
+            apiKey: '',
+            model: selected.model,
+            baseUrl: selected.baseUrl || undefined,
+            isLocal: true
+        }
+    }
+
+    // No providers available
+    console.warn('[Queue] No providers available for learning extraction')
+    return null
 }
 
 /**

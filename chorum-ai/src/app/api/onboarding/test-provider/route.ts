@@ -308,13 +308,19 @@ async function testLocalProvider(
     'openai-compatible': baseUrl || 'http://localhost:8080',
   }
 
-  const url = baseUrl || defaultUrls[provider]
+  let url = baseUrl || defaultUrls[provider]
+
+  // Sanitize URL
+  url = url.replace(/\/$/, '') // Remove trailing slash
+
   const startTime = performance.now()
 
   try {
     // For Ollama, check the /api/tags endpoint
     if (provider === 'ollama') {
-      const response = await fetch(`${url}/api/tags`, { method: 'GET' })
+      // Native Ollama check: ensure no /v1 suffix
+      const nativeUrl = url.replace(/\/v1$/, '')
+      const response = await fetch(`${nativeUrl}/api/tags`, { method: 'GET' })
       const endTime = performance.now()
 
       if (!response.ok) {
@@ -340,7 +346,15 @@ async function testLocalProvider(
     }
 
     // For LM Studio and OpenAI-compatible, check /v1/models
-    const response = await fetch(`${url}/v1/models`, { method: 'GET' })
+
+    // Heuristic: If it looks like Ollama (port 11434) and doesn't have /v1, add it for OpenAI compatibility
+    let compatibleUrl = url
+    if ((provider === 'openai-compatible' || url.includes(':11434')) && !url.endsWith('/v1')) {
+      // Only add if it doesn't already have it
+      compatibleUrl += '/v1'
+    }
+
+    const response = await fetch(`${compatibleUrl}/v1/models`, { method: 'GET' })
     const endTime = performance.now()
 
     if (!response.ok) {

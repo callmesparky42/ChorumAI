@@ -1,6 +1,6 @@
 'use client'
 import ReactMarkdown from 'react-markdown'
-import { Bot, User, DollarSign } from 'lucide-react'
+import { Bot, User, DollarSign, Copy, Check } from 'lucide-react'
 import { PeerReview } from './PeerReview'
 import { useReviewStore } from '@/lib/review/store'
 import { useChorumStore } from '@/lib/store'
@@ -30,6 +30,17 @@ export function Message({ message, previousUserMessage }: MessageProps) {
 
     const review = reviews[message.id] || null
     const isPending = isReviewPending(message.id)
+    const [copied, setCopied] = useState(false)
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(message.content)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        } catch (err) {
+            console.error('Failed to copy:', err)
+        }
+    }
 
     // ... (rest of useEffects)
 
@@ -58,25 +69,37 @@ export function Message({ message, previousUserMessage }: MessageProps) {
                 )}
             </div>
 
-            <div className={`flex flex-col max-w-[80%] ${isUser ? 'items-end' : 'items-start'}`}>
+            <div className={`flex flex-col max-w-[80%] min-w-0 ${isUser ? 'items-end' : 'items-start'}`}>
                 {/* Agent name label */}
                 {!isUser && message.agentName && (
                     <span className="text-xs text-gray-500 mb-1 ml-1">{message.agentName}</span>
                 )}
 
-                <div className={`rounded-xl px-4 py-3 ${isUser
+                <div className={`rounded-xl px-4 py-3 overflow-hidden ${isUser
                     ? 'bg-blue-600/10 text-blue-100 border border-blue-600/20'
                     : 'bg-gray-800 text-gray-100 border border-gray-700'
                     }`}>
-                    <div className="prose prose-invert prose-sm max-w-none">
+                    <div className="prose prose-invert prose-sm max-w-none overflow-x-auto [&>pre]:overflow-x-auto [&_code]:break-all [&_code]:whitespace-pre-wrap">
                         <ReactMarkdown
                             components={{
                                 // @ts-ignore
                                 code({ node, inline, className, children, ...props }) {
+                                    const isBlock = !inline && className?.includes('language-')
                                     return (
-                                        <code className={`${className} bg-gray-950/50 rounded px-1 py-0.5`} {...props}>
+                                        <code
+                                            className={`${className || ''} bg-gray-950/50 rounded ${isBlock ? 'block overflow-x-auto p-3' : 'px-1 py-0.5'}`}
+                                            {...props}
+                                        >
                                             {children}
                                         </code>
+                                    )
+                                },
+                                // @ts-ignore
+                                pre({ children, ...props }) {
+                                    return (
+                                        <pre className="overflow-x-auto max-w-full" {...props}>
+                                            {children}
+                                        </pre>
                                     )
                                 }
                             }}
@@ -109,6 +132,17 @@ export function Message({ message, previousUserMessage }: MessageProps) {
                                 {Number(message.costUsd).toFixed(6)}
                             </span>
                         )}
+                        <button
+                            onClick={handleCopy}
+                            className="p-1 hover:bg-gray-800 rounded transition-colors hover:text-gray-300"
+                            title="Copy message"
+                        >
+                            {copied ? (
+                                <Check className="w-3.5 h-3.5 text-green-500" />
+                            ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                            )}
+                        </button>
                     </div>
                 )}
                 {/* ... peer review ... */}

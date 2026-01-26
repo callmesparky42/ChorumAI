@@ -1,0 +1,70 @@
+
+> chorum-ai@0.1.0 build
+> next build
+
+ΓÜá Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\dmill\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\dmill\Documents\GitHub\ChorumAI\chorum-ai\package-lock.json
+
+Γû▓ Next.js 16.1.1 (Turbopack)
+- Environments: .env.local
+
+ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 14.7s
+  Running TypeScript ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/34) ...
+  Generating static pages using 15 workers (8/34) 
+  Generating static pages using 15 workers (16/34) 
+  Generating static pages using 15 workers (25/34) 
+Γ£ô Generating static pages using 15 workers (34/34) in 295.3ms
+  Finalizing page optimization ...
+
+Route (app)
+Γöî Γùï /
+Γö£ Γùï /_not-found
+Γö£ Γùï /admin/routing
+Γö£ ╞Æ /api/agents
+Γö£ ╞Æ /api/agents/[name]
+Γö£ ╞Æ /api/agents/list
+Γö£ ╞Æ /api/audit-logs
+Γö£ ╞Æ /api/auth/[...nextauth]
+Γö£ ╞Æ /api/chat
+Γö£ ╞Æ /api/cli/memory
+Γö£ ╞Æ /api/cli/memory/[id]
+Γö£ ╞Æ /api/cli/memory/repair
+Γö£ ╞Æ /api/cli/memory/search
+Γö£ ╞Æ /api/conversations
+Γö£ ╞Æ /api/conversations/[id]/messages
+Γö£ ╞Æ /api/export/project
+Γö£ ╞Æ /api/import/project
+Γö£ ╞Æ /api/learning
+Γö£ ╞Æ /api/learning/files
+Γö£ ╞Æ /api/memory/patterns
+Γö£ ╞Æ /api/onboarding/complete
+Γö£ ╞Æ /api/onboarding/generate-secrets
+Γö£ ╞Æ /api/onboarding/status
+Γö£ ╞Æ /api/onboarding/test-connection
+Γö£ ╞Æ /api/onboarding/test-provider
+Γö£ ╞Æ /api/onboarding/update
+Γö£ ╞Æ /api/onboarding/validate-env
+Γö£ ╞Æ /api/projects
+Γö£ ╞Æ /api/providers
+Γö£ ╞Æ /api/review
+Γö£ ╞Æ /api/router-logs
+Γö£ ╞Æ /api/settings
+Γö£ ╞Æ /api/summarize
+Γö£ Γùï /login
+Γö£ Γùï /onboarding
+Γöö Γùï /settings
+
+
+╞Æ Proxy (Middleware)
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

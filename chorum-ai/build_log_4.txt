@@ -1,0 +1,38 @@
+
+> chorum-ai@0.1.0 build
+> next build
+
+ΓÜá Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\dmill\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\dmill\Documents\GitHub\ChorumAI\chorum-ai\package-lock.json
+
+Γû▓ Next.js 16.1.1 (Turbopack)
+- Environments: .env.local
+
+ΓÜá The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 3.4s
+  Running TypeScript ...
+Failed to compile.
+
+./src/lib/portability/validator.ts:112:26
+Type error: Argument of type '(e: { path?: (string | number)[]; message?: string; }) => string' is not assignable to parameter of type '(value: $ZodIssue, index: number, array: $ZodIssue[]) => string'.
+  Types of parameters 'e' and 'value' are incompatible.
+    Type '$ZodIssue' is not assignable to type '{ path?: (string | number)[] | undefined; message?: string | undefined; }'.
+      Type '$ZodIssueUnrecognizedKeys' is not assignable to type '{ path?: (string | number)[] | undefined; message?: string | undefined; }'.
+        Types of property 'path' are incompatible.
+          Type 'PropertyKey[]' is not assignable to type '(string | number)[]'.
+            Type 'PropertyKey' is not assignable to type 'string | number'.
+              Type 'symbol' is not assignable to type 'string | number'.
+
+  110 |         const issues = result.error.issues || []
+  111 |         const errorMsg = issues.length > 0
+> 112 |             ? issues.map((e: { path?: (string | number)[]; message?: string }) =>
+      |                          ^
+  113 |                 `${(e.path || []).join('.')}: ${e.message || 'Invalid'}`
+  114 |             ).join(', ')
+  115 |             : result.error.message || 'Validation failed'
+Next.js build worker exited with code: 1 and signal: null

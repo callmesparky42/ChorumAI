@@ -54,6 +54,11 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                         <Bot className="w-4 h-4 text-gray-500" />
                         <span className="font-medium">Auto Agent</span>
                     </>
+                ) : value === 'none' ? (
+                    <>
+                        <span className="w-4 h-4 text-gray-600 text-center">—</span>
+                        <span className="font-medium text-gray-400">None</span>
+                    </>
                 ) : selectedAgent ? (
                     <>
                         <span className="text-base">{selectedAgent.icon}</span>
@@ -82,6 +87,21 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                         <div>
                             <div className="text-gray-200">Auto Agent</div>
                             <div className="text-xs text-gray-500">Let AI pick the best agent for your message</div>
+                        </div>
+                    </button>
+
+                    {/* None/Control option - raw LLM chat */}
+                    <button
+                        className={clsx(
+                            'w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-700',
+                            value === 'none' && 'bg-gray-700'
+                        )}
+                        onClick={() => { onChange('none'); setIsOpen(false) }}
+                    >
+                        <span className="w-4 h-4 text-gray-600 text-center">—</span>
+                        <div>
+                            <div className="text-gray-200">None</div>
+                            <div className="text-xs text-gray-500">Direct LLM chat without agent processing</div>
                         </div>
                     </button>
 

@@ -73,7 +73,7 @@ export function AgentPanel({ projectId }: Props) {
 
   return (
     <>
-      <div className="w-full bg-gray-950 border-l border-gray-800 flex flex-col">
+      <div className="w-full bg-gray-950 border-l border-gray-800 flex flex-col min-h-0">
         {/* Header */}
         <div className="p-4 border-b border-gray-800 flex items-center justify-between">
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Agents</h2>
@@ -113,7 +113,7 @@ export function AgentPanel({ projectId }: Props) {
         )}
 
         {/* Agent List by Tier */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {(['reasoning', 'balanced', 'fast'] as AgentTier[]).map((tier) => (
             <div key={tier} className="border-b border-gray-800/50">
               {/* Tier Header */}

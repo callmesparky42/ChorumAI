@@ -13,6 +13,7 @@ interface Message {
     tokensOutput?: number
     agentName?: string
     agentIcon?: string
+    agentTier?: 'reasoning' | 'balanced' | 'fast'
 }
 
 interface ChorumStore {
@@ -126,13 +127,16 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
             if (!response.ok) {
                 const errorText = await response.text()
                 console.error('API Error:', errorText)
+
+                let errorMessage = `Failed to send message: ${response.status} ${response.statusText}`
                 try {
                     const errorJson = JSON.parse(errorText)
-                    throw new Error(errorJson.error || 'Failed to send message')
-                } catch (e: any) {
-                    if (e.message !== 'Unexpected token') throw e
-                    throw new Error(`Failed to send message: ${response.status} ${response.statusText}`)
+                    if (errorJson.error) errorMessage = errorJson.error
+                } catch (e) {
+                    // Fallback to default error if JSON parse fails
                 }
+
+                throw new Error(errorMessage)
             }
 
             const data = await response.json()
@@ -152,7 +156,8 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
                     ...data.message,
                     // Use agent from API response (orchestrator's choice) if available
                     agentName: data.agent?.name,
-                    agentIcon: data.agent?.icon
+                    agentIcon: data.agent?.icon,
+                    agentTier: data.agent?.tier
                 }
                 set((state) => ({ messages: [...state.messages, assistantMsg] }))
             }

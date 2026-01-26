@@ -15,6 +15,16 @@ export async function callOpenAICompatible(
         throw new Error('OpenAI-compatible provider requires a baseUrl')
     }
 
+    let baseUrl = config.baseUrl.replace(/\/$/, '')
+
+    // Heuristic: If it looks like Ollama (port 11434) and doesn't have /v1, add it
+    if (baseUrl.includes(':11434') && !baseUrl.endsWith('/v1')) {
+        baseUrl += '/v1'
+    }
+
+    // Remove /chat/completions if user accidentally included it
+    baseUrl = baseUrl.replace(/\/chat\/completions$/, '')
+
     const headers: Record<string, string> = {
         'Content-Type': 'application/json'
     }
@@ -25,7 +35,7 @@ export async function callOpenAICompatible(
     }
 
     // Use secureFetch to respect strictSsl setting for enterprise deployments
-    const response = await secureFetch(`${config.baseUrl}/chat/completions`, {
+    const response = await secureFetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers,
         body: JSON.stringify({

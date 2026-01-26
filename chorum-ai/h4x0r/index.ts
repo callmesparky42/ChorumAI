@@ -22,6 +22,8 @@ import { importCommand } from './commands/import';
 import { configCommand } from './commands/config-cmd';
 import { loginCommand } from './commands/login';
 import { hackCommand } from './commands/hack';
+import { memoryRepairCommand } from './commands/memory-repair';
+import { mcpCommand } from './commands/mcp';
 import { getConfig } from './config';
 
 const VERSION = '1.0.0';
@@ -150,6 +152,14 @@ async function main() {
       await memoryCommand('search', { ...options, query }, renderer);
     });
 
+  memory
+    .command('repair')
+    .description('Backfill missing embeddings')
+    .option('-p, --project <project>', 'Target project')
+    .action(async (options) => {
+      await memoryRepairCommand(options, renderer);
+    });
+
   // ═══════════════════════════════════════════════════════════
   // KNOWLEDGE IMPORT
   // ═══════════════════════════════════════════════════════════
@@ -204,6 +214,18 @@ async function main() {
     .description('Manage configuration (get, set, list)')
     .action(async (action, key, value) => {
       await configCommand(action, key, value, renderer);
+    });
+
+  // ═══════════════════════════════════════════════════════════
+  // MCP SERVER
+  // ═══════════════════════════════════════════════════════════
+
+  program
+    .command('mcp <action>')
+    .description('MCP Server management (serve, status, config)')
+    .option('-p, --port <port>', 'HTTP port (for future use)')
+    .action(async (action, options) => {
+      await mcpCommand(action, options, renderer);
     });
 
   // ═══════════════════════════════════════════════════════════

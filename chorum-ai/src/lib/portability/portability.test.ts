@@ -64,7 +64,9 @@ const mockExportPayload: ExportPayload = {
                 createdAt: '2026-01-10T08:00:00Z'
             }
         ],
-        goldenPaths: []
+        goldenPaths: [],
+        links: [],
+        cooccurrences: []
     },
     confidence: {
         score: '85.50',
@@ -100,18 +102,32 @@ const mockExportPayload: ExportPayload = {
                 icon: '🔒',
                 role: 'Security analysis specialist',
                 tier: 'reasoning',
+                isBuiltIn: false,
                 isCustom: true,
-                personality: {
+                persona: {
+                    description: 'Security-focused analyst',
                     tone: 'professional',
-                    verbosity: 'detailed',
-                    emoji: false,
-                    formality: 'formal',
-                    traits: ['thorough', 'cautious']
+                    principles: ['Check for vulnerabilities', 'Be thorough']
+                },
+                model: {
+                    temperature: 0.3,
+                    maxTokens: 4000,
+                    reasoningMode: true
                 },
                 memory: {
                     semanticFocus: 'Security vulnerabilities, OWASP, attack vectors',
-                    extractPatterns: ['security_issue', 'vulnerability', 'mitigation'],
-                    injectRules: ['Always check for injection vulnerabilities']
+                    requiredContext: ['project.md'],
+                    optionalContext: [],
+                    writesBack: ['patterns']
+                },
+                capabilities: {
+                    tools: ['file_read', 'code_search'],
+                    actions: ['Identify vulnerabilities', 'Suggest mitigations'],
+                    boundaries: ['Does not implement fixes']
+                },
+                guardrails: {
+                    hardLimits: ['Never ignore security issues'],
+                    escalateTo: 'architect'
                 }
             },
             createdAt: '2026-01-18T10:00:00Z'
@@ -232,7 +248,9 @@ function runTests() {
             antipatterns: [],
             decisions: [],
             invariants: [],
-            goldenPaths: []
+            goldenPaths: [],
+            links: [],
+            cooccurrences: []
         },
         criticalFiles: [],
         memorySummaries: [],

@@ -43,5 +43,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# claude code settings
 .claude/
+
+# specs
+docs/specs

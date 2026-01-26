@@ -7,6 +7,36 @@ import { eq } from 'drizzle-orm'
 export async function GET() {
     try {
         const session = await auth()
+
+        // Development Bypass: If no session and in dev mode, return mock settings
+        if (!session?.user?.id && process.env.NODE_ENV === 'development') {
+            return NextResponse.json({
+                name: 'Local Developer',
+                email: 'dev@localhost',
+                bio: 'Running in local development mode',
+                securitySettings: {
+                    enforceHttps: false,
+                    anonymizePii: false,
+                    strictSsl: false,
+                    logAllRequests: false
+                },
+                fallbackSettings: {
+                    enabled: true,
+                    defaultProvider: null,
+                    localFallbackModel: null,
+                    priorityOrder: []
+                },
+                memorySettings: {
+                    autoLearn: true,
+                    learningMode: 'async',
+                    injectContext: true,
+                    autoSummarize: true,
+                    validateResponses: true,
+                    smartAgentRouting: true
+                }
+            })
+        }
+
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
@@ -51,6 +81,12 @@ export async function GET() {
 export async function PATCH(req: Request) {
     try {
         const session = await auth()
+
+        // Development Bypass
+        if (!session?.user?.id && process.env.NODE_ENV === 'development') {
+            return NextResponse.json({ success: true })
+        }
+
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }

@@ -12,9 +12,12 @@ import {
     memorySummaries,
     customAgents,
     conversations,
-    messages
+    messages,
+    learningLinks,
+    learningCooccurrence
 } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
+import { v4 as uuidv4 } from 'uuid'
 import { ExportPayload, ImportOptions, ImportResult } from './types'
 
 export async function importProject(userId: string, data: ExportPayload, options: ImportOptions): Promise<ImportResult> {
@@ -24,7 +27,8 @@ export async function importProject(userId: string, data: ExportPayload, options
             invariantsImported: 0,
             agentsImported: 0,
             conversationsImported: 0,
-            filesImported: 0
+            filesImported: 0,
+            linksImported: 0
         }
         const warnings: string[] = []
         const idMap = new Map<string, string>() // Old ID -> New ID
@@ -101,6 +105,56 @@ export async function importProject(userId: string, data: ExportPayload, options
             } else {
                 // If exists, map old ID to existing ID
                 idMap.set(item.id, existing.id)
+            }
+        }
+
+        // 2b. Import Links & Cooccurrences
+        if (data.learning.links) {
+            for (const link of data.learning.links) {
+                const newFromId = idMap.get(link.fromId)
+                const newToId = idMap.get(link.toId)
+
+                if (newFromId && newToId) { // Only import if both ends exist/imported
+                    // Check duplicate
+                    const existing = await tx.query.learningLinks.findFirst({
+                        where: and(
+                            eq(learningLinks.fromId, newFromId),
+                            eq(learningLinks.toId, newToId),
+                            eq(learningLinks.linkType, link.linkType)
+                        )
+                    })
+
+                    if (!existing) {
+                        await tx.insert(learningLinks).values({
+                            projectId: projectId!,
+                            fromId: newFromId,
+                            toId: newToId,
+                            linkType: link.linkType,
+                            strength: link.strength,
+                            source: link.source,
+                            createdAt: link.createdAt ? new Date(link.createdAt) : new Date()
+                        })
+                        stats.linksImported++
+                    }
+                }
+            }
+        }
+
+        if (data.learning.cooccurrences) {
+            for (const co of data.learning.cooccurrences) {
+                const newA = idMap.get(co.itemA)
+                const newB = idMap.get(co.itemB)
+
+                if (newA && newB) {
+                    await tx.insert(learningCooccurrence).values({
+                        projectId: projectId!,
+                        itemA: newA,
+                        itemB: newB,
+                        count: co.count,
+                        positiveCount: co.positiveCount,
+                        lastSeen: co.lastSeen ? new Date(co.lastSeen) : new Date()
+                    }).onConflictDoNothing()
+                }
             }
         }
 

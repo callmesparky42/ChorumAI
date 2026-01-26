@@ -17,7 +17,7 @@ import {
     detectLocalProviders,
     sortByFallbackPriority
 } from '@/lib/providers/fallback'
-import { injectLearningContext, type LearningContext } from '@/lib/learning/injector'
+import { injectLearningContext, onInjection, type LearningContext } from '@/lib/learning/injector'
 import { validateResponse } from '@/lib/learning/validator'
 import { updateConfidence } from '@/lib/learning/manager'
 import { validateProviderEndpoint, logLlmRequest, type SecuritySettings } from '@/lib/security'
@@ -96,8 +96,9 @@ export async function POST(req: NextRequest) {
 
         // [Agent Orchestration] Select and configure agent for this request
         let agentResult: OrchestrationResult | null = null
-        // Only run if smart agent routing is enabled
-        if (memorySettings.smartAgentRouting !== false) {
+        // Skip orchestration if user selected "none" (control mode) or smart routing disabled
+        const skipAgentOrchestration = agentOverride === 'none' || memorySettings.smartAgentRouting === false
+        if (!skipAgentOrchestration) {
             try {
                 agentResult = await selectAgent({
                     userId,
@@ -113,6 +114,8 @@ export async function POST(req: NextRequest) {
             } catch (e) {
                 console.warn('[Agent] Orchestration failed, using default prompt:', e)
             }
+        } else if (agentOverride === 'none') {
+            console.log('[Agent] Skipped - user selected "none" (control mode)')
         }
 
         // Get conversation memory (query-aware)
@@ -367,7 +370,8 @@ export async function POST(req: NextRequest) {
                         apiKey: selectedConfig.apiKey,
                         model: decision.model,
                         baseUrl: selectedConfig.baseUrl,
-                        isLocal: selectedConfig.isLocal
+                        isLocal: selectedConfig.isLocal,
+                        securitySettings: selectedConfig.securitySettings
                     },
                     fullMessages.map(m => ({ role: m.role, content: m.content, images: m.images })),
                     systemPrompt
@@ -413,6 +417,15 @@ export async function POST(req: NextRequest) {
                 // Update confidence score based on validation result
                 await updateConfidence(projectId, validation.isValid)
 
+                // [Co-occurrence Tracking] Track injected items
+                // Fire and forget to avoid latency
+                if (learningContext.injectedItems && learningContext.injectedItems.length > 1) {
+                    onInjection(
+                        learningContext.injectedItems as any,
+                        projectId,
+                        validation.isValid ? 'positive' : 'neutral'
+                    ).catch(e => console.warn('[Learning] Co-occurrence tracking failed:', e))
+                }
             } catch (e) {
                 console.warn('[Learning] Validation failed:', e)
             }

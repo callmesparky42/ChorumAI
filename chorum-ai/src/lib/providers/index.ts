@@ -31,7 +31,7 @@ const DEFAULT_MODELS: Record<string, string> = {
     perplexity: 'llama-3.1-sonar-large-128k-online',
     xai: 'grok-2-latest',
     glm: 'glm-4-plus',
-    ollama: 'llama3.3',
+    ollama: 'phi3',
     lmstudio: 'local-model'
 }
 

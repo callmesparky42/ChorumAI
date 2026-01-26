@@ -1,7 +1,9 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
-import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download, Brain, Zap, Sparkles, FolderOpen } from 'lucide-react'
+import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download, Brain, Zap, Sparkles, FolderOpen, Terminal } from 'lucide-react'
 import { LearningDashboard } from '@/components/LearningDashboard'
+import { McpSettings } from '@/components/settings/McpSettings'
+import { PendingLearnings } from '@/components/PendingLearnings'
 import Link from 'next/link'
 import clsx from 'clsx'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -18,7 +20,7 @@ const PROVIDER_PRESETS: Record<string, { name: string, models: string[], require
     perplexity: { name: 'Perplexity AI', models: ['llama-3.1-sonar-large-128k-online', 'llama-3.1-sonar-small-128k-online', 'llama-3.1-sonar-huge-128k-online'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.perplexity.ai' },
     xai: { name: 'xAI (Grok)', models: ['grok-2-latest', 'grok-2-vision-latest', 'grok-beta'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.x.ai/v1' },
     glm: { name: 'GLM-4 (Zhipu AI)', models: ['auto', 'glm-4-plus', 'glm-4-long', 'glm-4-flash', 'glm-4-flashx'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
-    ollama: { name: 'Ollama (Local)', models: ['llama3.3', 'mistral', 'phi4', 'codellama', 'gemma2', 'glm4'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:11434' },
+    ollama: { name: 'Ollama (Local)', models: ['phi3', 'llama3.3', 'mistral', 'phi4', 'codellama', 'gemma2', 'glm4'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:11434' },
     lmstudio: { name: 'LM Studio (Local)', models: ['local-model'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:1234/v1' },
     'openai-compatible': { name: 'OpenAI-Compatible API', models: ['custom'], requiresKey: false, isLocal: true }
 }
@@ -95,9 +97,36 @@ function SettingsContent() {
     const [formBaseUrl, setFormBaseUrl] = useState('')
     const [formDisplayName, setFormDisplayName] = useState('')
 
+    // Local model discovery state
+    const [localModels, setLocalModels] = useState<{
+        ollama: { available: boolean; models: string[]; error?: string }
+        lmstudio: { available: boolean; models: string[]; error?: string }
+    }>({ ollama: { available: false, models: [] }, lmstudio: { available: false, models: [] } })
+    const [fetchingLocalModels, setFetchingLocalModels] = useState(false)
+
     // Helper to check if provider needs API key
     const providerNeedsKey = (provider: string) => PROVIDER_PRESETS[provider]?.requiresKey ?? true
     const providerIsLocal = (provider: string) => PROVIDER_PRESETS[provider]?.isLocal ?? false
+
+    // Fetch local models when selecting Ollama or LM Studio
+    const fetchLocalModels = async (provider: 'ollama' | 'lmstudio') => {
+        setFetchingLocalModels(true)
+        try {
+            const res = await fetch(`/api/local-models?provider=${provider}`)
+            if (res.ok) {
+                const data = await res.json()
+                setLocalModels(prev => ({ ...prev, [provider]: data[provider] }))
+                // Auto-select first available model
+                if (data[provider]?.available && data[provider].models.length > 0) {
+                    setFormModel(data[provider].models[0])
+                }
+            }
+        } catch (e) {
+            console.error('Failed to fetch local models:', e)
+        } finally {
+            setFetchingLocalModels(false)
+        }
+    }
 
     useEffect(() => {
         fetchData()
@@ -272,6 +301,7 @@ function SettingsContent() {
         { id: 'general', label: 'General', icon: User },
         { id: 'security', label: 'Security', icon: Lock },
         { id: 'memory', label: 'Memory & Learning', icon: Brain },
+        { id: 'mcp', label: 'MCP Integration', icon: Terminal },
         { id: 'resilience', label: 'Resilience', icon: RefreshCw },
         { id: 'help', label: 'Help', icon: HelpCircle },
         { id: 'legal', label: 'Legal & Privacy', icon: FileText },
@@ -621,6 +651,28 @@ function SettingsContent() {
                                 </div>
                             </div>
                         )}
+                    </>
+                )}
+
+                {/* MCP Integration Tab */}
+                {activeTab === 'mcp' && (
+                    <>
+                        <div className="mb-8">
+                            <h2 className="text-2xl font-semibold">MCP Integration</h2>
+                            <p className="text-gray-400 mt-1">Connect external AI agents to your ChorumAI memory.</p>
+                        </div>
+
+                        <div className="space-y-8">
+                            {/* Pending Learnings Section */}
+                            <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800">
+                                <PendingLearnings />
+                            </div>
+
+                            {/* MCP Settings Section */}
+                            <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800">
+                                <McpSettings />
+                            </div>
+                        </div>
                     </>
                 )}
 
@@ -1279,6 +1331,10 @@ function SettingsContent() {
                                         if (preset?.models?.[0]) setFormModel(preset.models[0])
                                         // Set default base URL
                                         setFormBaseUrl(preset?.defaultBaseUrl || '')
+                                        // Fetch available models for local providers
+                                        if (newProvider === 'ollama' || newProvider === 'lmstudio') {
+                                            fetchLocalModels(newProvider)
+                                        }
                                     }}
                                     className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
                                 >
@@ -1302,17 +1358,60 @@ function SettingsContent() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">Model</label>
+                                    <label className="block text-xs font-medium text-gray-400 mb-1">
+                                        Model
+                                        {fetchingLocalModels && (
+                                            <Loader2 className="inline w-3 h-3 ml-1 animate-spin" />
+                                        )}
+                                    </label>
                                     <select
                                         value={formModel}
                                         onChange={(e) => setFormModel(e.target.value)}
                                         className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                        disabled={fetchingLocalModels}
                                     >
-                                        {PROVIDER_PRESETS[formProvider]?.models.map(m => (
-                                            <option key={m} value={m}>{m}</option>
-                                        ))}
+                                        {/* Show discovered models for local providers */}
+                                        {(formProvider === 'ollama' && localModels.ollama.available) ? (
+                                            localModels.ollama.models.map(m => (
+                                                <option key={m} value={m}>{m}</option>
+                                            ))
+                                        ) : (formProvider === 'lmstudio' && localModels.lmstudio.available) ? (
+                                            localModels.lmstudio.models.map(m => (
+                                                <option key={m} value={m}>{m}</option>
+                                            ))
+                                        ) : (
+                                            PROVIDER_PRESETS[formProvider]?.models.map(m => (
+                                                <option key={m} value={m}>{m}</option>
+                                            ))
+                                        )}
                                         <option value="custom">Custom...</option>
                                     </select>
+                                    {/* Show error/warning for local providers */}
+                                    {formProvider === 'ollama' && !localModels.ollama.available && localModels.ollama.error && (
+                                        <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
+                                            <WifiOff className="w-3 h-3" />
+                                            {localModels.ollama.error}
+                                        </p>
+                                    )}
+                                    {formProvider === 'lmstudio' && !localModels.lmstudio.available && localModels.lmstudio.error && (
+                                        <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
+                                            <WifiOff className="w-3 h-3" />
+                                            {localModels.lmstudio.error}
+                                        </p>
+                                    )}
+                                    {/* Show success indicator */}
+                                    {formProvider === 'ollama' && localModels.ollama.available && (
+                                        <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
+                                            <Wifi className="w-3 h-3" />
+                                            Connected - {localModels.ollama.models.length} model(s) found
+                                        </p>
+                                    )}
+                                    {formProvider === 'lmstudio' && localModels.lmstudio.available && (
+                                        <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
+                                            <Wifi className="w-3 h-3" />
+                                            Connected - {localModels.lmstudio.models.length} model(s) found
+                                        </p>
+                                    )}
                                 </div>
                                 {formModel === 'custom' && (
                                     <div>
@@ -1356,17 +1455,19 @@ function SettingsContent() {
                             )}
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">Daily Budget ($)</label>
-                                    <input
-                                        type="number"
-                                        value={formBudget}
-                                        onChange={e => setFormBudget(e.target.value)}
-                                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                        min="0"
-                                        step="0.01"
-                                    />
-                                </div>
+                                {!providerIsLocal(formProvider) && (
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Daily Budget ($)</label>
+                                        <input
+                                            type="number"
+                                            value={formBudget}
+                                            onChange={e => setFormBudget(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-xs font-medium text-gray-400 mb-1">Display Name (optional)</label>
                                     <input
@@ -1433,17 +1534,19 @@ function SettingsContent() {
                             )}
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">Daily Budget ($)</label>
-                                    <input
-                                        type="number"
-                                        value={formBudget}
-                                        onChange={e => setFormBudget(e.target.value)}
-                                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                        min="0"
-                                        step="0.01"
-                                    />
-                                </div>
+                                {!editingProvider.isLocal && (
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Daily Budget ($)</label>
+                                        <input
+                                            type="number"
+                                            value={formBudget}
+                                            onChange={e => setFormBudget(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                            min="0"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-xs font-medium text-gray-400 mb-1">Display Name</label>
                                     <input

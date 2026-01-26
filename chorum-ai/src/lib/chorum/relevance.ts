@@ -18,6 +18,8 @@ export interface MemoryCandidate {
     createdAt: Date | null
     // Calculated fields
     score?: number
+    retrievalReason?: string
+    linkType?: string
 }
 
 export class RelevanceEngine {

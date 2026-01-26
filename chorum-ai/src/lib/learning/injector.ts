@@ -5,19 +5,27 @@
  */
 
 import { getProjectLearning } from './manager'
+import { getLinksForProject } from './links'
 import { db } from '@/lib/db'
 import { projectFileMetadata } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, or } from 'drizzle-orm'
 import { classifier } from '@/lib/chorum/classifier'
 import { embeddings } from '@/lib/chorum/embeddings'
 import { relevance, type MemoryCandidate } from '@/lib/chorum/relevance'
 import type { LearningItem } from './types'
+import { upsertCooccurrence } from './cooccurrence'
+import { learningLinks } from '@/lib/db/schema'
+import { v4 as uuidv4 } from 'uuid'
+import { inArray, and } from 'drizzle-orm'
+import { updateLink } from './links'
 
 export interface LearningContext {
     /** Modified system prompt with learning context injected */
     systemPrompt: string
     /** Cached learning items for validation (avoids second DB call) */
     learningItems: LearningItem[]
+    /** Items actually injected into the prompt */
+    injectedItems: MemoryCandidate[]
     /** Cached critical file paths */
     criticalFiles: string[]
     /** Invariants specifically (common use case) */
@@ -69,11 +77,12 @@ export async function injectLearningContext(
     // 2. Generate Embedding (Parallel with DB fetch)
     const embeddingPromise = budget.maxTokens > 0 ? embeddings.embed(userQuery) : Promise.resolve([])
 
-    // 3. Fetch Candidates & File Metadata
-    const [learningItems, fileMeta, queryEmbedding] = await Promise.all([
+    // 3. Fetch Candidates, File Metadata, & Links
+    const [learningItems, fileMeta, queryEmbedding, allLinks] = await Promise.all([
         getProjectLearning(projectId),
         db.select().from(projectFileMetadata).where(eq(projectFileMetadata.projectId, projectId)),
-        embeddingPromise
+        embeddingPromise,
+        getLinksForProject(projectId)
     ])
 
     const criticalFiles = fileMeta
@@ -97,7 +106,53 @@ export async function injectLearningContext(
     let selectedItems: MemoryCandidate[] = []
 
     if (budget.maxTokens > 0) {
-        const scored = relevance.scoreCandidates(candidates, queryEmbedding, classification)
+        let scored = relevance.scoreCandidates(candidates, queryEmbedding, classification)
+
+        // [Graph Expansion] Activation Spreading
+        // Boost items linked to high-scoring semantic matches
+        if (allLinks.length > 0 && scored.length > 0) {
+            const idToScore = new Map(scored.map(s => [s.id, s.score || 0]))
+            const itemMap = new Map(scored.map(s => [s.id, s]))
+
+            // Identify seeds (top 10 items with decent score)
+            const seeds = scored
+                .filter(s => (s.score || 0) > 0.6)
+                .sort((a, b) => (b.score || 0) - (a.score || 0))
+                .slice(0, 10)
+
+            // Spread activation
+            for (const seed of seeds) {
+                const seedScore = seed.score || 0
+
+                // Find links FROM seed or TO seed
+                const relatedLinks = allLinks.filter(l => l.fromId === seed.id || l.toId === seed.id)
+
+                for (const link of relatedLinks) {
+                    const targetId = link.fromId === seed.id ? link.toId : link.fromId
+                    const targetItem = itemMap.get(targetId)
+                    if (!targetItem) continue
+
+                    // Calculate spread score
+                    const strength = Number(link.strength)
+                    const spreadScore = seedScore * strength * 0.85 // 15% decay per hop
+
+                    const currentScore = idToScore.get(targetId) || 0
+
+                    if (spreadScore > currentScore) {
+                        // Boost the item
+                        targetItem.score = spreadScore
+                        targetItem.retrievalReason = `Linked to "${seed.content.slice(0, 20)}..." (${link.linkType})`
+                        targetItem.linkType = link.linkType
+                        idToScore.set(targetId, spreadScore)
+                    }
+                }
+            }
+
+            // Re-sort with new scores (relevance.selectMemory does sorting but we modified direct objects)
+            // scoreCandidates returns new objects, so we mutated the objects in `scored` array.
+            // selectMemory will see the updated scores.
+        }
+
         selectedItems = relevance.selectMemory(scored, budget.maxTokens)
     } else {
         // Even if budget is 0, we might want to enforce invariants?
@@ -129,7 +184,8 @@ export async function injectLearningContext(
 
     return {
         systemPrompt,
-        learningItems: learningItems, // Return ALL items for validator (it checks everything against response)
+        learningItems: learningItems,
+        injectedItems: selectedItems,
         criticalFiles,
         invariants: learningItems.filter(i => i.type === 'invariant'),
         relevance: {
@@ -155,4 +211,74 @@ function buildCriticalFilesSection(
         section += '\n'
     }
     return section
+}
+
+/**
+ * onInjection
+ * Tracks co-occurrence of injected items.
+ * Should be called after successful response generation.
+ */
+export async function onInjection(
+    injectedItems: LearningItem[],
+    projectId: string,
+    responseQuality: 'positive' | 'neutral' | 'negative' = 'neutral'
+): Promise<void> {
+    if (injectedItems.length < 2) return
+
+    // Track all pairs
+    const isPositive = responseQuality === 'positive'
+    const promises: Promise<void>[] = []
+
+    for (let i = 0; i < injectedItems.length; i++) {
+        for (let j = i + 1; j < injectedItems.length; j++) {
+            promises.push(upsertCooccurrence({
+                projectId,
+                itemA: injectedItems[i].id,
+                itemB: injectedItems[j].id,
+                isPositive
+            }))
+        }
+    }
+
+    // Fire and forget - don't await all individually if not critical? 
+    // Ideally await to ensure DB consistency but execution time matters less here (async).
+    await Promise.all(promises)
+
+    // Phase 4: Link Strengthening
+    if (isPositive) {
+        await strengthenUsedLinks(injectedItems, projectId)
+    }
+}
+
+/**
+ * strengthenUsedLinks
+ * Increases strength of existing links between successfully used items.
+ */
+async function strengthenUsedLinks(
+    injectedItems: LearningItem[],
+    projectId: string
+): Promise<void> {
+    if (injectedItems.length < 2) return
+
+    const itemIds = injectedItems.map(i => i.id)
+
+    // Find existing links between these items
+    const existingLinks = await db.select()
+        .from(learningLinks)
+        .where(and(
+            eq(learningLinks.projectId, projectId),
+            or(
+                and(inArray(learningLinks.fromId, itemIds), inArray(learningLinks.toId, itemIds))
+            )
+        ))
+
+    // Update strengths
+    for (const link of existingLinks) {
+        const current = Number(link.strength)
+        // Asymptotic approach strictly < 1.0
+        // New = Old + 0.05 * (1 - Old)
+        const newStrength = current + 0.05 * (1 - current)
+
+        await updateLink(link.id, { strength: newStrength })
+    }
 }

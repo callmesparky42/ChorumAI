@@ -7,7 +7,6 @@ import { ProviderSelector } from './ProviderSelector'
 import { AgentSelector } from './AgentSelector'
 import { CostMeter } from './CostMeter'
 import { useChorumStore } from '@/lib/store'
-import { useAgentStore } from '@/lib/agents/store'
 import { useReviewStore } from '@/lib/review/store'
 import clsx from 'clsx'
 
@@ -22,8 +21,15 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const { messages, sendMessage, isLoading, isAgentPanelOpen, toggleAgentPanel } = useChorumStore()
-    const { activeAgent } = useAgentStore()
     const { config: reviewConfig, updateConfig: updateReviewConfig } = useReviewStore()
+
+    // Get responding agent from most recent assistant message (not selection)
+    const lastAssistantMessage = [...messages].reverse().find(m => m.role === 'assistant')
+    const respondingAgent = lastAssistantMessage?.agentName ? {
+        name: lastAssistantMessage.agentName,
+        icon: lastAssistantMessage.agentIcon || '🤖',
+        tier: lastAssistantMessage.agentTier
+    } : null
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -83,35 +89,42 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
     const handleSend = async () => {
         if (!message.trim() || !projectId) return
 
+        const content = message
+        const currentImages = images.length > 0 ? images : undefined
+
+        // Clear input immediately to prevent text entry lag
+        setMessage('')
+        setImages([])
+
         await sendMessage({
             projectId,
-            content: message,
-            images: images.length > 0 ? images : undefined,
+            content,
+            images: currentImages,
             providerOverride: selectedProvider === 'auto' ? undefined : selectedProvider,
             agentOverride: selectedAgent
         })
-
-        setMessage('')
-        setImages([])
     }
 
     return (
-        <div className="flex-1 flex flex-col bg-gray-950">
+        <div className="flex-1 flex flex-col bg-gray-950 min-h-0">
             {/* Header */}
             <div className="h-14 border-b border-gray-800 flex items-center justify-between px-6 bg-gray-950/50 backdrop-blur-md sticky top-0 z-10">
                 <div className="flex items-center gap-3">
-                    {activeAgent && (
+                    {/* Show responding agent (from last message), not selected agent */}
+                    {respondingAgent && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 rounded-full border border-gray-700">
-                            <span className="text-base">{activeAgent.icon}</span>
-                            <span className="text-sm text-gray-300">{activeAgent.name}</span>
-                            <span className={clsx(
-                                'text-xs px-1.5 py-0.5 rounded',
-                                activeAgent.tier === 'reasoning' && 'bg-purple-500/20 text-purple-400',
-                                activeAgent.tier === 'balanced' && 'bg-blue-500/20 text-blue-400',
-                                activeAgent.tier === 'fast' && 'bg-green-500/20 text-green-400'
-                            )}>
-                                {activeAgent.tier}
-                            </span>
+                            <span className="text-base">{respondingAgent.icon}</span>
+                            <span className="text-sm text-gray-300">{respondingAgent.name}</span>
+                            {respondingAgent.tier && (
+                                <span className={clsx(
+                                    'text-xs px-1.5 py-0.5 rounded',
+                                    respondingAgent.tier === 'reasoning' && 'bg-purple-500/20 text-purple-400',
+                                    respondingAgent.tier === 'balanced' && 'bg-blue-500/20 text-blue-400',
+                                    respondingAgent.tier === 'fast' && 'bg-green-500/20 text-green-400'
+                                )}>
+                                    {respondingAgent.tier}
+                                </span>
+                            )}
                         </div>
                     )}
                 </div>
@@ -146,7 +159,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 space-y-6 min-h-0">
                 {messages.map((msg, index) => {
                     // Find the most recent user message before this one
                     const previousUserMessage = messages
@@ -163,20 +176,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                 })}
                 {messages.length === 0 && (
                     <div className="text-center text-gray-500 mt-20">
-                        {activeAgent ? (
-                            <>
-                                <p className="text-4xl mb-4">{activeAgent.icon}</p>
-                                <p className="font-medium text-gray-400 mb-1">{activeAgent.name} ready</p>
-                                <p className="text-sm text-gray-600 max-w-md mx-auto">
-                                    {activeAgent.memory.semanticFocus}
-                                </p>
-                            </>
-                        ) : (
-                            <>
-                                <h1 className="text-2xl font-semibold text-white mb-2">Welcome to ChorumAI</h1>
-                                <p className="text-gray-400">Begin a project, begin a chat, or initiate an agent</p>
-                            </>
-                        )}
+                        <p className="text-gray-400 italic">the choir is waiting</p>
                     </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -203,8 +203,8 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                                 mode="omnibar"
                             />
 
-                            {/* Context Indicator (Placeholder logic) */}
-                            {(activeAgent || selectedAgent !== 'auto') && (
+                            {/* Context Indicator - show when agent selected (not 'none' control mode) */}
+                            {selectedAgent !== 'none' && (
                                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-medium border border-blue-500/20">
                                     <Zap className="w-3 h-3" />
                                     <span>Context Active</span>
@@ -240,8 +240,8 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                                         handleSend()
                                     }
                                 }}
-                                placeholder={activeAgent
-                                    ? `Ask ${activeAgent.name}...`
+                                placeholder={selectedAgent === 'none'
+                                    ? "Type a message (direct LLM)..."
                                     : "Type a message..."
                                 }
                                 className="w-full bg-transparent border-none text-gray-200 placeholder-gray-500 focus:ring-0 resize-none p-0 text-base min-h-[60px]"
