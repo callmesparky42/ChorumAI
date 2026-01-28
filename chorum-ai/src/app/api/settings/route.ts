@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
+import { ensureUserExists } from '@/lib/user-init'
 
 export async function GET() {
     try {
@@ -41,11 +42,12 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const [user] = await db.select().from(users).where(eq(users.id, session.user.id))
-
-        if (!user) {
-            return NextResponse.json({ error: 'User not found' }, { status: 404 })
-        }
+        // Ensure user record exists (creates with defaults if new user)
+        const user = await ensureUserExists(
+            session.user.id,
+            session.user.email!,
+            session.user.name
+        )
 
         return NextResponse.json({
             name: user.name,

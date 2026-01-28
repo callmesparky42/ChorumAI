@@ -25,6 +25,7 @@ import { selectAgent, type OrchestrationResult } from '@/lib/agents/orchestrator
 import { queueForLearning } from '@/lib/learning/queue'
 import { extractAndStoreLearnings } from '@/lib/learning/analyzer'
 import { getExperimentVariant } from '@/lib/experiments'
+import { ensureUserExists } from '@/lib/user-init'
 
 export async function POST(req: NextRequest) {
     try {
@@ -34,12 +35,16 @@ export async function POST(req: NextRequest) {
         }
         const userId = session.user.id
 
-        // Fetch user settings (bio, security settings, fallback settings, memory settings)
-        const [user] = await db.select().from(users).where(eq(users.id, userId))
-        const userBio = user?.bio
-        const securitySettings = user?.securitySettings
-        const fallbackSettings = user?.fallbackSettings
-        const memorySettings = user?.memorySettings || {
+        // Ensure user record exists and fetch settings
+        const user = await ensureUserExists(
+            userId,
+            session.user.email!,
+            session.user.name
+        )
+        const userBio = user.bio
+        const securitySettings = user.securitySettings
+        const fallbackSettings = user.fallbackSettings
+        const memorySettings = user.memorySettings || {
             autoLearn: true,
             learningMode: 'async' as const,
             injectContext: true,

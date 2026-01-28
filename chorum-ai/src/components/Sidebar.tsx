@@ -314,7 +314,7 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
             <div className="w-full bg-gray-950 border-r border-gray-800 flex flex-col">
                 {/* Logo */}
                 <div className="p-4 border-b border-gray-800">
-                    <img src="/logo.png" alt="Chorum AI" className="w-full h-auto object-contain" />
+                    <img src="/logo.png" alt="Chorum AI" className="w-full h-auto object-contain max-h-32" />
                 </div>
 
                 <div className="p-4 border-b border-gray-800 flex items-center justify-between">
