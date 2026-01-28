@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
-import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download, Brain, Zap, Sparkles, FolderOpen, Terminal } from 'lucide-react'
+import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download, Brain, Zap, Sparkles, FolderOpen, Terminal, LogOut } from 'lucide-react'
 import { LearningDashboard } from '@/components/LearningDashboard'
 import { McpSettings } from '@/components/settings/McpSettings'
 import { PendingLearnings } from '@/components/PendingLearnings'
@@ -184,9 +184,21 @@ function SettingsContent() {
     }
 
     const handleTabChange = (tab: string) => {
-        const params = new URLSearchParams(searchParams)
-        params.set('tab', tab)
-        router.push(`/settings?${params.toString()}`)
+        const url = new URL(window.location.href)
+        url.searchParams.set('tab', tab)
+        router.push(url.pathname + url.search)
+    }
+
+    const handleLogout = async () => {
+        try {
+            const { createClient } = await import('@/lib/supabase-client')
+            const supabase = createClient()
+            await supabase.auth.signOut()
+            router.push('/login')
+        } catch (error) {
+            console.error('Logout failed:', error)
+            alert('Failed to log out. Please try again.')
+        }
     }
 
     const handleAddProvider = async (e: React.FormEvent) => {
@@ -316,7 +328,7 @@ function SettingsContent() {
                         ← Back to Chat
                     </Link>
                     <h1 className="text-xl font-bold mb-4">Settings</h1>
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex-1">
                         {menuItems.map((item) => (
                             <button
                                 key={item.id}
@@ -332,6 +344,15 @@ function SettingsContent() {
                                 {item.label}
                             </button>
                         ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-800">
+                        <button
+                            onClick={handleLogout}
+                            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-3 text-red-400 hover:bg-red-600/10 hover:text-red-300"
+                        >
+                            <LogOut className="w-4 h-4" />
+                            Log Out
+                        </button>
                     </div>
                 </div>
             </div>
