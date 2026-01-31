@@ -76,7 +76,7 @@ export async function injectLearningContext(
 
     // 2. Generate Embedding & Fetch Data (only if budget allows)
     let learningItems: LearningItem[] = []
-    let fileMeta: { filePath: string; isCritical: boolean; linkedInvariants: string[] | null; projectId: string }[] = []
+    let fileMeta: { filePath: string; isCritical: boolean | null; linkedInvariants: string[] | null; projectId: string }[] = []
     let queryEmbedding: number[] = []
     let allLinks: any[] = []
 
