@@ -6,6 +6,7 @@ import { Message } from './Message'
 import { ProviderSelector } from './ProviderSelector'
 import { AgentSelector } from './AgentSelector'
 import { CostMeter } from './CostMeter'
+import { ChoralThinking } from './ChoralSpinner'
 import { useChorumStore } from '@/lib/store'
 import { useReviewStore } from '@/lib/review/store'
 import clsx from 'clsx'
@@ -174,9 +175,15 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                         />
                     )
                 })}
-                {messages.length === 0 && (
+                {messages.length === 0 && !isLoading && (
                     <div className="text-center text-gray-500 mt-20">
                         <p className="text-gray-400 italic">the choir is waiting</p>
+                    </div>
+                )}
+                {/* Choral Spinner - shows while waiting for response */}
+                {isLoading && (
+                    <div className="flex justify-start pl-2">
+                        <ChoralThinking />
                     </div>
                 )}
                 <div ref={messagesEndRef} />
