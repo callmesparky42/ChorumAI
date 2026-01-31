@@ -1,36 +1,36 @@
-import NextAuth from "next-auth"
-import Google from "next-auth/providers/google"
-import { DrizzleAdapter } from "@auth/drizzle-adapter"
-import { db } from "@/lib/db"
+import { createClient } from '@/lib/supabase-server'
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-    adapter: DrizzleAdapter(db),
-    providers: [
-        Google({
-            clientId: process.env.GOOGLE_CLIENT_ID!,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-        }),
-    ],
-    session: {
-        strategy: "jwt",
-    },
-    callbacks: {
-        async jwt({ token, user }) {
-            // On initial sign in, add user.id to token
-            if (user) {
-                token.id = user.id
-            }
-            return token
-        },
-        async session({ session, token }) {
-            // Add user.id to session so we can use it in API routes
-            if (session.user && token.id) {
-                session.user.id = token.id as string
-            }
-            return session
-        },
-    },
-    pages: {
-        signIn: '/login',
-    },
-})
+// Shim for NextAuth's auth() function using Supabase
+export async function auth() {
+    try {
+        const supabase = await createClient()
+
+        // IMPORTANT: Use getUser() for secure server-side auth, NOT getSession()
+        // getSession() only reads from cookies without validating the JWT
+        // getUser() makes a request to Supabase Auth to validate the token
+        const { data: { user }, error } = await supabase.auth.getUser()
+
+        if (error || !user) {
+            console.log('[Auth] No valid user session:', error?.message || 'No user')
+            return null
+        }
+
+        return {
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.user_metadata?.full_name || user.email,
+                image: user.user_metadata?.avatar_url,
+            },
+            expires: null // getUser doesn't provide expiry, but that's okay
+        }
+    } catch (error) {
+        console.error("Auth Shim Error:", error)
+        return null
+    }
+}
+
+// Dummy exports to prevent import errors during transition
+export const handlers = { GET: () => { }, POST: () => { } }
+export const signIn = () => { }
+export const signOut = () => { }

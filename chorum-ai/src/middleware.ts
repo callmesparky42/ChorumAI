@@ -1,36 +1,80 @@
-import { auth } from "@/lib/auth"
-import { NextResponse } from "next/server"
+import { createServerClient } from '@supabase/ssr'
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export default auth((req) => {
-    const isLoggedIn = !!req.auth
+export async function middleware(req: NextRequest) {
+    let res = NextResponse.next({
+        request: {
+            headers: req.headers,
+        },
+    })
+
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return req.cookies.getAll()
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) => req.cookies.set(name, value))
+                    res = NextResponse.next({
+                        request: {
+                            headers: req.headers,
+                        },
+                    })
+                    cookiesToSet.forEach(({ name, value, options }) =>
+                        res.cookies.set(name, value, options)
+                    )
+                },
+            },
+        }
+    )
+
+    // IMPORTANT: Use getUser() for secure server-side auth, NOT getSession()
+    // getSession() only reads from cookies without validating the JWT
+    const {
+        data: { user },
+    } = await supabase.auth.getUser()
+
+
     const isAuthPage = req.nextUrl.pathname.startsWith('/login')
-    const isAuthApi = req.nextUrl.pathname.startsWith('/api/auth')
+    const isAuthCallback = req.nextUrl.pathname.startsWith('/auth/callback')
+    const isAuthApi = req.nextUrl.pathname.startsWith('/api/auth') // Keep for deprecated routes temporarily
     const isOnboardingPage = req.nextUrl.pathname.startsWith('/onboarding')
     const isOnboardingApi = req.nextUrl.pathname.startsWith('/api/onboarding')
+    const isPublicPage = req.nextUrl.pathname === '/'
 
-    // Allow auth API routes
-    if (isAuthApi) {
-        return NextResponse.next()
+    // Allow public landing page
+    if (isPublicPage) {
+        return res
+    }
+
+    // Allow auth callback (OAuth flow)
+    if (isAuthCallback) {
+        return res
     }
 
     // Allow onboarding routes (pre-auth setup wizard)
+    // Note: We might want to protect this soon
     if (isOnboardingPage || isOnboardingApi) {
-        return NextResponse.next()
+        return res
     }
 
     // Redirect logged-in users away from login page
-    if (isAuthPage && isLoggedIn) {
-        return NextResponse.redirect(new URL('/', req.url))
+    if (isAuthPage && user) {
+        return NextResponse.redirect(new URL('/app', req.url))
     }
 
     // Redirect unauthenticated users to login
-    if (!isLoggedIn && !isAuthPage) {
+    if (!user && !isAuthPage) {
         return NextResponse.redirect(new URL('/login', req.url))
     }
 
-    return NextResponse.next()
-})
+    return res
+}
 
 export const config = {
-    matcher: ['/((?!_next/static|_next/image|favicon.ico|logo.png).*)'],
+    matcher: ['/((?!_next/static|_next/image|favicon.ico|logo.png|chorumai.png|interface.jpg|learning.jpg|modelprovider.jpg).*)'],
 }

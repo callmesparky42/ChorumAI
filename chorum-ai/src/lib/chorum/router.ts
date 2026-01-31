@@ -1,5 +1,13 @@
 import type { ChatMessage, ChatResult, ProviderCallConfig } from '../providers/types'
 import { estimateTokens } from '../tokens'
+
+export class BudgetExhaustedError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = 'BudgetExhaustedError'
+    }
+}
+
 export type TaskType =
     | 'deep_reasoning'
     | 'code_generation'
@@ -78,12 +86,8 @@ export class ChorumRouter {
         )
 
         if (withinBudget.length === 0) {
-            // Fallback: If all exhaust budget, assume we might need ANY capable provider or throw.
-            // For now, let's just pick the cheapest capable one and ignore budget (soft limit) or throw.
-            // The user spec says "If Claude budget exhausted, falls back to GPT-version".
-            // This logic implies we just filter out exhausted ones. If ALL are exhausted, we might crash.
-            // I'll return the cheapest capable even if over budget as a failsafe, or just throw as per user code.
-            throw new Error('All providers have exhausted daily budgets')
+            // Throw specific error so caller can handle fallback (e.g. to local models)
+            throw new BudgetExhaustedError('All cloud providers have exhausted daily budgets')
         }
 
         // Sort by cost (cheapest first for most tasks)

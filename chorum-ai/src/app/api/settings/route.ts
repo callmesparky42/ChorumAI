@@ -7,10 +7,13 @@ import { ensureUserExists } from '@/lib/user-init'
 
 export async function GET() {
     try {
+        console.log('[Settings API] GET Request received')
         const session = await auth()
+        console.log('[Settings API] Session:', session ? `User ID: ${session.user?.id}, Email: ${session.user?.email}` : 'NULL SESSION')
 
         // Development Bypass: If no session and in dev mode, return mock settings
         if (!session?.user?.id && process.env.NODE_ENV === 'development') {
+            console.log('[Settings API] Using development bypass - returning mock settings')
             return NextResponse.json({
                 name: 'Local Developer',
                 email: 'dev@localhost',
@@ -39,10 +42,12 @@ export async function GET() {
         }
 
         if (!session?.user?.id) {
+            console.log('[Settings API] No session.user.id - returning 401')
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         // Ensure user record exists (creates with defaults if new user)
+        console.log('[Settings API] Calling ensureUserExists for:', session.user.email)
         const user = await ensureUserExists(
             session.user.id,
             session.user.email!,
@@ -76,7 +81,12 @@ export async function GET() {
         })
     } catch (error) {
         console.error('Settings GET error:', error)
-        return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 })
+        // Return explicit error details for debugging
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        return NextResponse.json({
+            error: 'Failed to fetch settings',
+            details: errorMessage
+        }, { status: 500 })
     }
 }
 

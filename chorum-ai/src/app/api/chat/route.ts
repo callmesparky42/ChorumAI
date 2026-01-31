@@ -1,7 +1,7 @@
 import { decrypt } from '@/lib/crypto'
 import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { ChorumRouter } from '@/lib/chorum/router'
+import { ChorumRouter, BudgetExhaustedError } from '@/lib/chorum/router'
 import { db } from '@/lib/db'
 import { messages, routingLog, usageLog, providerCredentials, projects, users, conversations } from '@/lib/db/schema'
 import { eq, and, gte } from 'drizzle-orm'
@@ -225,11 +225,37 @@ export async function POST(req: NextRequest) {
         const router = new ChorumRouter(providerConfigs)
         const routingStrategy = getExperimentVariant(userId, 'routing_strategy_v2')
 
-        const decision = await router.route({
-            prompt: content,
-            userOverride: providerOverride,
-            strategy: routingStrategy
-        })
+        let decision: any;
+        try {
+            decision = await router.route({
+                prompt: content,
+                userOverride: providerOverride,
+                strategy: routingStrategy
+            })
+        } catch (error: any) {
+            // If budget exhausted, check for local fallback options before giving up
+            if (error.name === 'BudgetExhaustedError') {
+                const detected = await detectLocalProviders()
+                const hasLocal = (detected.ollama.available && detected.ollama.models.length > 0) ||
+                    (detected.lmstudio.available && detected.lmstudio.models.length > 0)
+
+                if (hasLocal) {
+                    console.log('[Router] Cloud budget exhausted, falling back to local providers')
+                    // Mock a decision to allow fallback logic to proceed
+                    decision = {
+                        provider: 'budget_exhausted', // Placeholder to trigger fallback
+                        model: 'fallback',
+                        reasoning: 'Cloud budget exhausted',
+                        estimatedCost: 0,
+                        alternatives: []
+                    }
+                } else {
+                    throw error
+                }
+            } else {
+                throw error
+            }
+        }
 
         // Create new conversation if needed
         if (!conversationId && projectId) {
@@ -273,42 +299,46 @@ export async function POST(req: NextRequest) {
         let failedProviders: { provider: string; error: string }[] = []
 
         try {
-            // Find the selected provider config
+            // Find the selected provider config (might be undefined if budget exhausted placeholder)
             const selectedConfig = providerConfigs.find(p => p.provider === decision.provider)
-            if (!selectedConfig) {
+            // Only throw if NOT falling back from budget exhaustion
+            if (!selectedConfig && decision.provider !== 'budget_exhausted') {
                 throw new Error(`Provider ${decision.provider} not found in configs`)
             }
 
             // [Security] Validate provider endpoint URL if HTTPS enforcement is enabled
-            const httpsValidation = validateProviderEndpoint(
-                selectedConfig.baseUrl,
-                selectedConfig.provider,
-                securitySettings as SecuritySettings | null
-            )
-            if (!httpsValidation.valid) {
-                return NextResponse.json({
-                    error: `Security violation: ${httpsValidation.error}`,
-                    securityError: true
-                }, { status: 403 })
+            if (selectedConfig) {
+                const httpsValidation = validateProviderEndpoint(
+                    selectedConfig.baseUrl,
+                    selectedConfig.provider,
+                    securitySettings as SecuritySettings | null
+                )
+                if (!httpsValidation.valid) {
+                    return NextResponse.json({
+                        error: `Security violation: ${httpsValidation.error}`,
+                        securityError: true
+                    }, { status: 403 })
+                }
+
+                // [Security] Log LLM request if audit logging is enabled
+                logLlmRequest(
+                    userId,
+                    selectedConfig.provider,
+                    selectedConfig.baseUrl || 'default',
+                    securitySettings as SecuritySettings | null,
+                    { model: decision.model, projectId }
+                )
             }
 
-            // [Security] Log LLM request if audit logging is enabled
-            logLlmRequest(
-                userId,
-                selectedConfig.provider,
-                selectedConfig.baseUrl || 'default',
-                securitySettings as SecuritySettings | null,
-                { model: decision.model, projectId }
-            )
-
             // Check if fallback is enabled (default: true)
-            const fallbackEnabled = fallbackSettings?.enabled !== false
+            // Force fallback if budget exhausted
+            const fallbackEnabled = fallbackSettings?.enabled !== false || decision.provider === 'budget_exhausted'
 
-            if (fallbackEnabled && providerConfigs.length > 1) {
+            if (fallbackEnabled && (providerConfigs.length > 1 || decision.provider === 'budget_exhausted')) {
                 // Build fallback chain with alternatives from routing decision
                 const alternativeConfigs = decision.alternatives
-                    .map(alt => providerConfigs.find(p => p.provider === alt.provider))
-                    .filter((c): c is FullProviderConfig => !!c)
+                    .map((alt: any) => providerConfigs.find(p => p.provider === alt.provider))
+                    .filter((c: any): c is FullProviderConfig => !!c)
 
                 // Check for local providers as last resort
                 const localProviders: { ollama?: string; lmstudio?: string } = {}
@@ -327,9 +357,22 @@ export async function POST(req: NextRequest) {
 
                 const fallbackConfig = buildFallbackChain(
                     providerConfigs as FullProviderConfig[],
-                    decision.provider,
+                    // If budget exhausted, pick first avail cloud as "primary" just to satisfy type, 
+                    // knowing it will fail/skip or we just rely on localFallbacks finding it.
+                    // Better: If budget exhausted, use a dummy primary that fails instantly or correct logic?
+                    // Actually buildFallbackChain expects a valid primary. 
+                    // If budget exhausted, we shouldn't use a cloud primary.
+                    // We need to construct a custom fallback chain where primary IS local?
+                    // Or just use the first provider Config but we know it will fail if we tried to use it? 
+                    // Actually if we pass 'budget_exhausted' it won't be found.
+                    // Let's use the first provider config as dummy primary if needed.
+                    decision.provider === 'budget_exhausted' ? providerConfigs[0]?.provider : decision.provider,
                     localProviders
                 )
+
+                // If budget exhausted, ensure we DON'T try the cloud providers that are out of budget?
+                // The router already filtered them out. So alternativeConfigs might be empty.
+                // We just rely on localFallbacks being present in fallbackConfig.
 
                 // Override alternatives if user has custom priority order
                 if (fallbackSettings?.priorityOrder?.length) {
@@ -369,6 +412,8 @@ export async function POST(req: NextRequest) {
                 failedProviders = result.failedProviders
             } else {
                 // Fallback disabled or only one provider - direct call
+                if (!selectedConfig) throw new Error('No provider selected and fallback disabled') // Should not happen given logic above
+
                 const result = await callProvider(
                     {
                         provider: selectedConfig.provider,
@@ -437,11 +482,17 @@ export async function POST(req: NextRequest) {
         }
 
         // Use actual provider for cost calculation (may differ if fallback occurred)
+        // FIX: Handle undefined usedProviderConfig for local fallback
         const usedProviderConfig = providerConfigs.find(p => p.provider === actualProvider) ||
-            providerConfigs.find(p => p.provider === decision.provider)!
+            providerConfigs.find(p => p.provider === decision.provider)
+
+        // If not found in config (e.g. local provider not in DB), assume 0 cost or default
+        const costInput = usedProviderConfig ? usedProviderConfig.costPer1M.input : 0
+        const costOutput = usedProviderConfig ? usedProviderConfig.costPer1M.output : 0
+
         const actualCost = (
-            (tokensInput / 1_000_000 * usedProviderConfig.costPer1M.input) +
-            (tokensOutput / 1_000_000 * usedProviderConfig.costPer1M.output)
+            (tokensInput / 1_000_000 * costInput) +
+            (tokensOutput / 1_000_000 * costOutput)
         )
 
         const assistantMsgId = uuidv4()

@@ -74,16 +74,26 @@ export async function injectLearningContext(
         // Optimization: If trivial, skip vector embedding.
     }
 
-    // 2. Generate Embedding (Parallel with DB fetch)
-    const embeddingPromise = budget.maxTokens > 0 ? embeddings.embed(userQuery) : Promise.resolve([])
+    // 2. Generate Embedding & Fetch Data (only if budget allows)
+    let learningItems: LearningItem[] = []
+    let fileMeta: { filePath: string; isCritical: boolean; linkedInvariants: string[] | null; projectId: string }[] = []
+    let queryEmbedding: number[] = []
+    let allLinks: any[] = []
 
-    // 3. Fetch Candidates, File Metadata, & Links
-    const [learningItems, fileMeta, queryEmbedding, allLinks] = await Promise.all([
-        getProjectLearning(projectId),
-        db.select().from(projectFileMetadata).where(eq(projectFileMetadata.projectId, projectId)),
-        embeddingPromise,
-        getLinksForProject(projectId)
-    ])
+    if (budget.maxTokens > 0) {
+        // Parallel execution of all data requirements
+        const results = await Promise.all([
+            getProjectLearning(projectId),
+            db.select().from(projectFileMetadata).where(eq(projectFileMetadata.projectId, projectId)),
+            embeddings.embed(userQuery),
+            getLinksForProject(projectId)
+        ])
+
+        learningItems = results[0]
+        fileMeta = results[1]
+        queryEmbedding = results[2]
+        allLinks = results[3]
+    }
 
     const criticalFiles = fileMeta
         .filter(f => f.isCritical)

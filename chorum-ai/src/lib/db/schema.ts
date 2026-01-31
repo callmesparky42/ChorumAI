@@ -67,7 +67,7 @@ export const accounts = pgTable(
   {
     userId: text("userId")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
     type: text("type").$type<AdapterAccount["type"]>().notNull(),
     provider: text("provider").notNull(),
     providerAccountId: text("providerAccountId").notNull(),
@@ -90,7 +90,7 @@ export const sessions = pgTable("session", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+    .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
   expires: timestamp("expires", { mode: "date" }).notNull(),
 })
 
@@ -112,7 +112,7 @@ export const authenticators = pgTable(
     credentialID: text("credentialID").notNull().unique(),
     userId: text("userId")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
     providerAccountId: text("providerAccountId").notNull(),
     credentialPublicKey: text("credentialPublicKey").notNull(),
     counter: integer("counter").notNull(),
@@ -129,7 +129,7 @@ export const authenticators = pgTable(
 
 export const providerCredentials = pgTable('provider_credentials', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   provider: text('provider').notNull(), // 'anthropic' | 'openai' | 'google' | 'mistral' | 'deepseek' | 'perplexity' | 'xai' | 'glm' | 'ollama' | 'lmstudio' | 'openai-compatible'
   apiKeyEncrypted: text('api_key_encrypted').notNull(),
   model: text('model').notNull(),
@@ -144,7 +144,7 @@ export const providerCredentials = pgTable('provider_credentials', {
 
 export const projects = pgTable('projects', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
   techStack: jsonb('tech_stack').$type<string[]>(),
@@ -187,7 +187,7 @@ export const memorySummaries = pgTable('memory_summaries', {
 
 export const routingLog = pgTable('routing_log', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
   taskType: text('task_type'), // Inferred or explicit
   selectedProvider: text('selected_provider').notNull(),
@@ -199,7 +199,7 @@ export const routingLog = pgTable('routing_log', {
 
 export const usageLog = pgTable('usage_log', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   provider: text('provider').notNull(),
   costUsd: decimal('cost_usd', { precision: 10, scale: 6 }).notNull(),
   tokensInput: integer('tokens_input').notNull(),
@@ -251,7 +251,7 @@ export const projectFileMetadata = pgTable('project_file_metadata', {
 
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   action: text('action').notNull(), // 'LLM_REQUEST' | 'SECURITY_CHECK' | etc.
   provider: text('provider'),
   endpoint: text('endpoint'),
@@ -271,7 +271,7 @@ export const auditLogs = pgTable('audit_logs', {
 export const learningQueue = pgTable('learning_queue', {
   id: uuid('id').primaryKey().defaultRandom(),
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   userMessage: text('user_message').notNull(),
   assistantResponse: text('assistant_response').notNull(),
   agentName: text('agent_name'),
@@ -285,7 +285,7 @@ export const learningQueue = pgTable('learning_queue', {
 
 export const customAgents = pgTable('custom_agents', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   name: text('name').notNull(),
   config: jsonb('config').$type<AgentDefinition>().notNull(), // Full AgentDefinition from types.ts
   createdAt: timestamp('created_at').defaultNow(),
@@ -325,7 +325,7 @@ export const learningCooccurrence = pgTable('learning_cooccurrence', {
 // API Tokens for MCP authentication
 export const apiTokens = pgTable('api_tokens', {
   id: uuid('id').primaryKey().defaultRandom(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   token: text('token').notNull().unique(), // Format: chorum_xxxxxxxxxxxx
   name: text('name').default('Default'), // User-friendly label
   permissions: jsonb('permissions').$type<{
@@ -343,7 +343,7 @@ export const apiTokens = pgTable('api_tokens', {
 export const pendingLearnings = pgTable('pending_learnings', {
   id: uuid('id').primaryKey().defaultRandom(),
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   type: text('type').notNull(), // 'pattern' | 'antipattern' | 'decision' | 'invariant' | 'goldenPath'
   content: text('content').notNull(),
   context: text('context'),
@@ -363,7 +363,7 @@ export const pendingLearnings = pgTable('pending_learnings', {
 export const mcpInteractionLog = pgTable('mcp_interaction_log', {
   id: uuid('id').primaryKey().defaultRandom(),
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
   source: text('source').notNull(), // 'claude-code' | 'cursor' | etc.
   toolName: text('tool_name').notNull(), // 'query_memory' | 'get_invariants' | etc.
   queryType: text('query_type'), // 'trivial' | 'moderate' | 'complex' | 'critical'

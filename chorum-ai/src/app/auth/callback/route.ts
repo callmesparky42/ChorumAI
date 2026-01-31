@@ -43,17 +43,13 @@ export async function GET(request: Request) {
 
         if (session?.user) {
             // Ensure user record exists in database before redirect
-            try {
-                const { ensureUserExists } = await import('@/lib/user-init')
-                await ensureUserExists(
-                    session.user.id,
-                    session.user.email!,
-                    session.user.user_metadata?.full_name || session.user.email
-                )
-            } catch (err) {
-                console.error('Failed to create user record:', err)
-                // Don't block login on user creation failure - it will be created lazily
-            }
+            // Fail loud if this fails - we don't want users in a broken state
+            const { ensureUserExists } = await import('@/lib/user-init')
+            await ensureUserExists(
+                session.user.id,
+                session.user.email!,
+                session.user.user_metadata?.full_name || session.user.email
+            )
 
             // Log OAuth login
             try {

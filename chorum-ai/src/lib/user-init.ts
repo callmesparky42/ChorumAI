@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { users } from '@/lib/db/schema'
+import { users, projects } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 /**
@@ -16,11 +16,26 @@ export async function ensureUserExists(
     email: string,
     name?: string | null
 ) {
-    // Check if user already exists
-    const [existingUser] = await db.select().from(users).where(eq(users.id, userId))
+    // First check by ID (fast path - user already synced)
+    const [existingById] = await db.select().from(users).where(eq(users.id, userId))
 
-    if (existingUser) {
-        return existingUser
+    if (existingById) {
+        return existingById
+    }
+
+    // Check if user exists by email (handles ID mismatch from auth migration)
+    const [existingByEmail] = await db.select().from(users).where(eq(users.email, email))
+
+    if (existingByEmail) {
+        // User exists with different ID - update to new Supabase auth ID
+        console.log(`[User Init] Updating user ID for ${email}: ${existingByEmail.id} -> ${userId}`)
+
+        const [updatedUser] = await db.update(users)
+            .set({ id: userId })
+            .where(eq(users.email, email))
+            .returning()
+
+        return updatedUser
     }
 
     // Create new user with default settings
@@ -55,6 +70,22 @@ export async function ensureUserExists(
         onboardingStep: 0
     }).returning()
 
-    console.log(`[User Init] User record created successfully: ${userId}`)
+    console.log(`[User Init] User record created/verified: ${userId}`)
+
+    // Check for existing projects
+    const existingProjects = await db.select().from(projects).where(eq(projects.userId, userId)).limit(1)
+
+    if (existingProjects.length === 0) {
+        console.log(`[User Init] No projects found for ${userId}, creating default 'General' project`)
+        await db.insert(projects).values({
+            userId: userId,
+            name: 'General',
+            description: 'Default project for general conversations',
+            techStack: [],
+            customInstructions: null
+        })
+        console.log(`[User Init] Default project created for ${userId}`)
+    }
+
     return newUser
 }

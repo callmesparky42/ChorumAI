@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { apiTokens } from '@/lib/db/schema'
 import { eq, and, isNull } from 'drizzle-orm'
-import { randomBytes } from 'crypto'
+import { randomBytes, createHash } from 'crypto'
 import type { TokenPermissions } from './types'
 
 const TOKEN_PREFIX = 'chorum_'
@@ -14,16 +14,21 @@ export interface AuthResult {
   error?: string
 }
 
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex')
+}
+
 export async function generateToken(userId: string, name?: string): Promise<string> {
   const tokenValue = TOKEN_PREFIX + randomBytes(TOKEN_LENGTH).toString('base64url')
+  const hashedToken = hashToken(tokenValue)
 
   await db.insert(apiTokens).values({
     userId,
-    token: tokenValue,
+    token: hashedToken, // Store hash
     name: name || 'Default'
   })
 
-  return tokenValue
+  return tokenValue // Return raw to user
 }
 
 export async function validateToken(token: string): Promise<AuthResult> {
@@ -31,12 +36,14 @@ export async function validateToken(token: string): Promise<AuthResult> {
     return { valid: false, error: 'Invalid token format' }
   }
 
+  const hashedToken = hashToken(token)
+
   const [tokenRecord] = await db
     .select()
     .from(apiTokens)
     .where(
       and(
-        eq(apiTokens.token, token),
+        eq(apiTokens.token, hashedToken),
         isNull(apiTokens.revokedAt)
       )
     )
@@ -56,7 +63,7 @@ export async function validateToken(token: string): Promise<AuthResult> {
     .set({ lastUsedAt: new Date() })
     .where(eq(apiTokens.id, tokenRecord.id))
     .execute()
-    .catch(() => {}) // Ignore errors
+    .catch(() => { }) // Ignore errors
 
   return {
     valid: true,
