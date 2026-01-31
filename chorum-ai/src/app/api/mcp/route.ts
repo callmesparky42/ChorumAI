@@ -294,7 +294,8 @@ async function executeToolCall(
     const { proposeLearning } = await import('@/lib/mcp/tools/propose-learning')
     const { logInteraction } = await import('@/lib/mcp/tools/log-interaction')
 
-    const mcpContext = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mcpContext: any = {
         userId: context.userId,
         permissions: context.permissions
     }
@@ -304,22 +305,22 @@ async function executeToolCall(
 
         switch (name) {
             case 'chorum_query_memory':
-                result = await queryMemory(args as Parameters<typeof queryMemory>[0], mcpContext as never)
+                result = await queryMemory(args as never, mcpContext)
                 break
             case 'chorum_get_invariants':
-                result = await getInvariants(args as Parameters<typeof getInvariants>[0], mcpContext as never)
+                result = await getInvariants(args as never, mcpContext)
                 break
             case 'chorum_get_project_context':
-                result = await getProjectContext(args as Parameters<typeof getProjectContext>[0], mcpContext as never)
+                result = await getProjectContext(args as never, mcpContext)
                 break
             case 'chorum_list_projects':
-                result = await listProjects(args as Parameters<typeof listProjects>[0], mcpContext as never)
+                result = await listProjects({}, mcpContext)
                 break
             case 'chorum_propose_learning':
-                result = await proposeLearning(args as Parameters<typeof proposeLearning>[0], mcpContext as never)
+                result = await proposeLearning(args as never, mcpContext)
                 break
             case 'chorum_log_interaction':
-                result = await logInteraction(args as Parameters<typeof logInteraction>[0], mcpContext as never)
+                result = await logInteraction(args as never, mcpContext)
                 break
             default:
                 return {
@@ -338,3 +339,4 @@ async function executeToolCall(
         }
     }
 }
+
