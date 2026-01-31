@@ -18,7 +18,7 @@ export default function LandingPage() {
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % totalSlides)
-    }, 8000)
+    }, 12000)
     return () => clearInterval(timer)
   }, [totalSlides])
 
