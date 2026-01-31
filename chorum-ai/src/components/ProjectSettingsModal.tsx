@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Download, Loader2, Save, Archive, Info, Type, FileText } from 'lucide-react'
+import { X, Download, Loader2, Save, Archive, Info, Type, FileText, Lock, Shield } from 'lucide-react'
 import clsx from 'clsx'
 
 interface Project {
@@ -24,6 +24,12 @@ export function ProjectSettingsModal({ project, onClose, onUpdate }: Props) {
     const [includeConversations, setIncludeConversations] = useState(false)
     const [includeAgents, setIncludeAgents] = useState(true)
     const [activeTab, setActiveTab] = useState<'general' | 'export'>('general')
+
+    // Encryption state
+    const [showEncryptDialog, setShowEncryptDialog] = useState(false)
+    const [encryptExport, setEncryptExport] = useState(true) // Default to encrypted
+    const [encryptionPassword, setEncryptionPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
 
     // Edit State
     const [name, setName] = useState(project.name)
@@ -57,8 +63,33 @@ export function ProjectSettingsModal({ project, onClose, onUpdate }: Props) {
         }
     }
 
+    const initiateExport = () => {
+        // Show encryption choice dialog
+        setShowEncryptDialog(true)
+        setEncryptionPassword('')
+        setConfirmPassword('')
+    }
+
     const handleExport = async () => {
+        // Validate passwords if encrypting
+        if (encryptExport) {
+            if (!encryptionPassword) {
+                alert('Please enter an encryption password')
+                return
+            }
+            if (encryptionPassword !== confirmPassword) {
+                alert('Passwords do not match')
+                return
+            }
+            if (encryptionPassword.length < 8) {
+                alert('Password must be at least 8 characters')
+                return
+            }
+        }
+
+        setShowEncryptDialog(false)
         setIsExporting(true)
+
         try {
             const res = await fetch('/api/export/project', {
                 method: 'POST',
@@ -67,7 +98,9 @@ export function ProjectSettingsModal({ project, onClose, onUpdate }: Props) {
                     projectId: project.id,
                     options: {
                         includeConversations,
-                        includeAgents
+                        includeAgents,
+                        encrypt: encryptExport,
+                        password: encryptExport ? encryptionPassword : undefined
                     }
                 })
             })
@@ -82,7 +115,7 @@ export function ProjectSettingsModal({ project, onClose, onUpdate }: Props) {
 
             // Get filename from header or default
             const contentDisposition = res.headers.get('Content-Disposition')
-            let filename = `chorum_export_${project.id.slice(0, 8)}.json`
+            let filename = `chorum_export_${project.id.slice(0, 8)}${encryptExport ? '.encrypted' : ''}.json`
             if (contentDisposition) {
                 const match = contentDisposition.match(/filename="(.+)"/)
                 if (match) filename = match[1]
@@ -93,6 +126,10 @@ export function ProjectSettingsModal({ project, onClose, onUpdate }: Props) {
             a.click()
             window.URL.revokeObjectURL(url)
             document.body.removeChild(a)
+
+            // Clear sensitive data
+            setEncryptionPassword('')
+            setConfirmPassword('')
         } catch (error) {
             console.error('Export error:', error)
             alert('Failed to export project')
@@ -226,7 +263,7 @@ export function ProjectSettingsModal({ project, onClose, onUpdate }: Props) {
                                 </div>
 
                                 <button
-                                    onClick={handleExport}
+                                    onClick={initiateExport}
                                     disabled={isExporting}
                                     className="w-full py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-white transition-colors flex items-center justify-center gap-2"
                                 >
@@ -238,6 +275,101 @@ export function ProjectSettingsModal({ project, onClose, onUpdate }: Props) {
                     )}
                 </div>
             </div>
+
+            {/* Encryption Dialog */}
+            {showEncryptDialog && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                    <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-sm shadow-2xl">
+                        <div className="p-4 border-b border-gray-800 flex items-center gap-3">
+                            <div className="p-2 bg-emerald-900/30 rounded-lg">
+                                <Shield className="w-5 h-5 text-emerald-400" />
+                            </div>
+                            <div>
+                                <h4 className="font-medium text-white">Export Security</h4>
+                                <p className="text-xs text-gray-500">Choose encryption settings</p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                            {/* Encryption toggle */}
+                            <label className="flex items-start gap-3 cursor-pointer group">
+                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors mt-0.5 ${encryptExport ? 'bg-emerald-600 border-emerald-600' : 'border-gray-600 group-hover:border-gray-500'}`}>
+                                    {encryptExport && <Lock className="w-3 h-3 text-white" />}
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    className="hidden"
+                                    checked={encryptExport}
+                                    onChange={e => setEncryptExport(e.target.checked)}
+                                />
+                                <div>
+                                    <span className="text-sm text-white font-medium">Encrypt export file</span>
+                                    <p className="text-xs text-gray-500 mt-0.5">Recommended for files containing sensitive data or PII</p>
+                                </div>
+                            </label>
+
+                            {encryptExport && (
+                                <div className="space-y-3 pt-2 border-t border-gray-800">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">
+                                            Password (min 8 characters)
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={encryptionPassword}
+                                            onChange={e => setEncryptionPassword(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                                            placeholder="Enter encryption password"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">
+                                            Confirm Password
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={confirmPassword}
+                                            onChange={e => setConfirmPassword(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                                            placeholder="Confirm password"
+                                        />
+                                    </div>
+                                    <p className="text-[10px] text-amber-500/80 flex items-start gap-1">
+                                        <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                                        <span>Save this password securely. If lost, the export cannot be decrypted.</span>
+                                    </p>
+                                </div>
+                            )}
+
+                            {!encryptExport && (
+                                <div className="p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
+                                    <p className="text-xs text-amber-400">
+                                        ⚠️ Unencrypted exports may contain sensitive data including chat history
+                                        and personal information. Only proceed if you understand the risks.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t border-gray-800 flex gap-3">
+                            <button
+                                onClick={() => setShowEncryptDialog(false)}
+                                className="flex-1 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-medium text-gray-300 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleExport}
+                                className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium text-white transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Download className="w-4 h-4" />
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

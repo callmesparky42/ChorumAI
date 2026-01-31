@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Copy, Trash2, Plus, Key, Terminal, AlertCircle } from 'lucide-react'
+import { Copy, Trash2, Plus, Key, Terminal, AlertCircle, Pencil, Check, X } from 'lucide-react'
 
 interface Token {
   id: string
@@ -21,6 +21,8 @@ export function McpSettings() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
 
   useEffect(() => {
     fetchTokens()
@@ -67,6 +69,30 @@ export function McpSettings() {
     } catch (error) {
       console.error('Failed to revoke token:', error)
     }
+  }
+
+  async function renameToken(tokenId: string, newName: string) {
+    try {
+      await fetch('/api/settings/tokens', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenId, name: newName })
+      })
+      setEditingId(null)
+      fetchTokens()
+    } catch (error) {
+      console.error('Failed to rename token:', error)
+    }
+  }
+
+  function startEditing(token: Token) {
+    setEditingId(token.id)
+    setEditName(token.name)
+  }
+
+  function cancelEditing() {
+    setEditingId(null)
+    setEditName('')
   }
 
   function copyToClipboard(text: string) {
@@ -157,23 +183,66 @@ export function McpSettings() {
                 key={token.id}
                 className="flex items-center justify-between bg-gray-800/50 rounded-lg px-4 py-3 border border-gray-700/50"
               >
-                <div>
-                  <p className="text-sm text-white">{token.name}</p>
-                  <p className="text-xs text-gray-500">
-                    {token.lastUsedAt
-                      ? `Last used: ${new Date(token.lastUsedAt).toLocaleDateString()}`
-                      : 'Never used'}
-                    {' • '}
-                    Created: {new Date(token.createdAt).toLocaleDateString()}
-                  </p>
+                <div className="flex-1 min-w-0">
+                  {editingId === token.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        className="flex-1 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-emerald-500"
+                        autoFocus
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') renameToken(token.id, editName)
+                          if (e.key === 'Escape') cancelEditing()
+                        }}
+                      />
+                      <button
+                        onClick={() => renameToken(token.id, editName)}
+                        className="p-1 hover:bg-emerald-900/30 rounded text-emerald-400 transition-colors"
+                        title="Save"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={cancelEditing}
+                        className="p-1 hover:bg-gray-700 rounded text-gray-400 transition-colors"
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-white">{token.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {token.lastUsedAt
+                          ? `Last used: ${new Date(token.lastUsedAt).toLocaleDateString()}`
+                          : 'Never used'}
+                        {' • '}
+                        Created: {new Date(token.createdAt).toLocaleDateString()}
+                      </p>
+                    </>
+                  )}
                 </div>
-                <button
-                  onClick={() => revokeToken(token.id)}
-                  className="p-2 hover:bg-red-900/30 rounded text-gray-400 hover:text-red-400 transition-colors"
-                  title="Revoke token"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                {editingId !== token.id && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => startEditing(token)}
+                      className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
+                      title="Rename token"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => revokeToken(token.id)}
+                      className="p-2 hover:bg-red-900/30 rounded text-gray-400 hover:text-red-400 transition-colors"
+                      title="Revoke token"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -202,12 +271,14 @@ export function McpSettings() {
       <div className="text-xs text-gray-500 space-y-1">
         <p className="font-medium text-gray-400">Supported IDEs:</p>
         <ul className="list-disc list-inside space-y-0.5 ml-2">
-          <li>Claude Code (claude_desktop_config.json)</li>
+          <li>Claude Desktop (claude_desktop_config.json)</li>
           <li>Cursor (settings.json → mcpServers)</li>
           <li>Windsurf (settings.json → mcpServers)</li>
           <li>VS Code + Continue extension</li>
+          <li>Gemini Code Assist (Antigravity)</li>
         </ul>
       </div>
     </div>
   )
 }
+

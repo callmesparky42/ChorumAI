@@ -98,6 +98,32 @@ export async function revokeToken(tokenId: string, userId: string): Promise<bool
   return true
 }
 
+export async function renameToken(tokenId: string, userId: string, newName: string): Promise<boolean> {
+  // First check if token exists and belongs to user
+  const [existing] = await db
+    .select({ id: apiTokens.id })
+    .from(apiTokens)
+    .where(
+      and(
+        eq(apiTokens.id, tokenId),
+        eq(apiTokens.userId, userId),
+        isNull(apiTokens.revokedAt)
+      )
+    )
+    .limit(1)
+
+  if (!existing) {
+    return false
+  }
+
+  await db
+    .update(apiTokens)
+    .set({ name: newName })
+    .where(eq(apiTokens.id, tokenId))
+
+  return true
+}
+
 export async function listTokens(userId: string) {
   return db
     .select({

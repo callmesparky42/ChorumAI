@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth'
 import { NextResponse } from 'next/server'
-import { generateToken, listTokens, revokeToken } from '@/lib/mcp/auth'
+import { generateToken, listTokens, revokeToken, renameToken } from '@/lib/mcp/auth'
 
 export async function GET() {
   const session = await auth()
@@ -35,6 +35,32 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PATCH(request: Request) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    const { tokenId, name } = await request.json()
+
+    if (!tokenId || !name) {
+      return NextResponse.json({ error: 'Token ID and name required' }, { status: 400 })
+    }
+
+    const success = await renameToken(tokenId, session.user.id, name)
+
+    if (!success) {
+      return NextResponse.json({ error: 'Token not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('[MCP] Failed to rename token:', error)
+    return NextResponse.json({ error: 'Failed to rename token' }, { status: 500 })
+  }
+}
+
 export async function DELETE(request: Request) {
   const session = await auth()
   if (!session?.user?.id) {
@@ -60,3 +86,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Failed to revoke token' }, { status: 500 })
   }
 }
+
