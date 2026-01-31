@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { providerCredentials, usageLog } from '@/lib/db/schema'
-import { eq, and, gte } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import Anthropic from '@anthropic-ai/sdk'
 import OpenAI from 'openai'
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -11,77 +11,10 @@ import { v4 as uuidv4 } from 'uuid'
 import {
   ReviewRequest,
   ReviewResult,
-  ReviewIssue,
-  REVIEW_PROMPTS,
   ReviewProvider
 } from '@/lib/review/types'
 
-// Parse LLM response into structured review
-function parseReviewResponse(response: string, focus: string): {
-  issues: ReviewIssue[]
-  approvals: string[]
-  learnedPatterns: string[]
-} {
-  const issues: ReviewIssue[] = []
-  const approvals: string[] = []
-  const learnedPatterns: string[] = []
-
-  // Simple parsing - look for common patterns in the response
-  const lines = response.split('\n')
-  let currentSection: 'issues' | 'approvals' | 'patterns' | null = null
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-    const lower = trimmed.toLowerCase()
-
-    // Detect sections
-    if (lower.includes('issue') || lower.includes('problem') || lower.includes('concern') || lower.includes('warning') || lower.includes('error')) {
-      currentSection = 'issues'
-    } else if (lower.includes('good') || lower.includes('correct') || lower.includes('approved') || lower.includes('✓') || lower.includes('looks good')) {
-      currentSection = 'approvals'
-    } else if (lower.includes('pattern') || lower.includes('recommend') || lower.includes('suggestion') || lower.includes('should always')) {
-      currentSection = 'patterns'
-    }
-
-    // Parse bullet points
-    if (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('*') || /^\d+\./.test(trimmed)) {
-      const content = trimmed.replace(/^[-•*\d.]+\s*/, '')
-
-      if (currentSection === 'issues' && content.length > 10) {
-        // Determine severity from content
-        let severity: ReviewIssue['severity'] = 'warning'
-        if (lower.includes('critical') || lower.includes('security') || lower.includes('vulnerability') || lower.includes('injection')) {
-          severity = 'critical'
-        } else if (lower.includes('suggest') || lower.includes('consider') || lower.includes('could')) {
-          severity = 'suggestion'
-        }
-
-        issues.push({
-          severity,
-          category: focus,
-          description: content
-        })
-      } else if (currentSection === 'approvals' && content.length > 5) {
-        approvals.push(content)
-      } else if (currentSection === 'patterns' && content.length > 10) {
-        learnedPatterns.push(content)
-      }
-    }
-  }
-
-  // If no structured issues found, try to extract from prose
-  if (issues.length === 0) {
-    // Look for severity keywords anywhere
-    if (response.toLowerCase().includes('no issues') ||
-        response.toLowerCase().includes('looks good') ||
-        response.toLowerCase().includes('no problems')) {
-      approvals.push('Overall review passed with no significant issues')
-    }
-  }
-
-  return { issues, approvals, learnedPatterns }
-}
-
+// Simple peer review: resend the original prompt to a different provider
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
@@ -93,13 +26,9 @@ export async function POST(req: NextRequest) {
     const body: ReviewRequest = await req.json()
     const {
       originalTask,
-      response: responseToReview,
+      response: originalResponse,
       responseProvider,
-      projectContext,
-      agentName,
-      agentRole,
-      focus,
-      reviewProvider
+      focus
     } = body
 
     // Get provider credentials
@@ -110,8 +39,8 @@ export async function POST(req: NextRequest) {
       )
     })
 
-    // Build provider configs (same logic as chat route)
-    let providerConfigs: any[] = []
+    // Build provider configs
+    let providerConfigs: { provider: string; apiKey: string; costPer1M: { input: number; output: number } }[] = []
     if (creds.length === 0) {
       // Use environment keys
       if (process.env.ANTHROPIC_API_KEY) {
@@ -139,38 +68,43 @@ export async function POST(req: NextRequest) {
       providerConfigs = creds.map(c => ({
         provider: c.provider,
         apiKey: decrypt(c.apiKeyEncrypted),
-        costPer1M: c.costPer1M || { input: 0, output: 0 }
+        costPer1M: (c.costPer1M as { input: number; output: number }) || { input: 0, output: 0 }
       }))
     }
 
-    // Find the requested review provider
-    const reviewConfig = providerConfigs.find(p => p.provider === reviewProvider)
+    // Pick a different provider for the second opinion
+    // Priority: if original was Anthropic, try OpenAI first, then Google
+    // If original was OpenAI, try Anthropic first, then Google
+    // If original was Google, try Anthropic first, then OpenAI
+    const priorityOrder: Record<string, string[]> = {
+      'anthropic': ['openai', 'google'],
+      'openai': ['anthropic', 'google'],
+      'google': ['anthropic', 'openai']
+    }
+
+    const preferredOrder = priorityOrder[responseProvider] || ['anthropic', 'openai', 'google']
+
+    let reviewConfig = null
+    for (const provider of preferredOrder) {
+      reviewConfig = providerConfigs.find(p => p.provider === provider)
+      if (reviewConfig) break
+    }
+
     if (!reviewConfig) {
       return NextResponse.json(
-        { error: `Review provider ${reviewProvider} not configured` },
+        { error: 'No alternate provider available for second opinion. Add another provider in Settings.' },
         { status: 400 }
       )
     }
 
-    // Build review prompt
-    const reviewSystemPrompt = REVIEW_PROMPTS[focus]
+    const reviewProvider = reviewConfig.provider as ReviewProvider
 
-    const reviewContent = `## Original Task
-${originalTask}
+    // Simple prompt: just ask the same question
+    const systemPrompt = `You are providing a second opinion. The user asked another AI this question and got an answer. Now they want YOUR perspective. Answer the question directly - don't just comment on the other response.`
 
-## Response to Review (from ${responseProvider}${agentName ? `, ${agentName} agent` : ''})
-${responseToReview}
+    const userPrompt = `Original question: ${originalTask}
 
-${projectContext ? `## Project Context\n${projectContext}` : ''}
-
----
-
-Please provide your review. Structure your response with:
-1. **Issues Found** - List any problems, bugs, or concerns with severity (critical/warning/suggestion)
-2. **What Looks Good** - List things that are correct or well-done
-3. **Patterns to Remember** - Any lessons or patterns to apply in future work
-
-Be specific and actionable.`
+Please provide your answer to this question.`
 
     let reviewResponse: string
     let tokensInput: number = 0
@@ -181,10 +115,10 @@ Be specific and actionable.`
         const anthropic = new Anthropic({ apiKey: reviewConfig.apiKey })
 
         const result = await anthropic.messages.create({
-          model: 'claude-3-5-sonnet-20240620',
-          max_tokens: 2000,
-          system: reviewSystemPrompt,
-          messages: [{ role: 'user', content: reviewContent }]
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }]
         })
 
         reviewResponse = result.content[0].type === 'text' ? result.content[0].text : ''
@@ -195,12 +129,12 @@ Be specific and actionable.`
         const openai = new OpenAI({ apiKey: reviewConfig.apiKey })
 
         const result = await openai.chat.completions.create({
-          model: 'gpt-4-turbo',
+          model: 'gpt-4o',
           messages: [
-            { role: 'system', content: reviewSystemPrompt },
-            { role: 'user', content: reviewContent }
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
           ],
-          max_tokens: 2000
+          max_tokens: 4096
         })
 
         reviewResponse = result.choices[0].message.content || ''
@@ -212,10 +146,10 @@ Be specific and actionable.`
         const genAI = new GoogleGenerativeAI(reviewConfig.apiKey)
         const model = genAI.getGenerativeModel({
           model: 'gemini-1.5-pro',
-          systemInstruction: reviewSystemPrompt
+          systemInstruction: systemPrompt
         })
 
-        const result = await model.generateContent(reviewContent)
+        const result = await model.generateContent(userPrompt)
         reviewResponse = result.response.text()
         tokensInput = result.response.usageMetadata?.promptTokenCount || 0
         tokensOutput = result.response.usageMetadata?.candidatesTokenCount || 0
@@ -223,7 +157,7 @@ Be specific and actionable.`
     } catch (err: any) {
       console.error('Review provider error:', err)
       return NextResponse.json(
-        { error: `Review provider ${reviewProvider} failed: ${err.message}` },
+        { error: `Second opinion failed (${reviewProvider}): ${err.message}` },
         { status: 500 }
       )
     }
@@ -247,29 +181,18 @@ Be specific and actionable.`
       console.warn('Failed to log review usage:', e)
     }
 
-    // Parse the review response
-    const parsed = parseReviewResponse(reviewResponse, focus)
-
-    // Determine overall assessment
-    let overallAssessment: ReviewResult['overallAssessment'] = 'approved'
-    if (parsed.issues.some(i => i.severity === 'critical')) {
-      overallAssessment = 'critical-issues'
-    } else if (parsed.issues.length > 0) {
-      overallAssessment = 'needs-changes'
-    }
-
-    // Build result
+    // Build simple result
     const result: ReviewResult = {
       id: uuidv4(),
       reviewedAt: new Date().toISOString(),
       reviewProvider,
       focus,
-      issues: parsed.issues,
-      approvals: parsed.approvals,
-      overallAssessment,
-      confidence: parsed.issues.length > 0 || parsed.approvals.length > 0 ? 'high' : 'medium',
-      summary: reviewResponse,
-      learnedPatterns: parsed.learnedPatterns,
+      issues: [],  // Simple mode: no issue parsing
+      approvals: [],
+      overallAssessment: 'approved',
+      confidence: 'high',
+      summary: reviewResponse,  // The full second opinion response
+      learnedPatterns: [],
       costUsd: actualCost
     }
 
@@ -278,8 +201,9 @@ Be specific and actionable.`
   } catch (error: any) {
     console.error('Review error:', error)
     return NextResponse.json(
-      { error: `Failed to process review: ${error.message}` },
+      { error: `Failed to get second opinion: ${error.message}` },
       { status: 500 }
     )
   }
 }
+
