@@ -46,7 +46,7 @@ export default function LandingPage() {
             <Link href="#features">Features</Link>
             <Link href="#architecture">Architecture</Link>
             <Link href="/helpmemigrate">Migrate</Link>
-            <Link href="https://github.com/ChorumAI/chorum-ai">GitHub</Link>
+            <Link href="https://github.com/callmesparky42/ChorumAI">GitHub</Link>
             <Link href="/app" className="btn-nav">Get Started</Link>
           </div>
         </div>
@@ -441,7 +441,7 @@ export default function LandingPage() {
               <img src="/chorumai.png" alt="Chorum AI" style={{ height: '32px' }} />
             </Link>
             <div className="footer-links">
-              <Link href="https://github.com/ChorumAI/chorum-ai">GitHub</Link>
+              <Link href="https://github.com/callmesparky42/ChorumAI">GitHub</Link>
               <Link href="#">Documentation</Link>
             </div>
           </div>
