@@ -69,6 +69,10 @@ export async function middleware(req: NextRequest) {
 
     // Redirect unauthenticated users to login
     if (!user && !isAuthPage) {
+        // Return 401 for API routes so the client can handle it gracefully
+        if (req.nextUrl.pathname.startsWith('/api/')) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
         return NextResponse.redirect(new URL('/login', req.url))
     }
 
