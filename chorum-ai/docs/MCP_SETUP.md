@@ -1,6 +1,6 @@
 # ChorumAI MCP Server Setup Guide
 
-This guide explains how to connect external AI coding assistants (Claude Code, Cursor, Windsurf) to your ChorumAI project memory using the Model Context Protocol (MCP).
+This guide explains how to connect external AI coding assistants (Claude Desktop, Cursor, Windsurf, Gemini Code Assist) to your ChorumAI project memory using the Model Context Protocol (MCP).
 
 ## Overview
 
@@ -15,10 +15,11 @@ The ChorumAI MCP Server exposes your project learnings, patterns, and invariants
 
 1. A ChorumAI account with at least one project
 2. One of the supported IDEs:
-   - Claude Code (Claude Desktop)
+   - Claude Desktop
    - Cursor
    - Windsurf
    - VS Code with Continue extension
+   - Gemini Code Assist (Antigravity)
 
 ## Step 1: Generate an API Token
 
@@ -40,18 +41,19 @@ This displays the MCP configuration with your token.
 
 ## Step 2: Configure Your IDE
 
-### Claude Code (Claude Desktop)
+ChorumAI uses HTTP transport, so configuration is simple—just add the URL and your token.
 
-Edit `~/.config/claude-desktop/claude_desktop_config.json` (or `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+### Claude Desktop
+
+Edit `~/.config/claude-desktop/claude_desktop_config.json` (macOS/Linux) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
   "mcpServers": {
     "chorum": {
-      "command": "npx",
-      "args": ["chorum-mcp"],
-      "env": {
-        "CHORUM_API_TOKEN": "chorum_xxxxxxxxxxxxx"
+      "url": "https://chorum.ai/api/mcp",
+      "headers": {
+        "Authorization": "Bearer chorum_xxxxxxxxxxxxx"
       }
     }
   }
@@ -66,10 +68,9 @@ Edit your Cursor settings (Settings → MCP Servers):
 {
   "mcpServers": {
     "chorum": {
-      "command": "npx",
-      "args": ["chorum-mcp"],
-      "env": {
-        "CHORUM_API_TOKEN": "chorum_xxxxxxxxxxxxx"
+      "url": "https://chorum.ai/api/mcp",
+      "headers": {
+        "Authorization": "Bearer chorum_xxxxxxxxxxxxx"
       }
     }
   }
@@ -84,10 +85,9 @@ Edit your Windsurf configuration file:
 {
   "mcpServers": {
     "chorum": {
-      "command": "npx",
-      "args": ["chorum-mcp"],
-      "env": {
-        "CHORUM_API_TOKEN": "chorum_xxxxxxxxxxxxx"
+      "url": "https://chorum.ai/api/mcp",
+      "headers": {
+        "Authorization": "Bearer chorum_xxxxxxxxxxxxx"
       }
     }
   }
@@ -102,10 +102,26 @@ Add to your Continue configuration:
 {
   "mcpServers": {
     "chorum": {
-      "command": "npx",
-      "args": ["chorum-mcp"],
-      "env": {
-        "CHORUM_API_TOKEN": "chorum_xxxxxxxxxxxxx"
+      "url": "https://chorum.ai/api/mcp",
+      "headers": {
+        "Authorization": "Bearer chorum_xxxxxxxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+### Gemini Code Assist (Antigravity)
+
+Add to your MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "chorum": {
+      "url": "https://chorum.ai/api/mcp",
+      "headers": {
+        "Authorization": "Bearer chorum_xxxxxxxxxxxxx"
       }
     }
   }
@@ -172,6 +188,7 @@ When your AI agent proposes a new learning, it appears in your ChorumAI dashboar
 ## Security Considerations
 
 - **Token Security**: Treat your API token like a password. Never commit it to version control.
+- **HTTPS Only**: All communication uses HTTPS encryption.
 - **Permission Scoping**: Tokens can be configured with read-only access or limited to specific projects.
 - **Human-in-the-Loop**: All write operations (proposing learnings) require human approval before affecting your memory.
 
@@ -183,18 +200,36 @@ Your token may have been revoked. Generate a new one in Settings → MCP Integra
 
 ### Server not connecting
 
-1. Check that Node.js is installed and `npx` is available
-2. Verify the token is correctly set in your IDE's config
-3. Run `chorum mcp serve` manually to see error output
+1. Verify the token is correctly set in your IDE's config
+2. Check you're using the correct URL: `https://chorum.ai/api/mcp`
+3. Ensure the `Authorization` header uses `Bearer ` prefix
+4. Restart your IDE after configuration changes
 
 ### Tools not appearing
 
 1. Restart your IDE after configuration changes
 2. Check the IDE's MCP server logs for connection errors
-3. Ensure the `chorum-mcp` package is accessible via npx
+3. Verify your token has not expired
+
+### Local Development
+
+For local development, use:
+
+```json
+{
+  "mcpServers": {
+    "chorum": {
+      "url": "http://localhost:3000/api/mcp",
+      "headers": {
+        "Authorization": "Bearer chorum_xxxxxxxxxxxxx"
+      }
+    }
+  }
+}
+```
 
 ## Need Help?
 
 - Check the [ChorumAI documentation](https://chorum.ai/docs)
-- Report issues at [GitHub](https://github.com/chorumAI/chorum-ai/issues)
+- Report issues at [GitHub](https://github.com/callmesparky42/ChorumAI/issues)
 - Join our Discord community for support

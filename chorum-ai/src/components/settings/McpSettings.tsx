@@ -78,10 +78,9 @@ export function McpSettings() {
   const mcpConfig = `{
   "mcpServers": {
     "chorum": {
-      "command": "npx",
-      "args": ["chorum-mcp"],
-      "env": {
-        "CHORUM_API_TOKEN": "${newToken || 'YOUR_TOKEN_HERE'}"
+      "url": "${typeof window !== 'undefined' ? window.location.origin : 'https://chorum.ai'}/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${newToken || 'YOUR_TOKEN_HERE'}"
       }
     }
   }
