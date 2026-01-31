@@ -324,7 +324,7 @@ function SettingsContent() {
         <div className="flex h-screen bg-gray-950 text-white">
             <div className="hidden md:block">
                 <div className="w-64 h-full bg-gray-950 border-r border-gray-800 p-4">
-                    <Link href="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6">
+                    <Link href="/app" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6">
                         ← Back to Chat
                     </Link>
                     <h1 className="text-xl font-bold mb-4">Settings</h1>

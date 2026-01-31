@@ -47,6 +47,7 @@ export default function LandingPage() {
             <Link href="#architecture">Architecture</Link>
             <Link href="/helpmemigrate">Migrate</Link>
             <Link href="https://github.com/callmesparky42/ChorumAI">GitHub</Link>
+            <Link href="/login">Login</Link>
             <Link href="/app" className="btn-nav">Get Started</Link>
           </div>
         </div>
