@@ -89,6 +89,11 @@ function SettingsContent() {
     const [summarizeResult, setSummarizeResult] = useState<{ success: boolean; message: string } | null>(null)
     const [summarizeProjectId, setSummarizeProjectId] = useState<string | null>(null)
 
+    // Link analysis state
+    const [analyzingLinks, setAnalyzingLinks] = useState(false)
+    const [linkAnalysisResult, setLinkAnalysisResult] = useState<{ success: boolean; message: string } | null>(null)
+    const [linkAnalysisProjectId, setLinkAnalysisProjectId] = useState<string | null>(null)
+
     // Form - Provider (for add)
     const [formProvider, setFormProvider] = useState('anthropic')
     const [formModel, setFormModel] = useState('claude-sonnet-4-20250514')
@@ -156,8 +161,9 @@ function SettingsContent() {
                 if (projectsRes.ok) {
                     const data = await projectsRes.json()
                     setProjects(data)
-                    if (!summarizeProjectId && data.length > 0) {
-                        setSummarizeProjectId(data[0].id)
+                    if (data.length > 0) {
+                        if (!summarizeProjectId) setSummarizeProjectId(data[0].id)
+                        if (!linkAnalysisProjectId) setLinkAnalysisProjectId(data[0].id)
                     }
                 }
             } else if (activeTab === 'knowledge') {
@@ -947,6 +953,77 @@ function SettingsContent() {
                                             >
                                                 <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.injectContext !== false ? "left-7" : "left-1")} />
                                             </button>
+                                        </div>
+                                        {/* Link Analysis */}
+                                        <div className="p-4 bg-gray-950 rounded-lg border border-gray-800 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="font-medium text-white mb-1">Knowledge Graph Analysis</h4>
+                                                    <p className="text-sm text-gray-500">
+                                                        Analyze co-occurrence data to infer logical relationships (supports, contradicts, supersedes) between memory items.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <select
+                                                    value={linkAnalysisProjectId || ''}
+                                                    onChange={(e) => {
+                                                        setLinkAnalysisProjectId(e.target.value)
+                                                        setLinkAnalysisResult(null)
+                                                    }}
+                                                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                                                >
+                                                    {projects.length === 0 && (
+                                                        <option value="">No projects available</option>
+                                                    )}
+                                                    {projects.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!linkAnalysisProjectId) return
+                                                        setAnalyzingLinks(true)
+                                                        setLinkAnalysisResult(null)
+                                                        try {
+                                                            const res = await fetch('/api/learning/analyze-links', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ projectId: linkAnalysisProjectId })
+                                                            })
+                                                            const data = await res.json()
+                                                            if (data.success) {
+                                                                setLinkAnalysisResult({ success: true, message: data.message })
+                                                            } else {
+                                                                setLinkAnalysisResult({ success: false, message: data.message || data.error })
+                                                            }
+                                                        } catch (e: any) {
+                                                            setLinkAnalysisResult({ success: false, message: e.message })
+                                                        } finally {
+                                                            setAnalyzingLinks(false)
+                                                        }
+                                                    }}
+                                                    disabled={analyzingLinks || !linkAnalysisProjectId || projects.length === 0}
+                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2"
+                                                >
+                                                    {analyzingLinks ? (
+                                                        <>
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                            Analyzing...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Sparkles className="w-4 h-4" />
+                                                            Analyze Links
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                            {linkAnalysisResult && (
+                                                <p className={clsx("text-sm", linkAnalysisResult.success ? "text-green-400" : "text-yellow-400")}>
+                                                    {linkAnalysisResult.message}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
 
