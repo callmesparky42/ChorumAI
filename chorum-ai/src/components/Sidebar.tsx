@@ -201,6 +201,11 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
     const [newDesc, setNewDesc] = useState('')
     const [newInstructions, setNewInstructions] = useState('')
 
+    // Import State
+    const [showImportPasswordModal, setShowImportPasswordModal] = useState(false)
+    const [importPassword, setImportPassword] = useState('')
+    const [pendingImportData, setPendingImportData] = useState<any>(null)
+
     useEffect(() => {
         fetchProjects()
     }, [])
@@ -277,6 +282,41 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
         }
     }
 
+    const performImport = async (data: any, password?: string) => {
+        try {
+            const res = await fetch('/api/import/project', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    exportData: data,
+                    options: {
+                        mergeExisting: false,
+                        importConversations: true,
+                        password
+                    }
+                })
+            })
+
+            const result = await res.json()
+            if (res.ok && result.success) {
+                alert(`Project imported successfully! Imported ${result.stats.patternsImported} patterns.`)
+                fetchProjects() // Refresh list
+                onSelectProject(result.projectId)
+                // Cleanup
+                setShowImportPasswordModal(false)
+                setPendingImportData(null)
+                setImportPassword('')
+            } else {
+                throw new Error(result.error || 'Import failed')
+            }
+        } catch (error: any) {
+            console.error('Import failed', error)
+            alert(`Failed to import project: ${error.message || 'Unknown error'}`)
+        } finally {
+            setIsImporting(false)
+        }
+    }
+
     const handleImportProject = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -286,25 +326,19 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
             const text = await file.text()
             const exportData = JSON.parse(text)
 
-            const res = await fetch('/api/import/project', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ exportData, options: { mergeExisting: false, importConversations: true } })
-            })
-
-            const result = await res.json()
-            if (res.ok && result.success) {
-                alert(`Project imported successfully! Imported ${result.stats.patternsImported} patterns.`)
-                fetchProjects() // Refresh list
-                onSelectProject(result.projectId)
+            // Check for encryption
+            if (exportData._encrypted) {
+                setPendingImportData(exportData)
+                setShowImportPasswordModal(true)
+                setIsImporting(false)
             } else {
-                throw new Error(result.error || 'Import failed')
+                await performImport(exportData)
             }
         } catch (error) {
-            console.error('Import failed', error)
-            alert('Failed to import project. Please check the file format.')
-        } finally {
+            console.error('File parse failed', error)
+            alert('Failed to read file. Please ensure it is a valid JSON export.')
             setIsImporting(false)
+        } finally {
             e.target.value = '' // Reset input
         }
     }
@@ -454,6 +488,55 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
                                     className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
                                 >
                                     Create Project
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Import Password Modal */}
+            {showImportPasswordModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-sm p-6 shadow-2xl">
+                        <h3 className="text-lg font-medium text-white mb-2">Encrypted Project</h3>
+                        <p className="text-sm text-gray-400 mb-4">Enter the password to decrypt and import this project.</p>
+
+                        <form onSubmit={(e) => {
+                            e.preventDefault()
+                            setIsImporting(true)
+                            performImport(pendingImportData, importPassword)
+                        }} className="space-y-4">
+                            <div>
+                                <input
+                                    type="password"
+                                    value={importPassword}
+                                    onChange={e => setImportPassword(e.target.value)}
+                                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                                    placeholder="Enter password"
+                                    autoFocus
+                                    required
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowImportPasswordModal(false)
+                                        setPendingImportData(null)
+                                        setImportPassword('')
+                                    }}
+                                    className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!importPassword}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                >
+                                    {isImporting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Decrypt & Import'}
                                 </button>
                             </div>
                         </form>
