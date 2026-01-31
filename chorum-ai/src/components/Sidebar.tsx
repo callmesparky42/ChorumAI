@@ -297,6 +297,14 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
                 })
             })
 
+            // Check content type to avoid JSON parse errors on HTML responses
+            const contentType = res.headers.get('content-type')
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await res.text()
+                console.error('Import API returned non-JSON:', res.status, text)
+                throw new Error(`Server returned ${res.status} ${res.statusText}: ${text.slice(0, 100)}...`)
+            }
+
             const result = await res.json()
             if (res.ok && result.success) {
                 alert(`Project imported successfully! Imported ${result.stats.patternsImported} patterns.`)
