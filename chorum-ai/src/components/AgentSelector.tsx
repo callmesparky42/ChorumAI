@@ -123,14 +123,7 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                                 <div className="text-sm text-gray-200">{agent.name}</div>
                                 <div className="text-xs text-gray-500 truncate">{agent.role}</div>
                             </div>
-                            <span className={clsx(
-                                'text-[10px] px-1.5 py-0.5 rounded shrink-0',
-                                agent.tier === 'reasoning' && 'bg-purple-500/20 text-purple-400',
-                                agent.tier === 'balanced' && 'bg-blue-500/20 text-blue-400',
-                                agent.tier === 'fast' && 'bg-green-500/20 text-green-400'
-                            )}>
-                                {agent.tier}
-                            </span>
+
                         </button>
                     ))}
 
