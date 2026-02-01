@@ -1,0 +1,166 @@
+---
+title: Security & Privacy
+description: Threat model, encryption, compliance, and how Chorum protects your data.
+---
+
+# Security & Privacy
+
+Chorum is built for developers who take security seriously. This page is your one-stop reference for how we protect your data.
+
+---
+
+## The Short Version
+
+| Question | Answer |
+|----------|--------|
+| Where is my data stored? | Your machine (encrypted) |
+| Who can read my memory? | Only you |
+| Do cloud providers see my prompts? | Yes, if you use cloud LLMs |
+| Can I run fully offline? | Yes, with Ollama/LM Studio |
+| Is there telemetry? | No |
+| Can I export my data? | Yes, anytime |
+
+---
+
+## Threat Model
+
+**What Chorum protects against:**
+
+| Threat | Protection |
+|--------|------------|
+| Someone with filesystem access | Sees encrypted blobs only |
+| Accidental git commit of config | Useless ciphertext |
+| Cloud backup (iCloud/Dropbox) | Syncs encrypted noise |
+| Vendor disappears | You have portable export |
+| Network sniffing | TLS/HTTPS enforced |
+| PII in prompts | Client-side redaction before sending |
+
+**What Chorum doesn't protect against:**
+
+| Threat | Reality |
+|--------|---------|
+| LLM provider sees your prompts | Unavoidable for cloud models (use local models for maximum privacy) |
+| Content in RAM during request | Cleartext temporarily—no disk writes |
+| Compromised machine | If your machine is owned, all bets are off |
+
+---
+
+## Encryption
+
+All sensitive data is encrypted using **AES-256-GCM** before writing to disk. The key is derived from your passphrase using Argon2id—Chorum never sees or stores your key.
+
+```
+Your Passphrase
+      ↓
+  Argon2id (KDF)
+      ↓
+  256-bit Key
+      ↓
+  AES-256-GCM Encryption
+      ↓
+  Encrypted blob on disk
+```
+
+**Technical details:** [Encryption Documentation →](./sovereignty/encryption)
+
+---
+
+## PII Redaction
+
+Before data leaves your machine for an LLM, Chorum can automatically detect and redact:
+
+| Detected | Replaced With |
+|----------|---------------|
+| Email addresses | `[EMAIL_REDACTED]` |
+| Phone numbers | `[PHONE_REDACTED]` |
+| SSNs | `[SSN_REDACTED]` |
+| Credit card numbers | `[CC_REDACTED]` |
+
+This runs **client-side in your browser**—the data never leaves in cleartext.
+
+**Full details:** [PII Redaction →](./sovereignty/pii-redaction)
+
+---
+
+## Compliance Mapping
+
+Chorum's security features map to common compliance frameworks:
+
+| Requirement | GDPR | SOC 2 | HIPAA | Chorum Feature |
+|-------------|------|-------|-------|----------------|
+| Data encryption at rest | ✓ | ✓ | ✓ | AES-256-GCM |
+| Data portability | ✓ | | | Export/Import |
+| Access controls | ✓ | ✓ | ✓ | Token-based auth |
+| Audit logging | ✓ | ✓ | ✓ | Local audit logs |
+| Data minimization | ✓ | | ✓ | PII redaction |
+
+> **Note:** Chorum provides features that support compliance—it does not guarantee compliance. Consult your compliance officer for your specific use case.
+
+---
+
+## Audit Logging
+
+When enabled, Chorum logs every LLM request locally:
+
+```json
+{
+  "timestamp": "2024-01-15T10:23:45Z",
+  "provider": "anthropic",
+  "model": "claude-3-sonnet",
+  "tokens": { "input": 1523, "output": 847 },
+  "cost": 0.0034,
+  "securityFlags": {
+    "httpsEnforced": true,
+    "piiDetected": false
+  }
+}
+```
+
+Logs stay on your machine. Export them anytime via **Settings → Security → Download Audit Logs**.
+
+---
+
+## Local-Only Mode
+
+For maximum security, run Chorum with zero cloud exposure:
+
+1. Install [Ollama](https://ollama.ai) or [LM Studio](https://lmstudio.ai)
+2. Add the local provider in Settings
+3. Disable all cloud providers
+
+In this mode, **nothing leaves your machine**. Your prompts, responses, and memory stay entirely local.
+
+**Setup guide:** [Local-First Operation →](./sovereignty/local-first)
+
+---
+
+## Security Features at a Glance
+
+| Feature | Default | Configurable |
+|---------|---------|--------------|
+| Encryption at rest | ✅ On | — |
+| HTTPS enforcement | ✅ On | ✓ |
+| PII redaction | ❌ Off | ✓ |
+| Strict SSL verification | ❌ Off | ✓ |
+| Audit logging | ❌ Off | ✓ |
+| MCP write approval | ✅ On | — |
+
+---
+
+## Responsible Disclosure
+
+Found a security issue? Email **security@chorumai.com** with details. We take all reports seriously and will respond within 48 hours.
+
+---
+
+## Related Documentation
+
+- **[Encryption](./sovereignty/encryption)** — Technical encryption details
+- **[PII Redaction](./sovereignty/pii-redaction)** — What's detected and how
+- **[Local-First](./sovereignty/local-first)** — Running entirely offline
+- **[Export/Import](./sovereignty/export-import)** — Data portability
+- **[Security Settings](./settings/security)** — Configuration options
+
+---
+
+*"Your AI memory belongs to you. Not to us. Not to anyone else."*
