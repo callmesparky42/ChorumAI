@@ -82,22 +82,6 @@ This runs **client-side in your browser**—the data never leaves in cleartext.
 
 ---
 
-## Compliance Mapping
-
-Chorum's security features map to common compliance frameworks:
-
-| Requirement | GDPR | SOC 2 | HIPAA | Chorum Feature |
-|-------------|------|-------|-------|----------------|
-| Data encryption at rest | ✓ | ✓ | ✓ | AES-256-GCM |
-| Data portability | ✓ | | | Export/Import |
-| Access controls | ✓ | ✓ | ✓ | Token-based auth |
-| Audit logging | ✓ | ✓ | ✓ | Local audit logs |
-| Data minimization | ✓ | | ✓ | PII redaction |
-
-> **Note:** Chorum provides features that support compliance—it does not guarantee compliance. Consult your compliance officer for your specific use case.
-
----
-
 ## Audit Logging
 
 When enabled, Chorum logs every LLM request locally:
