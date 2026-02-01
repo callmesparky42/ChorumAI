@@ -4,7 +4,7 @@ import { DocsThemeConfig } from 'nextra-theme-docs'
 const config: DocsThemeConfig = {
     logo: (
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <img src="/docs/chorumai.png" alt="Chorum AI" style={{ height: '32px' }} />
+            <img src="/chorumai.png" alt="Chorum AI" style={{ height: '32px' }} />
             <span style={{ fontWeight: 600 }}>Docs</span>
         </span>
     ),
@@ -24,7 +24,7 @@ const config: DocsThemeConfig = {
             <meta name="viewport" content="width=device-width, initial-scale=1.0" />
             <meta property="og:title" content="Chorum AI Documentation" />
             <meta property="og:description" content="Multi-provider LLM orchestration with intelligent routing and sovereign memory." />
-            <link rel="icon" href="/docs/favicon.ico" />
+            <link rel="icon" href="/favicon.ico" />
         </>
     ),
     primaryHue: 195, // Azure hue

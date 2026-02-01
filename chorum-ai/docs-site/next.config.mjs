@@ -7,11 +7,9 @@ const withNextra = nextra({
 })
 
 export default withNextra({
-    output: 'export',
     images: {
         unoptimized: true,
     },
-    basePath: '/docs',
     typescript: {
         ignoreBuildErrors: true,
     },
@@ -19,3 +17,4 @@ export default withNextra({
         ignoreDuringBuilds: true,
     },
 })
+
