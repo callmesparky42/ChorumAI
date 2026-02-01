@@ -10,7 +10,7 @@ import { getRelevantMemory, buildMemoryContext, type MemoryStrategy } from '@/li
 import { checkAndSummarize, buildSummarizationPrompt } from '@/lib/chorum/summarize'
 import { generateConversationTitle } from '@/lib/chorum/title'
 import { anonymizePii } from '@/lib/pii'
-import { callProvider, type FullProviderConfig } from '@/lib/providers'
+import { callProvider, type FullProviderConfig, type ChatResult } from '@/lib/providers'
 import {
     callProviderWithFallback,
     buildFallbackChain,
@@ -309,6 +309,7 @@ export async function POST(req: NextRequest) {
         let actualProvider: string = decision.provider
         let wasFallback: boolean = false
         let failedProviders: { provider: string; error: string }[] = []
+        let result: ChatResult
 
         try {
             // Find the selected provider config (might be undefined if budget exhausted placeholder)
@@ -410,14 +411,18 @@ export async function POST(req: NextRequest) {
                 }
 
                 // Fallback call
-                const result = await callProviderWithFallback(
+                result = await callProviderWithFallback(
                     fallbackConfig,
                     fullMessages.map(m => ({ role: m.role, content: m.content, images: m.images, attachments: (m as any).attachments })),
                     systemPrompt
                 )
+            } else {
+                // Direct call (no fallback needed or available)
+                if (!selectedConfig) {
+                    throw new Error(`Provider ${decision.provider} not found in configs`)
+                }
 
-                // Direct call
-                const result = await callProvider(
+                result = await callProvider(
                     {
                         provider: selectedConfig.provider,
                         apiKey: selectedConfig.apiKey,
@@ -429,11 +434,11 @@ export async function POST(req: NextRequest) {
                     fullMessages.map(m => ({ role: m.role, content: m.content, images: m.images, attachments: (m as any).attachments })),
                     systemPrompt
                 )
-
-                response = result.content
-                tokensInput = result.tokensInput
-                tokensOutput = result.tokensOutput
             }
+
+            response = result.content
+            tokensInput = result.tokensInput
+            tokensOutput = result.tokensOutput
         } catch (err: any) {
             console.error('Provider error:', err)
             return NextResponse.json({
