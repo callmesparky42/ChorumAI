@@ -1,6 +1,25 @@
+---
+title: Chorum AI Documentation
+description: Your AI remembers your projects so you don't have to.
+---
+
 # Chorum AI Documentation
 
-Welcome to the Chorum documentation. Find what you need below.
+**Chorum remembers your projects so you don't have to.**
+
+Stop re-explaining your codebase every AI conversation. Chorum learns your patterns, decisions, and conventions—then injects them when they matter. Use any LLM (Claude, GPT, Gemini, local models) with context that persists and compounds over time.
+
+Self-hosted. Encrypted. No ads. No tracking.
+
+---
+
+## Quick Links
+
+| What You Want | Where to Go |
+|---------------|-------------|
+| Get running in 5 minutes | [Quickstart Guide →](./getting-started/quickstart) |
+| Add memory to your IDE (Cursor, Claude Code) | [5-Minute MCP Setup →](./mcp/quickstart) |
+| Understand security & encryption | [Security & Privacy →](./security) |
 
 ---
 
@@ -8,9 +27,9 @@ Welcome to the Chorum documentation. Find what you need below.
 
 New to Chorum? Start here.
 
-- **[Welcome to Chorum](./getting-started/welcome.md)** — What is Chorum and why it exists
-- **[Quickstart Guide](./getting-started/quickstart.md)** — Get running in 5 minutes
-- **[Account Setup](./getting-started/account.md)** — Login and profile settings
+- **[Welcome to Chorum](./getting-started/welcome)** — What is Chorum and why it exists
+- **[Quickstart Guide](./getting-started/quickstart)** — Get running in 5 minutes
+- **[Account Setup](./getting-started/account)** — Login and profile settings
 
 ---
 
@@ -18,48 +37,20 @@ New to Chorum? Start here.
 
 The main interface where you talk to the chorus.
 
-- **[Chat Overview](./chat/overview.md)** — Layout, sending messages, shortcuts
-- **[Understanding Providers](./chat/providers.md)** — Claude, GPT, Gemini, and local models
-- **[Provider Selector](./chat/provider-selector.md)** — Manually choosing your AI
-- **[Phone a Friend](./chat/peer-review.md)** — Getting a second opinion
+- **[Chat Overview](./chat/overview)** — Layout, sending messages, shortcuts
+- **[Understanding Providers](./chat/providers)** — Claude, GPT, Gemini, and local models
+- **[Provider Selector](./chat/provider-selector)** — Manually choosing your AI
+- **[Phone a Friend](./chat/peer-review)** — Getting a second opinion
 
 ---
 
-## Settings
+## Security & Privacy
 
-Configure Chorum to work how you want.
+Your data, your control.
 
-- **[Settings Overview](./settings/overview.md)** — All settings at a glance
-- **[Adding API Keys](./settings/api-keys.md)** — Connect your AI providers
-- **[Budget Management](./settings/budgets.md)** — Control your spending
-- **[Security Settings](./settings/security.md)** — PII, HTTPS, SSL, audit logs
-- **[Resilience Settings](./settings/resilience.md)** — Fallback and local models
-
----
-
-## Projects
-
-Organize your work with separate contexts.
-
-## Projects
-
-Organize your work with separate contexts.
-
-- **[Projects Overview](./projects/overview.md)** — Context isolation and creation
-- **[Managing Projects](./projects/managing.md)** — Settings, archiving, and single-project export
-
----
-
-## Agents
-
-Specialized AI personas for different tasks.
-
-## Agents
-
-Specialized AI personas for different tasks.
-
-- **[Built-in Agents](./agents/built-in.md)** — The 14 specialized personas (Analyst, Architect, Coder...)
-- **[Custom Agents](./agents/custom.md)** — Creating your own specialized personas
+- **[Security Overview](./security)** — Threat model, encryption, compliance
+- **[Sovereignty](./sovereignty/overview)** — Core principles of data ownership
+- **[Local-First Operation](./sovereignty/local-first)** — Running entirely offline
 
 ---
 
@@ -67,61 +58,62 @@ Specialized AI personas for different tasks.
 
 How Chorum remembers and learns.
 
-- **[Memory Overview](./memory/overview.md)** — Core concepts and lifecycle
-- **[Learning Types](./memory/learning-types.md)** — Patterns, decisions, invariants, antipatterns
-- **[Relevance Gating](./memory/relevance-gating.md)** — How memory is scored and selected
-- **[Confidence Scoring](./memory/confidence-scoring.md)** — Project familiarity over time
-- **[Memory Management](./memory/management.md)** — View, edit, and organize learnings
-
----
-
-## API Reference
-
-For developers building on Chorum.
-
-## API Reference
-
-For developers building on Chorum.
-
-- **[API Overview](./api/overview.md)** — Authentication and response formats
-- **[Endpoints Reference](./api/endpoints.md)** — Projects, Memory, Chat, and Agents APIs
-
----
-
-## H4X0R CLI
-
-Access Chorum from your terminal.
-
-## H4X0R CLI
-
-Access Chorum from your terminal.
-
-- **[CLI Overview](./cli/overview.md)** — Installation and basic usage
-- **[CLI Commands](./cli/commands.md)** — Reference for all available commands
+- **[Memory Overview](./memory/overview)** — Core concepts and lifecycle
+- **[Learning Types](./memory/learning-types)** — Patterns, decisions, invariants, antipatterns
+- **[Relevance Gating](./memory/relevance-gating)** — How memory is scored and selected
+- **[Confidence Scoring](./memory/confidence-scoring)** — Project familiarity over time
+- **[Memory Management](./memory/management)** — View, edit, and organize learnings
 
 ---
 
 ## MCP Integration
 
-Connect external AI agents (Claude Desktop, Cursor, Windsurf) to Chorum.
+Give your IDE agent (Claude Code, Cursor, Windsurf) persistent memory.
 
-- **[MCP Overview](./mcp/overview.md)** — What MCP is and why it matters
-- **[MCP Setup Guide](./mcp/setup.md)** — Token generation and configuration
-- **[MCP Tools Reference](./mcp/tools-reference.md)** — All available MCP tools
-- **[IDE Integration](./mcp/ide-integration.md)** — Claude Code, Cursor, Windsurf, VS Code
-
----
-
-## Sovereignty & Security
-
-Your data, your control.
-
-- **[Sovereignty Overview](./sovereignty/overview.md)** — Core principles of data ownership
-- **[Encryption](./sovereignty/encryption.md)** — AES-256-GCM at-rest encryption
-- **[Export & Import](./sovereignty/export-import.md)** — Portable, encrypted backups
-- **[PII Redaction](./sovereignty/pii-redaction.md)** — Automatic privacy protection
-- **[Local-First Operation](./sovereignty/local-first.md)** — Running entirely offline
+- **[5-Minute Setup](./mcp/quickstart)** — Get MCP running fast
+- **[MCP Overview](./mcp/overview)** — What MCP is and when to use it
+- **[Tools Reference](./mcp/tools-reference)** — All available MCP tools
+- **[IDE Integration](./mcp/ide-integration)** — Specific setup for your IDE
 
 ---
 
-*Built with intelligence, not just tokens.*
+## Settings
+
+Configure Chorum to work how you want.
+
+- **[Settings Overview](./settings/overview)** — All settings at a glance
+- **[Adding API Keys](./settings/api-keys)** — Connect your AI providers
+- **[Budget Management](./settings/budgets)** — Control your spending
+- **[Resilience Settings](./settings/resilience)** — Fallback and local models
+
+---
+
+## Projects
+
+Organize your work with separate contexts.
+
+- **[Projects Overview](./projects/overview)** — Context isolation and creation
+- **[Managing Projects](./projects/managing)** — Settings, archiving, and export
+
+---
+
+## Agents
+
+Specialized AI personas for different tasks.
+
+- **[Built-in Agents](./agents/built-in)** — The 14 specialized personas
+- **[Custom Agents](./agents/custom)** — Creating your own specialized personas
+
+---
+
+## API & CLI
+
+For developers building on Chorum.
+
+- **[API Overview](./api-reference/overview)** — Authentication and response formats
+- **[CLI Overview](./cli/overview)** — Access Chorum from your terminal
+- **[CLI Commands](./cli/commands)** — Reference for all available commands
+
+---
+
+*"Your AI assistant should remember you. Now it does."*
