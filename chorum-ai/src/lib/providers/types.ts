@@ -6,6 +6,12 @@ export interface ChatMessage {
     role: 'user' | 'assistant' | 'system'
     content: string
     images?: string[] // base64 data URLs
+    attachments?: {
+        type: 'image' | 'text' | 'code' | 'markdown' | 'json' | 'pdf';
+        name: string;
+        content: string;
+        mimeType: string;
+    }[]
 }
 
 export interface ChatResult {
