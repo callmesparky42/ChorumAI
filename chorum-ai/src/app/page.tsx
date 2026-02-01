@@ -443,7 +443,6 @@ export default function LandingPage() {
             </Link>
             <div className="footer-links">
               <Link href="https://github.com/callmesparky42/ChorumAI">GitHub</Link>
-              <Link href="https://docs.chorumai.com">Documentation</Link>
             </div>
           </div>
           <div className="footer-right">
