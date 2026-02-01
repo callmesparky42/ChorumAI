@@ -53,13 +53,13 @@ export async function POST(req: NextRequest) {
 
         // Sort by cost and use cheapest
         const sortedCreds = creds.sort((a, b) =>
-            (Number(a.costInputPer1M) || 0) - (Number(b.costInputPer1M) || 0)
+            (a.costPer1M?.input || 0) - (b.costPer1M?.input || 0)
         )
         const cheapest = sortedCreds[0]
 
         // Decrypt API key
-        const apiKey = cheapest.encryptedApiKey
-            ? decrypt(cheapest.encryptedApiKey)
+        const apiKey = cheapest.apiKeyEncrypted
+            ? decrypt(cheapest.apiKeyEncrypted)
             : ''
 
         // Run link inference
