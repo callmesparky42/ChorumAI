@@ -3,6 +3,7 @@
  *
  * Stores config in ~/.chorum/cli-config.json
  * Handles API URL, tokens, active project, etc.
+ * Tokens are encrypted using AES-256-GCM with machine-specific keys
  */
 interface CliConfig {
     apiUrl?: string;

@@ -122,6 +122,12 @@ declare class ChorumApiClient {
         memoryCount: number;
         providersConfigured: string[];
     }>;
+    repairMemory(options: {
+        projectId?: string;
+    }): Promise<{
+        updated: number;
+        failed: number;
+    }>;
 }
 export declare const chorumApi: ChorumApiClient;
 export {};

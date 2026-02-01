@@ -273,6 +273,20 @@ class ChorumApiClient {
         }
         return response.json();
     }
+    async repairMemory(options) {
+        await this.ensureInit();
+        const response = await fetch(`${this.baseUrl}/api/cli/memory/repair`, {
+            method: 'POST',
+            headers: this.getHeaders(),
+            body: JSON.stringify(options),
+        });
+        if (!response.ok) {
+            const error = new Error(await response.text());
+            error.status = response.status;
+            throw error;
+        }
+        return response.json();
+    }
 }
 exports.chorumApi = new ChorumApiClient();
 //# sourceMappingURL=client.js.map

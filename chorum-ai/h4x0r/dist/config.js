@@ -4,6 +4,7 @@
  *
  * Stores config in ~/.chorum/cli-config.json
  * Handles API URL, tokens, active project, etc.
+ * Tokens are encrypted using AES-256-GCM with machine-specific keys
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -50,18 +51,62 @@ exports.getConfigPath = getConfigPath;
 const fs = __importStar(require("fs/promises"));
 const path = __importStar(require("path"));
 const os = __importStar(require("os"));
+const crypto_1 = require("crypto");
 const CONFIG_DIR = path.join(os.homedir(), '.chorum');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'cli-config.json');
+// Derive encryption key from machine-specific data
+const ENCRYPTION_KEY = (0, crypto_1.scryptSync)(`${os.hostname()}-${os.userInfo().username}`, 'chorum-cli-salt-v1', 32);
 /**
- * Ensure config directory exists
+ * Encrypt sensitive data using AES-256-GCM
+ */
+function encrypt(text) {
+    const iv = (0, crypto_1.randomBytes)(16);
+    const cipher = (0, crypto_1.createCipheriv)('aes-256-gcm', ENCRYPTION_KEY, iv);
+    const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    return JSON.stringify({
+        iv: iv.toString('hex'),
+        data: encrypted.toString('hex'),
+        tag: authTag.toString('hex')
+    });
+}
+/**
+ * Decrypt sensitive data
+ */
+function decrypt(encryptedText) {
+    try {
+        const { iv, data, tag } = JSON.parse(encryptedText);
+        const decipher = (0, crypto_1.createDecipheriv)('aes-256-gcm', ENCRYPTION_KEY, Buffer.from(iv, 'hex'));
+        decipher.setAuthTag(Buffer.from(tag, 'hex'));
+        const decrypted = Buffer.concat([
+            decipher.update(Buffer.from(data, 'hex')),
+            decipher.final()
+        ]);
+        return decrypted.toString('utf8');
+    }
+    catch (err) {
+        // If decryption fails, return original (for backward compatibility)
+        return encryptedText;
+    }
+}
+/**
+ * Ensure config directory exists with secure permissions
  */
 async function ensureConfigDir() {
     try {
-        await fs.mkdir(CONFIG_DIR, { recursive: true });
+        // Create with owner-only permissions (0o700)
+        await fs.mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 });
     }
     catch (err) {
         if (err.code !== 'EEXIST')
             throw err;
+    }
+    // Ensure existing directory has correct permissions
+    try {
+        await fs.chmod(CONFIG_DIR, 0o700);
+    }
+    catch (err) {
+        // Ignore chmod errors (may not be supported on all systems)
     }
 }
 /**
@@ -70,7 +115,12 @@ async function ensureConfigDir() {
 async function getConfig() {
     try {
         const data = await fs.readFile(CONFIG_FILE, 'utf-8');
-        return JSON.parse(data);
+        const config = JSON.parse(data);
+        // Decrypt token if present
+        if (config.apiToken) {
+            config.apiToken = decrypt(config.apiToken);
+        }
+        return config;
     }
     catch (err) {
         if (err.code === 'ENOENT') {
@@ -84,7 +134,13 @@ async function getConfig() {
  */
 async function saveConfig(config) {
     await ensureConfigDir();
-    await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
+    // Encrypt token before saving
+    const configToSave = { ...config };
+    if (configToSave.apiToken) {
+        configToSave.apiToken = encrypt(configToSave.apiToken);
+    }
+    // Write with owner-only permissions (0o600)
+    await fs.writeFile(CONFIG_FILE, JSON.stringify(configToSave, null, 2), { mode: 0o600 });
 }
 /**
  * Update specific config values

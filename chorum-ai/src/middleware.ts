@@ -46,8 +46,11 @@ export async function middleware(req: NextRequest) {
     const isOnboardingApi = req.nextUrl.pathname.startsWith('/api/onboarding')
     const isPublicPage = req.nextUrl.pathname === '/'
 
-    // Allow public landing page
+    // Redirect authenticated users from landing page to app
     if (isPublicPage) {
+        if (user) {
+            return NextResponse.redirect(new URL('/app', req.url))
+        }
         return res
     }
 

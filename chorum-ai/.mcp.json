@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "chorum": {
+      "command": "npx",
+      "args": ["chorum-mcp"],
+      "env": {
+        "CHORUM_API_TOKEN": "chorum_BD9LP-0nXHMEk5chli7iSW8I15s4l58-kzxvAoyicsU"
+      }
+    }
+  }
+}

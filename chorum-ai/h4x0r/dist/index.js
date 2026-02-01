@@ -22,6 +22,8 @@ const import_1 = require("./commands/import");
 const config_cmd_1 = require("./commands/config-cmd");
 const login_1 = require("./commands/login");
 const hack_1 = require("./commands/hack");
+const memory_repair_1 = require("./commands/memory-repair");
+const mcp_1 = require("./commands/mcp");
 const config_1 = require("./config");
 const VERSION = '1.0.0';
 const renderer = new h4x0r_1.H4x0rRenderer({
@@ -130,6 +132,13 @@ async function main() {
         .action(async (query, options) => {
         await (0, memory_1.memoryCommand)('search', { ...options, query }, renderer);
     });
+    memory
+        .command('repair')
+        .description('Backfill missing embeddings')
+        .option('-p, --project <project>', 'Target project')
+        .action(async (options) => {
+        await (0, memory_repair_1.memoryRepairCommand)(options, renderer);
+    });
     // ═══════════════════════════════════════════════════════════
     // KNOWLEDGE IMPORT
     // ═══════════════════════════════════════════════════════════
@@ -177,6 +186,16 @@ async function main() {
         .description('Manage configuration (get, set, list)')
         .action(async (action, key, value) => {
         await (0, config_cmd_1.configCommand)(action, key, value, renderer);
+    });
+    // ═══════════════════════════════════════════════════════════
+    // MCP SERVER
+    // ═══════════════════════════════════════════════════════════
+    program
+        .command('mcp <action>')
+        .description('MCP Server management (serve, status, config)')
+        .option('-p, --port <port>', 'HTTP port (for future use)')
+        .action(async (action, options) => {
+        await (0, mcp_1.mcpCommand)(action, options, renderer);
     });
     // ═══════════════════════════════════════════════════════════
     // VAULT (ENCRYPTION)

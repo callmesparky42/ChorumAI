@@ -11,11 +11,18 @@ import { useChorumStore } from '@/lib/store'
 import { useReviewStore } from '@/lib/review/store'
 import clsx from 'clsx'
 
+export type Attachment = {
+    type: 'image' | 'text' | 'code' | 'markdown' | 'json' | 'pdf';
+    name: string;
+    content: string; // base64 for images/pdf, text for others
+    mimeType: string;
+}
+
 export function ChatPanel({ projectId }: { projectId?: string }) {
     const [message, setMessage] = useState('')
     const [selectedProvider, setSelectedProvider] = useState<string>('auto')
-    const [selectedAgent, setSelectedAgent] = useState<string>('auto')
-    const [images, setImages] = useState<string[]>([])
+    const [selectedAgent, setSelectedAgent] = useState<string>('none')
+    const [attachments, setAttachments] = useState<Attachment[]>([])
     const [isDragging, setIsDragging] = useState(false)
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -40,31 +47,76 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
         const files = e.target.files
         if (!files) return
         processFiles(files)
+        // Reset input so same file can be selected again if needed
+        e.target.value = ''
     }
 
     const processFiles = (files: FileList | File[]) => {
         Array.from(files).forEach(file => {
-            if (!file.type.startsWith('image/')) return
-            // Check file size (limit to 5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                alert('File too large (max 5MB)')
+            const isImage = file.type.startsWith('image/')
+            const isPdf = file.type === 'application/pdf'
+            const isText = file.type.startsWith('text/') ||
+                file.name.endsWith('.md') ||
+                file.name.endsWith('.json') ||
+                file.name.endsWith('.ts') ||
+                file.name.endsWith('.tsx') ||
+                file.name.endsWith('.js') ||
+                file.name.endsWith('.py')
+
+            // Size limits: 5MB for images/PDFs, 100KB for text
+            const limit = (isImage || isPdf) ? 5 * 1024 * 1024 : 100 * 1024
+
+            if (file.size > limit) {
+                alert(`File ${file.name} too large (max ${isImage || isPdf ? '5MB' : '100KB'})`)
                 return
             }
 
             const reader = new FileReader()
             reader.onload = (e) => {
-                const base64 = e.target?.result as string
-                setImages(prev => {
-                    if (prev.includes(base64)) return prev
-                    return [...prev, base64].slice(-5) // Limit to 5 images
+                const result = e.target?.result as string
+                let type: Attachment['type'] = 'text'
+                let content = result
+
+                if (isImage) {
+                    type = 'image'
+                    // Result is already base64 data url
+                } else if (isPdf) {
+                    type = 'pdf'
+                    // Result is data url, keep as is
+                } else {
+                    // Refine text type based on extension
+                    if (file.name.endsWith('.md')) type = 'markdown'
+                    else if (file.name.endsWith('.json')) type = 'json'
+                    else if (['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs'].some(ext => file.name.endsWith(ext))) type = 'code'
+
+                    // For text files, we want the raw text content, not data URL
+                    // But FileReader.readAsText is async. 
+                    // Let's use readAsText for text files below
+                }
+
+                // If it was read as DataURL but we want text (shouldn't happen with logic below)
+                setAttachments(prev => {
+                    // Avoid duplicates
+                    if (prev.some(a => a.name === file.name && a.content === content)) return prev
+                    return [...prev, {
+                        type,
+                        name: file.name,
+                        content,
+                        mimeType: file.type
+                    }].slice(-5) // Limit to 5 attachments at once
                 })
             }
-            reader.readAsDataURL(file)
+
+            if (isImage || isPdf) {
+                reader.readAsDataURL(file)
+            } else {
+                reader.readAsText(file)
+            }
         })
     }
 
-    const removeImage = (index: number) => {
-        setImages(prev => prev.filter((_, i) => i !== index))
+    const removeAttachment = (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index))
     }
 
     const onDragOver = (e: React.DragEvent) => {
@@ -84,26 +136,42 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
         }
     }
 
-    // Calculate total session cost
-    const sessionCost = messages.reduce((acc, msg) => acc + (Number(msg.costUsd) || 0), 0)
-
     const handleSend = async () => {
-        if (!message.trim() || !projectId) return
+        if (!message.trim() && attachments.length === 0) return
+        if (!projectId) return
 
         const content = message
-        const currentImages = images.length > 0 ? images : undefined
+        const currentAttachments = attachments.length > 0 ? attachments : undefined
 
-        // Clear input immediately to prevent text entry lag
+        // Backward compatibility for images
+        const currentImages = attachments
+            .filter(a => a.type === 'image')
+            .map(a => a.content)
+
+        // Clear input immediately
         setMessage('')
-        setImages([])
+        setAttachments([])
 
         await sendMessage({
             projectId,
             content,
-            images: currentImages,
+            images: currentImages.length > 0 ? currentImages : undefined,
+            attachments: currentAttachments, // Pass enhanced attachments
             providerOverride: selectedProvider === 'auto' ? undefined : selectedProvider,
             agentOverride: selectedAgent
         })
+    }
+
+    // File icon helper
+    const getFileIcon = (type: Attachment['type']) => {
+        switch (type) {
+            case 'image': return <ImageIcon className="w-4 h-4" />
+            case 'pdf': return <span className="font-bold text-[10px]">PDF</span>
+            case 'code': return <span className="font-mono text-[10px]">&lt;/&gt;</span>
+            case 'markdown': return <span className="font-bold text-[10px]">MD</span>
+            case 'json': return <span className="font-mono text-[10px]">{'{ }'}</span>
+            default: return <Paperclip className="w-4 h-4" />
+        }
     }
 
     return (
@@ -221,15 +289,24 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
 
                         {/* Input Area */}
                         <div className="p-3">
-                            {/* Image Previews */}
-                            {images.length > 0 && (
+                            {/* Attachment Previews */}
+                            {attachments.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mb-3">
-                                    {images.map((img, idx) => (
-                                        <div key={idx} className="relative group/img w-16 h-16 rounded-lg overflow-hidden border border-gray-700 shadow-sm">
-                                            <img src={img} alt="preview" className="w-full h-full object-cover" />
+                                    {attachments.map((att, idx) => (
+                                        <div key={idx} className="relative group/att w-16 h-16 rounded-lg overflow-hidden border border-gray-700 shadow-sm bg-gray-800 flex flex-col items-center justify-center text-xs text-gray-400">
+                                            {att.type === 'image' ? (
+                                                <img src={att.content} alt="preview" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-1 p-1 w-full text-center">
+                                                    <div className="w-6 h-6 flex items-center justify-center bg-gray-700 rounded text-gray-300">
+                                                        {getFileIcon(att.type)}
+                                                    </div>
+                                                    <span className="truncate w-full text-[9px] px-1">{att.name}</span>
+                                                </div>
+                                            )}
                                             <button
-                                                onClick={() => removeImage(idx)}
-                                                className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-red-500"
+                                                onClick={() => removeAttachment(idx)}
+                                                className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 text-white rounded-full opacity-0 group-hover/att:opacity-100 transition-opacity hover:bg-red-500 z-10"
                                             >
                                                 <X className="w-3 h-3" />
                                             </button>
@@ -263,7 +340,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     className="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-gray-300 transition-colors"
-                                    title="Attach image"
+                                    title="Attach file (Image, PDF, Code, Text)"
                                 >
                                     <Paperclip className="w-4 h-4" />
                                 </button>
@@ -271,7 +348,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                                     type="file"
                                     ref={fileInputRef}
                                     onChange={handleFileSelect}
-                                    accept="image/*"
+                                    accept="image/*,.pdf,.txt,.md,.json,.csv,.ts,.tsx,.js,.jsx,.py,.go,.rs,.java,.c,.cpp,.h,.css,.html,.xml,.yaml,.yml,.toml,.sql,.sh,.bash,.ps1"
                                     multiple
                                     className="hidden"
                                 />
@@ -286,7 +363,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                                 <div className="h-4 w-px bg-gray-800 mx-1" />
                                 <button
                                     onClick={handleSend}
-                                    disabled={!message.trim() || isLoading}
+                                    disabled={(!message.trim() && attachments.length === 0) || isLoading}
                                     className="p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg transition-colors flex items-center justify-center text-white shadow-sm"
                                 >
                                     <Send className="w-4 h-4" />

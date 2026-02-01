@@ -53,14 +53,25 @@ export async function POST(req: NextRequest) {
             smartAgentRouting: true
         }
 
-        const { projectId, conversationId: existingConversationId, content: rawContent, images, providerOverride, agentOverride } = await req.json()
+        const { projectId, conversationId: existingConversationId, content: rawContent, images, attachments, providerOverride, agentOverride } = await req.json()
 
-        // Track if this is a new conversation (for sidebar refresh)
-        let isNewConversation = false
-        let conversationId = existingConversationId
+        // Construct enhanced content including text attachments
+        let content = rawContent
+
+        // Append text-based attachments to the user message content
+        if (attachments && Array.isArray(attachments)) {
+            const textAttachments = attachments.filter((a: any) =>
+                ['text', 'code', 'markdown', 'json'].includes(a.type)
+            )
+
+            if (textAttachments.length > 0) {
+                content += '\n\n' + textAttachments.map((a: any) =>
+                    `--- Attached File: ${a.name} (${a.type}) ---\n${a.content}\n--- End of File ---`
+                ).join('\n\n')
+            }
+        }
 
         // Apply PII anonymization if enabled
-        let content = rawContent
         let piiDetected = false
         if (securitySettings?.anonymizePii) {
             const piiResult = anonymizePii(rawContent)
@@ -279,7 +290,8 @@ export async function POST(req: NextRequest) {
                 conversationId,
                 role: 'user',
                 content,
-                images // Save base64 images in DB
+                images, // Save base64 images in DB (Legacy)
+                attachments // Save full attachment objects
             })
         } catch (e) {
             console.warn('Failed to save user message to DB', e)
@@ -397,23 +409,14 @@ export async function POST(req: NextRequest) {
                     }
                 }
 
-                // Use fallback-aware call
+                // Fallback call
                 const result = await callProviderWithFallback(
                     fallbackConfig,
-                    fullMessages.map(m => ({ role: m.role, content: m.content, images: m.images })),
+                    fullMessages.map(m => ({ role: m.role, content: m.content, images: m.images, attachments: (m as any).attachments })),
                     systemPrompt
                 )
 
-                response = result.content
-                tokensInput = result.tokensInput
-                tokensOutput = result.tokensOutput
-                actualProvider = result.usedProvider
-                wasFallback = result.wasFallback
-                failedProviders = result.failedProviders
-            } else {
-                // Fallback disabled or only one provider - direct call
-                if (!selectedConfig) throw new Error('No provider selected and fallback disabled') // Should not happen given logic above
-
+                // Direct call
                 const result = await callProvider(
                     {
                         provider: selectedConfig.provider,
@@ -423,7 +426,7 @@ export async function POST(req: NextRequest) {
                         isLocal: selectedConfig.isLocal,
                         securitySettings: selectedConfig.securitySettings
                     },
-                    fullMessages.map(m => ({ role: m.role, content: m.content, images: m.images })),
+                    fullMessages.map(m => ({ role: m.role, content: m.content, images: m.images, attachments: (m as any).attachments })),
                     systemPrompt
                 )
 

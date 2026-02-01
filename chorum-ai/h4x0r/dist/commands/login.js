@@ -83,12 +83,31 @@ async function loginCommand(options, renderer) {
     else {
         // Browser OAuth flow
         await renderer.typeText('Opening browser for authentication...', 20);
+        // Generate CSRF protection state token
+        const { randomBytes } = await import('crypto');
+        const stateToken = randomBytes(32).toString('hex');
         // Start local server to receive callback
         const port = 9876;
         const server = http.createServer(async (req, res) => {
             const url = new URL(req.url, `http://localhost:${port}`);
             const token = url.searchParams.get('token');
             const expiresAt = url.searchParams.get('expiresAt');
+            const receivedState = url.searchParams.get('state');
+            // Validate CSRF state parameter
+            if (receivedState !== stateToken) {
+                res.writeHead(403, { 'Content-Type': 'text/html' });
+                res.end(`
+          <html>
+            <body style="background: #0a0c10; color: #ff5050; font-family: monospace; padding: 40px; text-align: center;">
+              <h1>✗ SECURITY ERROR</h1>
+              <p>Invalid state parameter. Possible CSRF attack detected.</p>
+            </body>
+          </html>
+        `);
+                server.close();
+                renderer.error('Authentication failed: Invalid state parameter');
+                return;
+            }
             if (token) {
                 await (0, config_1.updateConfig)({
                     apiToken: token,
@@ -120,7 +139,7 @@ async function loginCommand(options, renderer) {
             }
         });
         server.listen(port, () => {
-            const authUrl = `${apiUrl}/api/cli/auth/oauth?callback=http://localhost:${port}`;
+            const authUrl = `${apiUrl}/api/cli/auth/oauth?callback=http://localhost:${port}&state=${stateToken}`;
             (0, open_1.default)(authUrl);
         });
         renderer.dim(`Waiting for browser authentication...`);

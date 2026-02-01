@@ -13,6 +13,7 @@ interface MessageProps {
         role: string
         content: string
         images?: string[] | null
+        attachments?: { type: string; name: string; content: string }[] | null
         provider?: string | null
         costUsd?: string | null
         agentName?: string
@@ -108,13 +109,21 @@ export function Message({ message, previousUserMessage }: MessageProps) {
                         </ReactMarkdown>
                     </div>
 
-                    {/* Render Images */}
-                    {message.images && message.images.length > 0 && (
+                    {/* Render Attachments */}
+                    {(message.images?.length || 0) > 0 || (message.attachments?.length || 0) > 0 && (
                         <div className="mt-3 flex flex-wrap gap-2">
-                            {/* ... image map ... */}
-                            {message.images.map((img, idx) => (
-                                <div key={idx} className="relative group max-w-sm rounded-lg overflow-hidden border border-gray-700/50">
+                            {/* Images */}
+                            {message.images?.map((img, idx) => (
+                                <div key={`img-${idx}`} className="relative group max-w-sm rounded-lg overflow-hidden border border-gray-700/50">
                                     <img src={img} alt="attached content" className="max-h-64 object-contain cursor-zoom-in hover:brightness-110 transition-all shadow-lg" onClick={() => window.open(img, '_blank')} />
+                                </div>
+                            ))}
+
+                            {/* Other Attachments */}
+                            {message.attachments?.filter(a => a.type !== 'image').map((att, idx) => (
+                                <div key={`att-${idx}`} className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 rounded-lg border border-gray-700/50 text-xs text-gray-300">
+                                    <span className="font-mono bg-gray-800 px-1 rounded uppercase text-[10px]">{att.type}</span>
+                                    <span className="font-medium truncate max-w-[150px]" title={att.name}>{att.name}</span>
                                 </div>
                             ))}
                         </div>

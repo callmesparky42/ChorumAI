@@ -166,7 +166,13 @@ export const messages = pgTable('messages', {
   conversationId: uuid('conversation_id').references(() => conversations.id, { onDelete: 'cascade' }), // Nullable for backward compat
   role: text('role').notNull(), // 'user' | 'assistant'
   content: text('content').notNull(),
-  images: jsonb('images').$type<string[]>(), // Array of base64 image strings or URLs
+  images: jsonb('images').$type<string[]>(), // Array of base64 image strings or URLs (Legacy)
+  attachments: jsonb('attachments').$type<{
+    type: 'image' | 'text' | 'code' | 'markdown' | 'json' | 'pdf';
+    name: string;
+    content: string;
+    mimeType: string;
+  }[]>(), // New structured attachments
   provider: text('provider'), // Which LLM answered (null for user messages)
   costUsd: decimal('cost_usd', { precision: 10, scale: 6 }),
   tokensInput: integer('tokens_input'),

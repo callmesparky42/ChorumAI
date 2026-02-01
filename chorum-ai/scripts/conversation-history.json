@@ -1,0 +1,121 @@
+[
+  {
+    "id": "25f3ba56-577f-4533-b2ac-cc8ff03f6ffd",
+    "title": "Implementing User Initialization",
+    "created": "2026-01-28T16:57:01Z",
+    "lastModified": "2026-01-30T13:11:31Z",
+    "objective": "Implementing User Initialization\n\nThe user's main objective is to ensure that new users, whether they sign up via OAuth (Google) or email/password, have a seamless experience with all application features and settings properly initialized. This includes fixing bugs that prevent settings from loading and ensuring consistent user data across authentication methods.\n\nKey goals:\n- Create a centralized `ensureUserExists` helper function.\n- Update API endpoints (`/api/settings`, `/api/chat`) to use the helper.\n- Ensure user records are created for OAuth users in the callback route.\n- Create `/api/auth/init-user` endpoint for email/password signups.\n- Update the login page to call the init-user endpoint.\n- Add a logout button to the settings sidebar and implement the logout functionality.\n- Commit and push all changes, and check for database migrations.\n- Provide manual testing instructions due to browser automation issues."
+  },
+  {
+    "id": "df97c458-19c3-44bf-9556-bce9180359ce",
+    "title": "Fix Supabase Auth Build",
+    "created": "2026-01-26T23:23:47Z",
+    "lastModified": "2026-01-28T16:48:13Z",
+    "objective": "Fix Supabase Auth Build\n\nThe user's main objective is to resolve a build error stemming from the deprecation of `@supabase/auth-helpers-nextjs` by migrating the application's authentication system to the `@supabase/ssr` package. This involves:\n1. **Updating dependencies:** Replacing `@supabase/auth-helpers-nextjs` with `@supabase/ssr`.\n2. **Refactoring code:** Modifying `src/middleware.ts`, `src/lib/supabase-client.ts`, `src/app/login/page.tsx`, and `src/app/auth/callback/route.ts` to correctly utilize the new `@supabase/ssr` client creation and session management functions.\n3. **Restoring build functionality:** Eliminating the `Export createMiddlewareClient doesn't exist` error to allow the application to build successfully.\n4. **Maintaining authentication features:** Ensuring that both Google OAuth and email/password login, along with the implemented login tracking, continue to function correctly after the migration."
+  },
+  {
+    "id": "6cecffa9-a95e-43ef-878f-08c130017dd5",
+    "title": "Implementing LLM Integration",
+    "created": "2026-01-26T20:57:10Z",
+    "lastModified": "2026-01-26T22:27:46Z",
+    "objective": "Implementing LLM Integration\n\nThe user's main objective is to implement and test the integration of local LLM models into the ChorumAI application. This involves:\n- Refining the Ollama provider to handle base URL configurations and system prompt truncation.\n- Removing the \"Daily Budget\" UI element for local models.\n- Documenting and logging the progress of these implementations within the QA test plan, specifically adding details for Session 3 regarding routing and fallback strategies."
+  },
+  {
+    "id": "cd524a7c-86e0-459e-a3d2-d17e34419749",
+    "title": "MCP Server Integration Planning",
+    "created": "2026-01-24T03:17:57Z",
+    "lastModified": "2026-01-24T03:19:34Z",
+    "objective": "Read \\chorum-ai\\docs\\MCP_SERVER_MODE and develop an implementation plan for v1 of the MCP integration"
+  },
+  {
+    "id": "109665ce-86be-47ce-869d-771cf067c101",
+    "title": "Fixing Build Errors",
+    "created": "2026-01-23T20:42:58Z",
+    "lastModified": "2026-01-24T01:04:44Z",
+    "objective": "Fixing Build Errors\n\nThe user's main objective is to resolve build errors preventing the application from compiling. Their goals include:\n1. Fixing the `updatedAt` column error in `src/app/api/cli/memory/route.ts` by using `createdAt` for sorting.\n2. Fixing the `updatedAt` column error in `src/app/api/cli/memory/search/route.ts` by removing the reference to the non-existent column.\n3. Successfully building the application after these fixes."
+  },
+  {
+    "id": "ecb65491-515e-4e7a-a76a-ad2286c08eed",
+    "title": "Fix Chat UI and API Errors",
+    "created": "2026-01-23T20:35:45Z",
+    "lastModified": "2026-01-23T20:38:39Z",
+    "objective": "Fix Chat UI and API Errors\n\nThe user's main objective is to improve the chat panel's user experience and resolve critical backend API errors.\n\nGoals:\n1. **Update Chat Panel Welcome Message:** Replace the current \"Analyst Ready\" or similar waiting messages with a simple \"the choir is waiting\" message, which should persist until the first user message is typed.\n2. **Clear Message Input on Send:** Implement a flow where the text entry box in the chat window is cleared automatically after a message is successfully submitted.\n3. **Resolve API Error (Sharp Module):** Debug and fix the `Console SyntaxError` and `Console Error` that occur when the API returns HTML instead of JSON. This error is specifically linked to the `@xenova/transformers` module failing to load due to an issue with the `sharp` dependency, indicated by \"Something went wrong installing the `sharp` module\" and \"Cannot find module '../build/Release/sharp-win32-x64.node'\"."
+  },
+  {
+    "id": "6c8ca1f0-75d5-4595-85b9-0b89c61cf008",
+    "title": "Planning CLI Mode",
+    "created": "2026-01-21T16:02:20Z",
+    "lastModified": "2026-01-23T16:22:22Z",
+    "objective": "Planning CLI Mode\n\nThe user's main objective is to implement the H4X0R CLI for Chorum AI, including organizing the provided files, auditing them against the implementation plan, and resolving a naming conflict for `config.ts`."
+  },
+  {
+    "id": "f3d18d9b-7443-4961-be14-7fe5e16b1c46",
+    "title": "UI Theme Redesign",
+    "created": "2026-01-20T21:19:36Z",
+    "lastModified": "2026-01-21T15:33:43Z",
+    "objective": "UI Theme Redesign\n\nThe user's main objective is to plan and execute a UI theme redesign for the ChorumAI application. This involves replacing the Mistral AI provider with Perplexity, defining a new UI theme inspired by Supabase, Serper, and Grafana, updating the core 3-panel layout to be resizable, and ensuring the onboarding system aligns with the new design. The user also wants to incorporate logo-derived colors (sky blue and gold) and has requested the resizable panels."
+  },
+  {
+    "id": "45ff8b25-a3f5-4ef7-a306-dd51950b6775",
+    "title": "Repository Cleanup For Collaboration",
+    "created": "2026-01-20T16:21:15Z",
+    "lastModified": "2026-01-20T18:42:17Z",
+    "objective": "Repository Cleanup For Collaboration\n\nThe user's main objective is to clean up the Atlas repository before inviting two new engineers. Their goals include removing unnecessary files from Git tracking (such as debug output, audit results, and build artifacts), updating the `.gitignore` file to prevent future issues, and reorganizing documentation files like `MEMORY.md` and `IMPLEMENTATION.md` to a more logical structure. The user also wants to ensure that no sensitive credentials are accidentally committed and that the repository adheres to GSD commit standards."
+  },
+  {
+    "id": "843daa12-3cf5-4867-87cc-ac8a8fa638b4",
+    "title": "Assessing GSD Practices",
+    "created": "2026-01-18T15:32:38Z",
+    "lastModified": "2026-01-19T02:45:17Z",
+    "objective": "Assessing GSD Practices\n\nThe user's main objective is to evaluate the `get-shit-done-for-antigravity` GitHub repository. Their goal is to identify aspects of its methodology, particularly its documentation and workflow practices, that could be adopted or adapted to improve the development process and quality of their Atlas or Chorum projects. They specifically want to understand the differences and potential benefits of the GSD repository's approach compared to their current use of `MEMORY.md`."
+  },
+  {
+    "id": "ef659516-04ef-4d5f-894e-3c4c0d2adf20",
+    "title": "Security Audit & Feed Fixes",
+    "created": "2026-01-18T03:15:09Z",
+    "lastModified": "2026-01-18T03:43:52Z",
+    "objective": "Security Audit & Feed Fixes\n\nThe user's main objective is to ensure the security and reliability of the Atlas application by:\n1. **Completing an OWASP security audit** for code added in Phases 9-13.\n2. **Mitigating critical vulnerabilities**, specifically removing hardcoded database credentials from all identified files.\n3. **Cleaning up the codebase** by deleting temporary Claude session files and orphaned debug scripts.\n4. **Enhancing access control** by implementing admin role checks for sensitive API routes (`/api/admin/queue` and `/api/admin/trigger`).\n5. **Improving data collection reliability** by fixing the Serper date parsing error and implementing an automatic Serper fallback mechanism for all vendor RSS feeds when direct RSS collection fails.\n6. **Documenting all changes** in `MEMORY.md` and providing a comprehensive walkthrough of the security audit and fixes."
+  },
+  {
+    "id": "fac427d7-dc08-4ede-bb84-7b2b39bb5bd1",
+    "title": "Implementing Signals Bulk Actions",
+    "created": "2026-01-16T15:32:14Z",
+    "lastModified": "2026-01-17T03:13:03Z",
+    "objective": "Implementing Signals Bulk Actions\n\nThe user's main objective is to enhance the Signals Feed dashboard with bulk action capabilities. This involves:\n1. Implementing a \"select all\" checkbox in the filter section of `SignalsFeed.tsx`.\n2. Adding individual checkboxes to each signal card in `SignalCard.tsx` for selection.\n3. Implementing \"mark as read\" and \"mark as unread\" actions for selected signals in `SignalsFeed.tsx`.\n4. Integrating these new controls into the UI and ensuring they function correctly.\n5. Verifying the build remains stable after these changes."
+  },
+  {
+    "id": "85ed42c5-a374-4bfb-9419-5548ccb6d410",
+    "title": "Fixing Build Error",
+    "created": "2026-01-16T14:04:15Z",
+    "lastModified": "2026-01-16T15:20:14Z",
+    "objective": "Fixing Build Error\n\nThe user's main objective is to resolve a build error caused by a missing tooltip component. Their goal is to ensure the `CapabilityMatrixHeatmap` component can be successfully imported and used by fixing the module resolution issue."
+  },
+  {
+    "id": "acd34475-f62c-4687-9b93-660ab90f33bd",
+    "title": "Implementing Image Upload Capability",
+    "created": "2026-01-15T15:53:48Z",
+    "lastModified": "2026-01-15T16:12:41Z",
+    "objective": "Implementing Image Upload Capability\n\nThe user's main objective is to finalize the implementation of local image support in the chat window. Their goals are to:\n1. Verify the successful integration of image upload functionality across the frontend and backend.\n2. Ensure that images are correctly displayed in the chat history.\n3. Confirm that the build process completes without errors.\n4. Create a walkthrough document detailing the new feature and testing steps."
+  },
+  {
+    "id": "3996a4ed-4599-4c45-9161-b542d35ce0be",
+    "title": "Committing Phase 8 Changes",
+    "created": "2026-01-15T01:30:53Z",
+    "lastModified": "2026-01-15T03:38:49Z",
+    "objective": "Committing Phase 8 Changes\n\nThe user's main objective is to finalize Phase 8 by committing and pushing all the recent code changes. Their goals are to:\n1. Stage all modified and untracked files.\n2. Commit the staged changes with a descriptive message summarizing Phase 8.\n3. Push the commit to the remote repository.\n4. Verify that the build process completes successfully after the push."
+  },
+  {
+    "id": "dd4c29a2-8968-40b5-837a-6963cf4ed312",
+    "title": "Atlas Beta Polish & Fixes",
+    "created": "2026-01-13T06:09:37Z",
+    "lastModified": "2026-01-14T02:17:33Z",
+    "objective": "Atlas Beta Polish & Fixes\n\nThe user's main objective is to prepare the Atlas application for beta access by other users. Their immediate goals are to:\n1. **Implement Agent Editing:** Complete the UI functionality for editing existing agents, connecting `AgentCard` to `AgentCreatorModal` with pre-filled data and ensuring the modal handles `PATCH` requests for updates.\n2. **Remove API Key Placeholder:** Clean up the Settings page by removing the placeholder for API Keys.\n3. **Fix Light Mode Theming:** Resolve the issue where Light Mode does not correctly switch the interface, likely by injecting correct ShadCN CSS variables.\n4. **Fix Signal Read Status:** Ensure that marking signals as \"read\" correctly updates the unread count on the dashboard, potentially by adding a `router.refresh()` or `window.location.reload()` after the API call.\n5. **Remove \"Ask AI\" Buttons:** Remove the placeholder \"Ask AI\" buttons from `SignalCard.tsx` as the feature is not yet ready."
+  },
+  {
+    "id": "d10e65d9-7d79-4b2a-af33-e1874372484b",
+    "title": "Fixing Provider Model Errors",
+    "created": "2026-01-08T17:27:21Z",
+    "lastModified": "2026-01-08T23:24:34Z",
+    "objective": "Fixing Provider Model Errors\n\nThe user's main objective is to resolve errors related to incorrect model IDs in saved provider credentials. The goals are to:\n1. Identify and correct invalid model names in the `provider_credentials` table.\n2. Ensure all providers (Anthropic, Google, OpenAI) are configured with valid, up-to-date model names.\n3. Restore proper API functionality for all LLM providers."
+  }
+]

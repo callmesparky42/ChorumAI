@@ -29,11 +29,11 @@ The main interface where you talk to the chorus.
 
 Configure Chorum to work how you want.
 
-- **Settings Overview** — Coming soon
-- **Adding API Keys** — Coming soon
-- **Budget Management** — Coming soon
-- **Security Settings** — Coming soon
-- **Resilience Settings** — Coming soon
+- **[Settings Overview](./settings/overview.md)** — All settings at a glance
+- **[Adding API Keys](./settings/api-keys.md)** — Connect your AI providers
+- **[Budget Management](./settings/budgets.md)** — Control your spending
+- **[Security Settings](./settings/security.md)** — PII, HTTPS, SSL, audit logs
+- **[Resilience Settings](./settings/resilience.md)** — Fallback and local models
 
 ---
 
@@ -41,9 +41,12 @@ Configure Chorum to work how you want.
 
 Organize your work with separate contexts.
 
-- **What is a Project?** — Coming soon
-- **Creating & Managing** — Coming soon
-- **Project Memory** — Coming soon
+## Projects
+
+Organize your work with separate contexts.
+
+- **[Projects Overview](./projects/overview.md)** — Context isolation and creation
+- **[Managing Projects](./projects/managing.md)** — Settings, archiving, and single-project export
 
 ---
 
@@ -51,11 +54,12 @@ Organize your work with separate contexts.
 
 Specialized AI personas for different tasks.
 
-- **What are Agents?** — Coming soon
-- **Built-in Agents** — Coming soon
-- **Agent Tiers** — Coming soon
-- **Creating Custom Agents** — Coming soon
-- **Agent Schema Reference** — Coming soon
+## Agents
+
+Specialized AI personas for different tasks.
+
+- **[Built-in Agents](./agents/built-in.md)** — The 14 specialized personas (Analyst, Architect, Coder...)
+- **[Custom Agents](./agents/custom.md)** — Creating your own specialized personas
 
 ---
 
@@ -63,11 +67,11 @@ Specialized AI personas for different tasks.
 
 How Chorum remembers and learns.
 
-- **Memory Explained** — Coming soon
-- **How Memory Works** — Coming soon
-- **Patterns & Learning** — Coming soon
-- **Memory Files** — Coming soon
-- **Memory API** — Coming soon
+- **[Memory Overview](./memory/overview.md)** — Core concepts and lifecycle
+- **[Learning Types](./memory/learning-types.md)** — Patterns, decisions, invariants, antipatterns
+- **[Relevance Gating](./memory/relevance-gating.md)** — How memory is scored and selected
+- **[Confidence Scoring](./memory/confidence-scoring.md)** — Project familiarity over time
+- **[Memory Management](./memory/management.md)** — View, edit, and organize learnings
 
 ---
 
@@ -75,10 +79,12 @@ How Chorum remembers and learns.
 
 For developers building on Chorum.
 
-- **API Overview** — Coming soon
-- **Chat API** — Coming soon
-- **Agents API** — Coming soon
-- **Memory API** — Coming soon
+## API Reference
+
+For developers building on Chorum.
+
+- **[API Overview](./api/overview.md)** — Authentication and response formats
+- **[Endpoints Reference](./api/endpoints.md)** — Projects, Memory, Chat, and Agents APIs
 
 ---
 
@@ -86,9 +92,12 @@ For developers building on Chorum.
 
 Access Chorum from your terminal.
 
-- **CLI Overview** — Coming soon
-- **Core Commands** — Coming soon
-- **Advanced Usage** — Coming soon
+## H4X0R CLI
+
+Access Chorum from your terminal.
+
+- **[CLI Overview](./cli/overview.md)** — Installation and basic usage
+- **[CLI Commands](./cli/commands.md)** — Reference for all available commands
 
 ---
 
@@ -96,8 +105,22 @@ Access Chorum from your terminal.
 
 Connect external AI agents (Claude Desktop, Cursor, Windsurf) to Chorum.
 
-- **MCP Overview** — Coming soon
-- **MCP Setup Guide** — Coming soon
+- **[MCP Overview](./mcp/overview.md)** — What MCP is and why it matters
+- **[MCP Setup Guide](./mcp/setup.md)** — Token generation and configuration
+- **[MCP Tools Reference](./mcp/tools-reference.md)** — All available MCP tools
+- **[IDE Integration](./mcp/ide-integration.md)** — Claude Code, Cursor, Windsurf, VS Code
+
+---
+
+## Sovereignty & Security
+
+Your data, your control.
+
+- **[Sovereignty Overview](./sovereignty/overview.md)** — Core principles of data ownership
+- **[Encryption](./sovereignty/encryption.md)** — AES-256-GCM at-rest encryption
+- **[Export & Import](./sovereignty/export-import.md)** — Portable, encrypted backups
+- **[PII Redaction](./sovereignty/pii-redaction.md)** — Automatic privacy protection
+- **[Local-First Operation](./sovereignty/local-first.md)** — Running entirely offline
 
 ---
 
