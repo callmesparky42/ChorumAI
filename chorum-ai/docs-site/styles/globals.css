@@ -1,0 +1,138 @@
+/* ChorumAI Theme Overrides for Nextra */
+:root {
+    --chorum-bg-primary: #0a0c10;
+    --chorum-bg-secondary: #0f1218;
+    --chorum-bg-card: #141820;
+    --chorum-accent-azure: #29ABE2;
+    --chorum-accent-gold: #F7C325;
+    --chorum-text-primary: #f4f4f5;
+    --chorum-text-secondary: #a1a1aa;
+}
+
+/* Force dark mode background */
+html {
+    background: var(--chorum-bg-primary) !important;
+}
+
+body {
+    background: var(--chorum-bg-primary) !important;
+    font-family: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Sidebar styling */
+.nextra-sidebar-container {
+    background: var(--chorum-bg-secondary) !important;
+}
+
+/* Main content area */
+main {
+    background: var(--chorum-bg-primary) !important;
+}
+
+/* Navigation bar */
+nav.nextra-nav-container {
+    background: rgba(10, 12, 16, 0.85) !important;
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Links */
+a {
+    color: var(--chorum-accent-azure);
+}
+
+a:hover {
+    color: var(--chorum-accent-gold);
+}
+
+/* Code blocks */
+pre {
+    background: var(--chorum-bg-card) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+code {
+    background: var(--chorum-bg-card);
+    color: var(--chorum-accent-gold);
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--chorum-text-primary);
+}
+
+/* Paragraphs and content */
+p,
+li {
+    color: var(--chorum-text-secondary);
+}
+
+/* Tables */
+table {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+th {
+    background: var(--chorum-bg-secondary) !important;
+    color: var(--chorum-accent-azure);
+}
+
+td {
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Callouts/Alerts */
+.nextra-callout {
+    background: var(--chorum-bg-card) !important;
+    border-left-color: var(--chorum-accent-azure) !important;
+}
+
+/* Search */
+.nextra-search input {
+    background: var(--chorum-bg-card) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* TOC */
+.nextra-toc {
+    background: transparent !important;
+}
+
+.nextra-toc a {
+    color: var(--chorum-text-secondary);
+}
+
+.nextra-toc a:hover,
+.nextra-toc a.active {
+    color: var(--chorum-accent-azure);
+}
+
+/* Footer */
+footer {
+    background: var(--chorum-bg-secondary) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--chorum-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--chorum-bg-card);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--chorum-accent-azure);
+}

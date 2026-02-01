@@ -1,0 +1,80 @@
+# Adding API Keys
+
+Connect your AI providers to start chatting.
+
+---
+
+## The Add Provider Modal
+
+Click **"Add Provider"** in the Providers tab to open this modal:
+
+![Add Provider modal](/images/providapi.jpg)
+
+---
+
+## Fields Explained
+
+| Field | Description |
+|-------|-------------|
+| **Provider Type** | Which AI service (OpenAI, Anthropic, Perplexity, etc.) |
+| **Model** | Specific model to use, or "auto" for smart routing |
+| **API Key** | Your secret key from the provider |
+| **Daily Budget ($)** | Maximum spend per day for this provider |
+| **Display Name** | Optional nickname (e.g., "My Fast Model") |
+
+---
+
+## Getting Your API Keys
+
+### Claude (Anthropic)
+1. Go to [console.anthropic.com](https://console.anthropic.com)
+2. Sign up or log in
+3. Navigate to **API Keys**
+4. Click **Create Key**
+5. Copy the key (it won't show again!)
+
+### GPT-4 (OpenAI)
+1. Go to [platform.openai.com](https://platform.openai.com)
+2. Log in
+3. Go to **API Keys** in settings
+4. Click **Create new secret key**
+5. Copy immediately
+
+### Gemini (Google)
+1. Go to [aistudio.google.com](https://aistudio.google.com)
+2. Click **Get API Key**
+3. Create in a new or existing project
+4. Copy the key
+
+### Perplexity
+1. Go to [perplexity.ai/settings/api](https://perplexity.ai/settings/api)
+2. Log in and navigate to API settings
+3. Generate a key
+
+### Local Models (Ollama/LM Studio)
+No API key needed! Just enter the base URL:
+- **Ollama**: `http://localhost:11434`
+- **LM Studio**: `http://localhost:1234`
+
+---
+
+## Tips
+
+- **Start with one provider** and add more later
+- **Set conservative budgets** initially ($1-5/day)
+- **Use "auto" model** unless you need a specific one
+- **Display names** help when you have multiple of the same provider
+
+---
+
+## Managing Existing Keys
+
+In the Providers tab, each provider card shows:
+- **Status** (active/inactive toggle)
+- **Usage** (spent today vs budget)
+- **Edit** button to update key or budget
+- **Delete** button to remove
+
+---
+
+→ **Next:** [Budget Management](./budgets.md)

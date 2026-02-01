@@ -1,0 +1,79 @@
+
+> docs-site@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.35
+
+   Skipping validation of types
+   Skipping linting
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Collecting page data ...
+   Generating static pages (0/49) ...
+   Generating static pages (12/49) 
+   Generating static pages (24/49) 
+   Generating static pages (36/49) 
+ ✓ Generating static pages (49/49)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (pages)                              Size     First Load JS
+┌ ○ / (351 ms)                             3.72 kB         165 kB
+├   /_app                                  0 B             152 kB
+├ ● /_meta                                 244 B           152 kB
+├ ○ /404                                   182 B           152 kB
+├ ● /agents/_meta                          250 B           152 kB
+├ ○ /agents/built-in                       4.19 kB         165 kB
+├ ○ /agents/custom                         3.61 kB         165 kB
+├ ○ /agents/overview                       4.64 kB         166 kB
+├ ● /api-reference/_meta                   253 B           152 kB
+├ ○ /api-reference/endpoints               3.72 kB         165 kB
+├ ○ /api-reference/overview                3.5 kB          165 kB
+├ ● /chat/_meta                            245 B           152 kB
+├ ○ /chat/overview                         5.44 kB         167 kB
+├ ○ /chat/peer-review                      4.64 kB         166 kB
+├ ○ /chat/provider-selector (349 ms)       3.66 kB         165 kB
+├ ○ /chat/providers (305 ms)               5.2 kB          166 kB
+├ ● /cli/_meta                             247 B           152 kB
+├ ○ /cli/commands                          3.6 kB          165 kB
+├ ○ /cli/overview (315 ms)                 3.39 kB         164 kB
+├ ● /getting-started/_meta                 256 B           152 kB
+├ ○ /getting-started/account (389 ms)      4.38 kB         165 kB
+├ ○ /getting-started/quickstart (301 ms)   4.21 kB         165 kB
+├ ○ /getting-started/welcome (322 ms)      4.19 kB         165 kB
+├ ● /mcp/_meta                             247 B           152 kB
+├ ○ /mcp/ide-integration (363 ms)          5.54 kB         167 kB
+├ ○ /mcp/overview (334 ms)                 4.61 kB         166 kB
+├ ○ /mcp/setup (394 ms)                    5.23 kB         166 kB
+├ ○ /mcp/tools-reference (391 ms)          6.56 kB         168 kB
+├ ● /memory/_meta                          250 B           152 kB
+├ ○ /memory/confidence-scoring (310 ms)    5.59 kB         167 kB
+├ ○ /memory/learning-types                 6.36 kB         167 kB
+├ ○ /memory/management                     6.5 kB          168 kB
+├ ○ /memory/overview                       5.42 kB         167 kB
+├ ○ /memory/relevance-gating               6.58 kB         168 kB
+├ ● /projects/_meta                        251 B           152 kB
+├ ○ /projects/managing                     3.68 kB         165 kB
+├ ○ /projects/overview                     3.88 kB         165 kB
+├ ● /settings/_meta                        251 B           152 kB
+├ ○ /settings/api-keys                     4.1 kB          165 kB
+├ ○ /settings/budgets                      4.01 kB         165 kB
+├ ○ /settings/overview                     3.81 kB         165 kB
+├ ○ /settings/resilience                   4.58 kB         166 kB
+├ ○ /settings/security                     4.17 kB         165 kB
+├ ● /sovereignty/_meta                     253 B           152 kB
+├ ○ /sovereignty/encryption                6.16 kB         167 kB
+├ ○ /sovereignty/export-import             6.59 kB         168 kB
+├ ○ /sovereignty/local-first               6.92 kB         168 kB
+├ ○ /sovereignty/overview                  4.94 kB         166 kB
+└ ○ /sovereignty/pii-redaction             6.56 kB         168 kB
++ First Load JS shared by all              163 kB
+  ├ chunks/framework-840cff9d6bb95703.js   44.8 kB
+  ├ chunks/main-dbaf325308549d6d.js        34.1 kB
+  ├ chunks/pages/_app-8706819fd507dcb4.js  71 kB
+  ├ css/7ae2ec0d385bba83.css               11.8 kB
+  └ other shared chunks (total)            1.75 kB
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses getStaticProps)
+

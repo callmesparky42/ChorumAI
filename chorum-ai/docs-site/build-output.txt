@@ -1,0 +1,38 @@
+
+> docs-site@0.1.0 build
+> next build
+
+  Γû▓ Next.js 14.2.35
+
+   Skipping validation of types
+   Skipping linting
+   Creating an optimized production build ...
+Failed to compile.
+
+./pages/agents/overview.mdx
+Module not found: Can't resolve 'C:/Users/dmill/Documents/GitHub/ChorumAI/chorum-ai/docs-site/public/docs/images/agentselect.jpg'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./pages/chat/overview.mdx
+Module not found: Can't resolve 'C:/Users/dmill/Documents/GitHub/ChorumAI/chorum-ai/docs-site/public/docs/images/chatinterface2.jpg'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./pages/chat/providers.mdx
+Module not found: Can't resolve 'C:/Users/dmill/Documents/GitHub/ChorumAI/chorum-ai/docs-site/public/docs/images/provselectdrop.jpg'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./pages/chat/providers.mdx
+Module not found: Can't resolve 'C:/Users/dmill/Documents/GitHub/ChorumAI/chorum-ai/docs-site/public/docs/images/provselect.jpg'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./pages/getting-started/account.mdx
+Module not found: Can't resolve 'C:/Users/dmill/Documents/GitHub/ChorumAI/chorum-ai/docs-site/public/docs/images/loginpage.jpg'
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+> Build failed because of webpack errors
