@@ -1,0 +1,109 @@
+---
+title: 5-Minute MCP Setup
+description: Give your IDE agent persistent memory in 5 minutes. No web app required.
+---
+
+# 5-Minute MCP Setup
+
+**Keep using Cursor. Just add memory.**
+
+Your IDE agent forgets everything between sessions. Chorum fixes that. In 5 minutes, your AI will remember your project's patterns, decisions, and conventions—without you repeating yourself.
+
+---
+
+## Before & After
+
+**Without Chorum:**
+> "Build the auth endpoint"  
+> *AI invents new patterns, ignores your httpOnly cookie rule, uses localStorage*
+
+**With Chorum MCP:**
+> "Build the auth endpoint"  
+> *AI knows you use JWT + httpOnly cookies, follows your established patterns*
+
+---
+
+## Setup (3 Steps)
+
+### 1. Get Your API Token
+
+Visit [chorumai.com/app](https://chorumai.com/app) → **Settings** → **MCP Integration** → **New Token**
+
+Copy it immediately—it won't be shown again.
+
+### 2. Configure Your IDE
+
+Add this to your MCP config file:
+
+```json
+{
+  "mcpServers": {
+    "chorum": {
+      "command": "npx",
+      "args": ["chorum-mcp"],
+      "env": {
+        "CHORUM_API_TOKEN": "your-token-here"
+      }
+    }
+  }
+}
+```
+
+**Config file locations:**
+- **Claude Code:** `~/.config/claude-code/mcp.json`
+- **Cursor:** `~/.cursor/mcp.json`
+- **Windsurf:** Settings → MCP Servers
+
+### 3. Restart Your IDE
+
+That's it. Your AI agent now has persistent memory.
+
+---
+
+## What Happens Next
+
+Once connected, your IDE agent can:
+
+- **Query your memory** — Ask "what's our auth pattern?" and get real answers
+- **Respect invariants** — It knows "never use localStorage for tokens"
+- **Propose learnings** — When it discovers a new pattern, it can suggest adding it
+
+You approve all new learnings in the [Chorum web UI](https://chorumai.com/app). The agent reads, you control what it writes.
+
+---
+
+## Try It Now
+
+Ask your agent:
+
+> "What patterns does this project follow?"
+
+If it returns your actual patterns, you're connected. If it says "I don't have access to that information," check [troubleshooting](./setup#troubleshooting).
+
+---
+
+## Want the Full Experience?
+
+The MCP server gives your IDE memory. The web app gives you:
+
+| Feature | MCP Only | Web App |
+|---------|----------|---------|
+| IDE agent has memory | ✅ | ✅ |
+| Visual memory dashboard | ❌ | ✅ |
+| Peer review across providers | ❌ | ✅ |
+| Cost tracking | ❌ | ✅ |
+| Approve/edit learnings | via web | ✅ |
+
+**Recommendation:** Use both. MCP for coding, web app for reviewing and managing memory.
+
+---
+
+## Next Steps
+
+- **[Full Setup Guide](./setup)** — Detailed config for every IDE
+- **[Tools Reference](./tools-reference)** — What your agent can do
+- **[How Memory Works](../memory/overview)** — Patterns, decisions, invariants explained
+
+---
+
+*"Your AI assistant should remember you. Now it does."*

@@ -13,6 +13,25 @@ IDE agents like Claude Code, Cursor, and Windsurf are **stateless by design**—
 
 ---
 
+## MCP vs Web UI
+
+Not sure which to use? Here's a quick comparison:
+
+| Use Case | Web UI | MCP |
+|----------|--------|-----|
+| Standalone chat with memory dashboard | ✅ | ❌ |
+| Memory for Cursor/Claude Code/Windsurf | ⚠️ manual | ✅ automatic |
+| Peer review across providers | ✅ | ❌ |
+| Cost tracking & budgets | ✅ | ❌ |
+| Review/approve learnings | ✅ | via web |
+| Just want memory in existing tools | ❌ | ✅ |
+
+**Recommendation:** Use both. MCP for day-to-day coding in your IDE, web UI for reviewing memory and managing learnings.
+
+> **New to Chorum?** Start with the [5-Minute Setup](./quickstart) to get MCP running in your IDE.
+
+---
+
 ## What is MCP?
 
 The [Model Context Protocol](https://modelcontextprotocol.io/) is an open standard that allows AI assistants to connect with external tools and data sources. Think of it as a USB port for AI—a standardized way for different systems to talk to each other.

@@ -1,6 +1,8 @@
 export default {
+    quickstart: '5-Minute Setup',
     overview: 'MCP Overview',
-    setup: 'MCP Setup Guide',
-    'tools-reference': 'MCP Tools Reference',
+    setup: 'Full Setup Guide',
+    'tools-reference': 'Tools Reference',
     'ide-integration': 'IDE Integration'
 }
+
