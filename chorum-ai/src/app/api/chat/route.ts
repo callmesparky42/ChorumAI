@@ -55,6 +55,9 @@ export async function POST(req: NextRequest) {
 
         const { projectId, conversationId: existingConversationId, content: rawContent, images, attachments, providerOverride, agentOverride } = await req.json()
 
+        let conversationId = existingConversationId
+        let isNewConversation = false
+
         // Construct enhanced content including text attachments
         let content = rawContent
 
