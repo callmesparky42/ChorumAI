@@ -428,7 +428,7 @@ export default function LandingPage() {
             <Link href="/app" className="btn-primary">
               Get Started
             </Link>
-            <Link href="#" className="btn-secondary">
+            <Link href="https://docs.chorumai.com" className="btn-secondary">
               View Documentation
             </Link>
           </div>
@@ -443,7 +443,7 @@ export default function LandingPage() {
             </Link>
             <div className="footer-links">
               <Link href="https://github.com/callmesparky42/ChorumAI">GitHub</Link>
-              <Link href="#">Documentation</Link>
+              <Link href="https://docs.chorumai.com">Documentation</Link>
             </div>
           </div>
           <div className="footer-right">
