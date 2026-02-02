@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 import { v4 as uuidv4 } from 'uuid'
 import { AgentDefinition } from './agents/types'
+import type { Attachment } from './chat/types'
 
 interface Message {
     id: string
     role: 'user' | 'assistant'
     content: string
     images?: string[] // base64 strings
+    attachments?: Attachment[]
     provider?: string
     costUsd?: string
     tokensInput?: number
@@ -28,6 +30,7 @@ interface ChorumStore {
         projectId: string
         content: string
         images?: string[]
+        attachments?: Attachment[]
         providerOverride?: string
         agentOverride?: string  // Agent ID to force, or 'auto' for orchestrator selection
     }) => Promise<void>
@@ -94,7 +97,7 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
             set({ isLoading: false })
         }
     },
-    sendMessage: async ({ projectId, content, images, providerOverride, agentOverride }) => {
+    sendMessage: async ({ projectId, content, images, attachments, providerOverride, agentOverride }) => {
         set({ isLoading: true })
 
         // Add user message immediately
@@ -102,7 +105,8 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
             id: uuidv4(),
             role: 'user',
             content,
-            images
+            images,
+            attachments
         }
         set((state) => ({ messages: [...state.messages, userMsg] }))
 
@@ -114,6 +118,7 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
                 conversationId: currentConversationId,
                 content,
                 images,
+                attachments,
                 providerOverride,
                 agentOverride: agentOverride === 'auto' ? undefined : agentOverride
             }

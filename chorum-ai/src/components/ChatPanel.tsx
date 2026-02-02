@@ -9,14 +9,10 @@ import { CostMeter } from './CostMeter'
 import { ChoralThinking } from './ChoralSpinner'
 import { useChorumStore } from '@/lib/store'
 import { useReviewStore } from '@/lib/review/store'
+import type { Attachment } from '@/lib/chat/types'
 import clsx from 'clsx'
 
-export type Attachment = {
-    type: 'image' | 'text' | 'code' | 'markdown' | 'json' | 'pdf';
-    name: string;
-    content: string; // base64 for images/pdf, text for others
-    mimeType: string;
-}
+export type { Attachment }
 
 export function ChatPanel({ projectId }: { projectId?: string }) {
     const [message, setMessage] = useState('')
