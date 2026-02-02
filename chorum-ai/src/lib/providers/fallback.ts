@@ -3,7 +3,7 @@
  * Handles automatic failover when providers are unavailable
  */
 
-import type { ChatMessage, ChatResult, ProviderCallConfig } from './types'
+import type { ChatMessage, ChatResult, ProviderCallConfig, ToolDefinition } from './types'
 import { callProvider, type FullProviderConfig } from './index'
 import { getDefaultBaseUrl } from './index'
 
@@ -18,6 +18,10 @@ export interface FallbackConfig {
     maxRetriesPerProvider?: number
     /** Timeout for health checks (ms) */
     healthCheckTimeout?: number
+    /** Tools available for all providers in the chain */
+    tools?: ToolDefinition[]
+    /** Tool choice setting */
+    toolChoice?: 'auto' | 'none' | { type: 'tool'; name: string }
 }
 
 export interface FallbackResult extends ChatResult {
@@ -200,7 +204,14 @@ export async function callProviderWithFallback(
             try {
                 console.log(`[Fallback] Trying ${providerConfig.provider} (attempt ${attempt + 1}/${maxRetries})`)
 
-                const result = await callProvider(providerConfig, messages, systemPrompt)
+                // Merge tools from FallbackConfig into provider config
+                const configWithTools = {
+                    ...providerConfig,
+                    tools: config.tools || providerConfig.tools,
+                    toolChoice: config.toolChoice || providerConfig.toolChoice
+                }
+
+                const result = await callProvider(configWithTools, messages, systemPrompt)
 
                 // Success!
                 return {

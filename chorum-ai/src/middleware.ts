@@ -44,6 +44,7 @@ export async function middleware(req: NextRequest) {
     const isAuthApi = req.nextUrl.pathname.startsWith('/api/auth') // Keep for deprecated routes temporarily
     const isOnboardingPage = req.nextUrl.pathname.startsWith('/onboarding')
     const isOnboardingApi = req.nextUrl.pathname.startsWith('/api/onboarding')
+    const isAuditApi = req.nextUrl.pathname.startsWith('/api/audit')
     const isPublicPage = req.nextUrl.pathname === '/'
 
     // Redirect authenticated users from landing page to app

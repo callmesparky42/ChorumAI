@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { Plus, Trash2, Shield, Activity, DollarSign, Loader2, User, Lock, Server, Info, FileText, HelpCircle, ExternalLink, Github, Pencil, Wifi, WifiOff, RefreshCw, Download, Brain, Zap, Sparkles, FolderOpen, Terminal, LogOut } from 'lucide-react'
 import { LearningDashboard } from '@/components/LearningDashboard'
 import { McpSettings } from '@/components/settings/McpSettings'
+import { McpServersSettings } from '@/components/settings/McpServersSettings'
 import { PendingLearnings } from '@/components/PendingLearnings'
 import Link from 'next/link'
 import clsx from 'clsx'
@@ -320,6 +321,7 @@ function SettingsContent() {
         { id: 'security', label: 'Security', icon: Lock },
         { id: 'memory', label: 'Memory & Learning', icon: Brain },
         { id: 'mcp', label: 'MCP Integration', icon: Terminal },
+        { id: 'mcp-servers', label: 'MCP Servers', icon: Server },
         { id: 'resilience', label: 'Resilience', icon: RefreshCw },
         { id: 'help', label: 'Help', icon: HelpCircle },
         { id: 'legal', label: 'Legal & Privacy', icon: FileText },
@@ -699,6 +701,20 @@ function SettingsContent() {
                             <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800">
                                 <McpSettings />
                             </div>
+                        </div>
+                    </>
+                )}
+
+                {/* MCP Servers Tab */}
+                {activeTab === 'mcp-servers' && (
+                    <>
+                        <div className="mb-8">
+                            <h2 className="text-2xl font-semibold">MCP Servers</h2>
+                            <p className="text-gray-400 mt-1">Connect to external MCP servers for tools like web search.</p>
+                        </div>
+
+                        <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800">
+                            <McpServersSettings />
                         </div>
                     </>
                 )}

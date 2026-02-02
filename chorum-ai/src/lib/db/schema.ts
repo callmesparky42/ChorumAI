@@ -378,3 +378,35 @@ export const mcpInteractionLog = pgTable('mcp_interaction_log', {
   latencyMs: integer('latency_ms'),
   createdAt: timestamp('created_at').defaultNow()
 })
+
+// --- External MCP Client Configuration ---
+
+// Stores external MCP servers that the chat interface can use for tool calling
+export const mcpServerConfigs = pgTable('mcp_server_configs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  name: text('name').notNull(), // User-friendly name: "Brave Search", "Tavily", etc.
+  transportType: text('transport_type').notNull(), // 'stdio' | 'http' | 'sse'
+
+  // For stdio transport (spawns local process)
+  command: text('command'), // e.g., "npx"
+  args: jsonb('args').$type<string[]>(), // e.g., ["-y", "@anthropic-ai/brave-search-mcp"]
+  env: jsonb('env').$type<Record<string, string>>(), // Environment variables (API keys, etc.)
+
+  // For HTTP/SSE transport (remote server)
+  url: text('url'), // e.g., "https://my-mcp-server.example.com/mcp"
+  headers: jsonb('headers').$type<Record<string, string>>(), // Auth headers
+
+  isEnabled: boolean('is_enabled').default(true),
+
+  // Tool cache (refreshed periodically to avoid constant tool discovery)
+  cachedTools: jsonb('cached_tools').$type<{
+    name: string
+    description?: string
+    inputSchema: Record<string, unknown>
+  }[]>(),
+  lastToolRefresh: timestamp('last_tool_refresh'),
+
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+})
