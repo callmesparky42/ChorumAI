@@ -46,6 +46,7 @@ export interface ChatResult {
     // Tool calling support
     stopReason?: 'end_turn' | 'tool_use' | 'max_tokens' | 'stop_sequence'
     toolCalls?: ToolCall[]
+    images?: string[]
 }
 
 export interface SecuritySettings {

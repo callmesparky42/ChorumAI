@@ -152,3 +152,34 @@ export function getDefaultBaseUrl(provider: string): string | undefined {
     }
     return defaults[provider]
 }
+
+/**
+ * Generate an image using a supported provider
+ */
+import { callOpenAIImage } from './openai'
+
+export async function generateImage(
+    config: FullProviderConfig,
+    prompt: string
+): Promise<ChatResult> {
+    switch (config.provider) {
+        case 'openai':
+            return callOpenAIImage(config, prompt)
+
+        case 'google':
+            // TODO: Implement Google Imagen integration
+            // Fallback to text for now
+            return {
+                content: "Image generation with Google (Imagen) is not yet configured. Please switch to OpenAI for image generation.",
+                tokensInput: 0,
+                tokensOutput: 0
+            }
+
+        default:
+            return {
+                content: `Image generation is not supported for provider '${config.provider}'. Please use OpenAI.`,
+                tokensInput: 0,
+                tokensOutput: 0
+            }
+    }
+}
