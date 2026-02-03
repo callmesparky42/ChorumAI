@@ -19,6 +19,7 @@ const TASK_AGENT_MAP: Record<TaskType, string[]> = {
     'bulk_processing': ['summarizer', 'coordinator'],
     'structured_output': ['planner', 'analyst'],
     'vision_analysis': ['analyst', 'researcher'],
+    'image_generation': ['writer', 'copywriter'],
     'general': ['writer', 'researcher', 'planner']
 }
 

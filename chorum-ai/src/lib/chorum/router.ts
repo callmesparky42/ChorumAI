@@ -14,6 +14,7 @@ export type TaskType =
     | 'bulk_processing'
     | 'structured_output'
     | 'vision_analysis'
+    | 'image_generation'
     | 'general'
 
 // Built-in cloud providers
@@ -42,6 +43,7 @@ export interface RoutingDecision {
     reasoning: string
     estimatedCost: number
     alternatives: { provider: Provider; cost: number }[]
+    taskType: TaskType
 }
 
 export class ChorumRouter {
@@ -70,7 +72,8 @@ export class ChorumRouter {
                     model: provider.model,
                     reasoning: 'User override',
                     estimatedCost: this.calculateCost(provider, estimatedTokens),
-                    alternatives: []
+                    alternatives: [],
+                    taskType
                 }
             }
         }
@@ -133,7 +136,8 @@ export class ChorumRouter {
             model: selected.model,
             reasoning: this.buildReasoning(taskType, selected, alternatives),
             estimatedCost: this.calculateCost(selected, estimatedTokens),
-            alternatives
+            alternatives,
+            taskType
         }
     }
 
@@ -149,6 +153,16 @@ export class ChorumRouter {
         if (lower.match(/json|table|list|format|structure/)) {
             return 'structured_output'
         }
+        // Explicit "image of..." patterns at start of string
+        if (lower.match(/^(image|picture|photo|drawing|sketch|painting) of/)) {
+            return 'image_generation'
+        }
+
+        // Action verbs + noun
+        if (lower.match(/(generate|create|make|draw|paint|render) (an? )?(image|picture|drawing|painting|illustration|sketch|art|photo)/)) {
+            return 'image_generation'
+        }
+
         if (lower.match(/image|screenshot|diagram|visual/)) {
             return 'vision_analysis'
         }
@@ -186,10 +200,17 @@ export class ChorumRouter {
             bulk_processing: ['cost_efficient'],
             structured_output: ['structured_output', 'code_generation'],
             vision_analysis: ['vision'],
+            image_generation: ['image_generation'],
             general: [] // All providers can handle general
         }
 
         const required = taskMap[task]
+
+        // Special handling for image generation if capabilities aren't explicitly set in DB yet
+        if (task === 'image_generation') {
+            return provider.capabilities.includes('image_generation') || ['openai', 'google'].includes(provider.provider)
+        }
+
         if (required.length === 0) return true
 
         return required.some(cap => provider.capabilities.includes(cap))
@@ -208,6 +229,8 @@ export class ChorumRouter {
             reasons.push('Task involves code generation')
         } else if (task === 'bulk_processing') {
             reasons.push('Bulk task, optimizing for cost')
+        } else if (task === 'image_generation') {
+            reasons.push('Image generation requested (routing into DALL-E/Imagen)')
         }
 
         if (selected.provider === 'anthropic') {

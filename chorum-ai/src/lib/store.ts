@@ -16,6 +16,7 @@ interface Message {
     agentName?: string
     agentIcon?: string
     agentTier?: 'reasoning' | 'balanced' | 'fast'
+    createdAt?: string
 }
 
 interface ChorumStore {
@@ -84,7 +85,8 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
                 provider: msg.provider,
                 costUsd: msg.costUsd,
                 tokensInput: msg.tokensInput,
-                tokensOutput: msg.tokensOutput
+                tokensOutput: msg.tokensOutput,
+                createdAt: msg.createdAt
             }))
 
             set({
@@ -106,7 +108,8 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
             role: 'user',
             content,
             images,
-            attachments
+            attachments,
+            createdAt: new Date().toISOString()
         }
         set((state) => ({ messages: [...state.messages, userMsg] }))
 
@@ -162,7 +165,8 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
                     // Use agent from API response (orchestrator's choice) if available
                     agentName: data.agent?.name,
                     agentIcon: data.agent?.icon,
-                    agentTier: data.agent?.tier
+                    agentTier: data.agent?.tier,
+                    createdAt: data.message.createdAt || new Date().toISOString()
                 }
                 set((state) => ({ messages: [...state.messages, assistantMsg] }))
             }
