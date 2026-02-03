@@ -174,6 +174,8 @@ export async function updateConfidence(projectId: string, isPositive: boolean): 
         metric = await initializeConfidence(projectId)
     }
 
+    const now = new Date()
+
     // 3. Update DB with counts first
     await db.update(projectConfidence)
         .set({
