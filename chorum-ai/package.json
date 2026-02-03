@@ -37,6 +37,7 @@
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^4.4.1",
+    "remark-gfm": "^4.0.1",
     "sharp": "^0.34.5",
     "tailwind-merge": "^3.4.0",
     "tiktoken": "^1.0.22",
