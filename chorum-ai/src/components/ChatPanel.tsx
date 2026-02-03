@@ -7,6 +7,7 @@ import { ProviderSelector } from './ProviderSelector'
 import { AgentSelector } from './AgentSelector'
 import { CostMeter } from './CostMeter'
 import { ChoralThinking } from './ChoralSpinner'
+import { FileConsentDialog } from './FileConsentDialog'
 import { useChorumStore } from '@/lib/store'
 import { useReviewStore } from '@/lib/review/store'
 import type { Attachment } from '@/lib/chat/types'
@@ -14,12 +15,30 @@ import clsx from 'clsx'
 
 export type { Attachment }
 
+// Simple hash function for content deduplication
+async function hashContent(content: string): Promise<string> {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(content)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
+interface PendingFile {
+    file: File
+    attachment: Attachment
+}
+
 export function ChatPanel({ projectId }: { projectId?: string }) {
     const [message, setMessage] = useState('')
     const [selectedProvider, setSelectedProvider] = useState<string>('auto')
     const [selectedAgent, setSelectedAgent] = useState<string>('none')
     const [attachments, setAttachments] = useState<Attachment[]>([])
     const [isDragging, setIsDragging] = useState(false)
+
+    // File consent dialog state
+    const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
+    const [showConsentDialog, setShowConsentDialog] = useState(false)
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -48,7 +67,10 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
     }
 
     const processFiles = (files: FileList | File[]) => {
-        Array.from(files).forEach(file => {
+        const filesToProcess = Array.from(files)
+        const textFilesToConsent: PendingFile[] = []
+
+        filesToProcess.forEach(file => {
             const isImage = file.type.startsWith('image/')
             const isPdf = file.type === 'application/pdf'
             const isText = file.type.startsWith('text/') ||
@@ -71,36 +93,55 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
             reader.onload = (e) => {
                 const result = e.target?.result as string
                 let type: Attachment['type'] = 'text'
-                let content = result
 
                 if (isImage) {
                     type = 'image'
-                    // Result is already base64 data url
+                    // Images skip consent - add directly
+                    setAttachments(prev => {
+                        if (prev.some(a => a.name === file.name && a.content === result)) return prev
+                        return [...prev, {
+                            type,
+                            name: file.name,
+                            content: result,
+                            mimeType: file.type
+                        }].slice(-5)
+                    })
                 } else if (isPdf) {
                     type = 'pdf'
-                    // Result is data url, keep as is
+                    // PDFs also skip consent for now (no learning extraction from PDFs)
+                    setAttachments(prev => {
+                        if (prev.some(a => a.name === file.name && a.content === result)) return prev
+                        return [...prev, {
+                            type,
+                            name: file.name,
+                            content: result,
+                            mimeType: file.type
+                        }].slice(-5)
+                    })
                 } else {
-                    // Refine text type based on extension
+                    // Text-based files need consent dialog
                     if (file.name.endsWith('.md')) type = 'markdown'
                     else if (file.name.endsWith('.json')) type = 'json'
                     else if (['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs'].some(ext => file.name.endsWith(ext))) type = 'code'
 
-                    // For text files, we want the raw text content, not data URL
-                    // But FileReader.readAsText is async. 
-                    // Let's use readAsText for text files below
-                }
-
-                // If it was read as DataURL but we want text (shouldn't happen with logic below)
-                setAttachments(prev => {
-                    // Avoid duplicates
-                    if (prev.some(a => a.name === file.name && a.content === content)) return prev
-                    return [...prev, {
+                    const attachment: Attachment = {
                         type,
                         name: file.name,
-                        content,
-                        mimeType: file.type
-                    }].slice(-5) // Limit to 5 attachments at once
-                })
+                        content: result,
+                        mimeType: file.type || 'text/plain'
+                    }
+
+                    textFilesToConsent.push({ file, attachment })
+
+                    // After all files are read, show consent dialog if we have text files
+                    // Use a small timeout to batch all async reads
+                    setTimeout(() => {
+                        if (textFilesToConsent.length > 0) {
+                            setPendingFiles(prev => [...prev, ...textFilesToConsent])
+                            setShowConsentDialog(true)
+                        }
+                    }, 50)
+                }
             }
 
             if (isImage || isPdf) {
@@ -109,6 +150,29 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                 reader.readAsText(file)
             }
         })
+    }
+
+    // Handle consent dialog confirmation
+    const handleConsentConfirm = async (decisions: { attachment: Attachment; persistent: boolean }[]) => {
+        const newAttachments: Attachment[] = []
+
+        for (const decision of decisions) {
+            const contentHash = await hashContent(decision.attachment.content)
+            newAttachments.push({
+                ...decision.attachment,
+                persistent: decision.persistent,
+                contentHash
+            })
+        }
+
+        setAttachments(prev => [...prev, ...newAttachments].slice(-5))
+        setPendingFiles([])
+        setShowConsentDialog(false)
+    }
+
+    const handleConsentCancel = () => {
+        setPendingFiles([])
+        setShowConsentDialog(false)
     }
 
     const removeAttachment = (index: number) => {
@@ -236,6 +300,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                             key={msg.id}
                             message={msg}
                             previousUserMessage={previousUserMessage}
+                            projectId={projectId}
                         />
                     )
                 })}
@@ -375,6 +440,15 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                     </div>
                 </div>
             </div>
+
+            {/* File Consent Dialog */}
+            {showConsentDialog && pendingFiles.length > 0 && (
+                <FileConsentDialog
+                    pendingFiles={pendingFiles}
+                    onConfirm={handleConsentConfirm}
+                    onCancel={handleConsentCancel}
+                />
+            )}
         </div>
     )
 }

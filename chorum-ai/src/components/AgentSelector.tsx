@@ -57,7 +57,7 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                 ) : value === 'none' ? (
                     <>
                         <span className="w-4 h-4 text-gray-600 text-center">—</span>
-                        <span className="font-medium text-gray-400">None</span>
+                        <span className="font-medium text-gray-400">No Agent</span>
                     </>
                 ) : selectedAgent ? (
                     <>
@@ -90,7 +90,7 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                         </div>
                     </button>
 
-                    {/* None/Control option - raw LLM chat */}
+                    {/* No Agent option - raw LLM chat */}
                     <button
                         className={clsx(
                             'w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-700',
@@ -100,7 +100,7 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                     >
                         <span className="w-4 h-4 text-gray-600 text-center">—</span>
                         <div>
-                            <div className="text-gray-200">None</div>
+                            <div className="text-gray-200">No Agent</div>
                             <div className="text-xs text-gray-500">Direct LLM chat without agent processing</div>
                         </div>
                     </button>

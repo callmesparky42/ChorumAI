@@ -379,6 +379,25 @@ export const mcpInteractionLog = pgTable('mcp_interaction_log', {
   createdAt: timestamp('created_at').defaultNow()
 })
 
+// --- Project Documents (File Upload Consent Gate) ---
+
+// Stores persistent documents uploaded to projects (non-ephemeral)
+export const projectDocuments = pgTable('project_documents', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  filename: text('filename').notNull(),
+  contentHash: text('content_hash').notNull(),
+  content: text('content').notNull(),
+  mimeType: text('mime_type').notNull(),
+  uploadedBy: text('uploaded_by').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  uploadedAt: timestamp('uploaded_at').defaultNow(),
+  extractedLearningIds: jsonb('extracted_learning_ids').$type<string[]>().default([]),
+  status: text('status').notNull().default('active'), // 'active' | 'archived'
+  metadata: jsonb('metadata').$type<{ originalSize?: number; conversationId?: string }>()
+}, (t) => ({
+  unqProjectHash: unique('project_documents_project_hash').on(t.projectId, t.contentHash)
+}))
+
 // --- External MCP Client Configuration ---
 
 // Stores external MCP servers that the chat interface can use for tool calling

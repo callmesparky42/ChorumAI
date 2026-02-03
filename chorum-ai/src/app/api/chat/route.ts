@@ -3,14 +3,14 @@ import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { ChorumRouter, BudgetExhaustedError } from '@/lib/chorum/router'
 import { db } from '@/lib/db'
-import { messages, routingLog, usageLog, providerCredentials, projects, users, conversations } from '@/lib/db/schema'
+import { messages, routingLog, usageLog, providerCredentials, projects, users, conversations, projectDocuments } from '@/lib/db/schema'
 import { eq, and, gte } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { getRelevantMemory, buildMemoryContext, type MemoryStrategy } from '@/lib/chorum/memory'
 import { checkAndSummarize, buildSummarizationPrompt } from '@/lib/chorum/summarize'
 import { generateConversationTitle } from '@/lib/chorum/title'
 import { anonymizePii } from '@/lib/pii'
-import { callProvider, type FullProviderConfig, type ChatResult, type ToolDefinition, type ChatMessage } from '@/lib/providers'
+import { callProvider, generateImage, type FullProviderConfig, type ChatResult, type ToolDefinition, type ChatMessage } from '@/lib/providers'
 import { getToolsForUser, executeToolCall, type McpTool } from '@/lib/mcp-client'
 import {
     callProviderWithFallback,
@@ -73,16 +73,63 @@ export async function POST(req: NextRequest) {
         let content = rawContent
 
         // Append text-based attachments to the user message content
+        // Handle persistent vs ephemeral attachments differently
         if (attachments && Array.isArray(attachments)) {
             const textAttachments = attachments.filter((a: any) =>
                 ['text', 'code', 'markdown', 'json'].includes(a.type)
             )
 
-            if (textAttachments.length > 0) {
-                content += '\n\n' + textAttachments.map((a: any) =>
-                    `--- Attached File: ${a.name} (${a.type}) ---\n${a.content}\n--- End of File ---`
-                ).join('\n\n')
+            for (const att of textAttachments) {
+                if (att.persistent && projectId) {
+                    // Store in projectDocuments table
+                    const docId = await storeProjectDocument(projectId, userId, att)
+                    content += `\n\n--- Attached File: ${att.name} [doc:${docId}] ---\n${att.content}\n--- End of File ---`
+                } else {
+                    // Mark as ephemeral - will be excluded from learning extraction
+                    content += `\n\n--- EPHEMERAL: ${att.name} ---\n${att.content}\n--- End EPHEMERAL ---`
+                }
             }
+        }
+
+        // Helper function to store persistent documents
+        async function storeProjectDocument(projectId: string, userId: string, att: any): Promise<string> {
+            const contentHash = att.contentHash || await computeHash(att.content)
+
+            // Check for existing document with same hash (deduplication)
+            const existing = await db.query.projectDocuments.findFirst({
+                where: and(
+                    eq(projectDocuments.projectId, projectId),
+                    eq(projectDocuments.contentHash, contentHash)
+                )
+            })
+
+            if (existing) {
+                console.log(`[Document] Reusing existing document ${existing.id} for ${att.name}`)
+                return existing.id
+            }
+
+            // Insert new document
+            const [inserted] = await db.insert(projectDocuments).values({
+                projectId,
+                filename: att.name,
+                contentHash,
+                content: att.content,
+                mimeType: att.mimeType || 'text/plain',
+                uploadedBy: userId,
+                metadata: { originalSize: att.content.length }
+            }).returning({ id: projectDocuments.id })
+
+            console.log(`[Document] Stored new document ${inserted.id} for ${att.name}`)
+            return inserted.id
+        }
+
+        // Simple hash function for deduplication
+        async function computeHash(content: string): Promise<string> {
+            const encoder = new TextEncoder()
+            const data = encoder.encode(content)
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+            const hashArray = Array.from(new Uint8Array(hashBuffer))
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
         }
 
         // Apply PII anonymization if enabled
@@ -255,8 +302,8 @@ export async function POST(req: NextRequest) {
             decision = await router.route({
                 prompt: content,
                 userOverride: providerOverride,
-                strategy: routingStrategy
             })
+            console.log(`[Router] Decision: ${decision.provider} (${decision.model}) Task: ${decision.taskType} \nReasoning: ${decision.reasoning}`)
         } catch (error: any) {
             // If budget exhausted, check for local fallback options before giving up
             if (error.name === 'BudgetExhaustedError') {
@@ -379,7 +426,24 @@ export async function POST(req: NextRequest) {
             // Force fallback if budget exhausted
             const fallbackEnabled = fallbackSettings?.enabled !== false || decision.provider === 'budget_exhausted'
 
-            if (fallbackEnabled && (providerConfigs.length > 1 || decision.provider === 'budget_exhausted')) {
+            if (decision.taskType === 'image_generation') {
+                const selectedConfig = providerConfigs.find(p => p.provider === decision.provider)
+                if (!selectedConfig) {
+                    throw new Error(`Provider ${decision.provider} not found in configs`)
+                }
+
+                result = await generateImage(
+                    {
+                        provider: selectedConfig.provider,
+                        apiKey: selectedConfig.apiKey,
+                        model: decision.model,
+                        baseUrl: selectedConfig.baseUrl,
+                        isLocal: selectedConfig.isLocal,
+                        securitySettings: selectedConfig.securitySettings,
+                    },
+                    content
+                )
+            } else if (fallbackEnabled && (providerConfigs.length > 1 || decision.provider === 'budget_exhausted')) {
                 // Build fallback chain with alternatives from routing decision
                 const alternativeConfigs = decision.alternatives
                     .map((alt: any) => providerConfigs.find(p => p.provider === alt.provider))
@@ -745,6 +809,14 @@ export async function POST(req: NextRequest) {
         // [Semantic Memory Writer] Queue learning extraction if enabled
         if (memorySettings.autoLearn && projectId) {
             try {
+                // Exclude ephemeral file content from learning extraction
+                // Replace ephemeral blocks with placeholder to prevent knowledge pollution
+                // Use [\s\S] instead of . with 's' flag for cross-line matching
+                const contentForLearning = content.replace(
+                    /--- EPHEMERAL:[\s\S]*?--- End EPHEMERAL ---/g,
+                    '[Ephemeral file excluded from learning]'
+                )
+
                 if (memorySettings.learningMode === 'sync') {
                     // Synchronous processing - adds latency but immediate learning
                     const cheapestProvider = providerConfigs.sort((a, b) =>
@@ -753,7 +825,7 @@ export async function POST(req: NextRequest) {
                     if (cheapestProvider) {
                         await extractAndStoreLearnings(
                             projectId,
-                            content,
+                            contentForLearning,
                             response,
                             {
                                 provider: cheapestProvider.provider,
@@ -771,7 +843,7 @@ export async function POST(req: NextRequest) {
                     await queueForLearning(
                         projectId,
                         userId,
-                        content,
+                        contentForLearning,
                         response,
                         agentResult?.agent.name
                     )
