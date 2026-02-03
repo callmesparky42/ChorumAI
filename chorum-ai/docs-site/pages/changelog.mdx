@@ -1,0 +1,22 @@
+# Changelog
+
+All notable changes to ChorumAI will be documented in this file.
+
+## [Unreleased]
+
+### Added
+
+#### Memory System
+- **Deterministic Grounding**: Implemented a safety layer that verifies new learnings against recent conversation history to prevent "poison-pill" injections.
+  - Added `verifyReference` check before committing memories.
+  - Introduced **Source Tagging** (Provenance) to track which conversation and messages contributed to a memory.
+- **Confidence Rescoring**: Introduced a dynamic confidence scoring formula for projects.
+  - Formula: `(Interaction*0.3 + Verification*0.4 + Consistency*0.2 + Decay*0.1) * 100`
+
+#### Verification
+- Added `scripts/test-grounding.ts` and `scripts/test-confidence.ts` for validating memory logic.
+
+### Changed
+
+#### Library
+- Updated `LearningItemMetadata` interface to include `provenance` data.

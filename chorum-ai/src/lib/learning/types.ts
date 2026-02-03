@@ -18,6 +18,13 @@ export interface LearningItemMetadata {
     sourceMessageId?: string
     /** User who taught this */
     learnedFromUser?: string
+    /** Provenance data (Source Tagging) */
+    provenance?: {
+        conversationId: string
+        messageIds: string[]
+        turnRange?: [number, number]
+        verifiedAt: string // ISO date
+    }
     /** Additional context */
     [key: string]: unknown
 }

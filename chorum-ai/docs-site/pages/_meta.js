@@ -10,6 +10,7 @@ export default {
     mcp: 'MCP Integration',
     sovereignty: 'Data Sovereignty',
     'api-reference': 'API Reference',
-    cli: 'H4X0R CLI'
+    cli: 'H4X0R CLI',
+    changelog: 'Changelog'
 }
 
