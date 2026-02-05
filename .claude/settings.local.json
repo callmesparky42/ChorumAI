@@ -5,7 +5,28 @@
       "Bash(npm run db:push:*)",
       "Bash(node -e:*)",
       "Bash(npx dotenv:*)",
-      "Bash(npx drizzle-kit:*)"
+      "Bash(npx drizzle-kit:*)",
+      "Bash(npx tsc --noEmit)",
+      "WebSearch",
+      "mcp__claude_ai_Hugging_Face__space_search",
+      "Bash(dir \"C:\\\\Users\\\\dmill\\\\Documents\\\\GitHub\\\\ChorumAI\\\\chorum-ai\\\\drizzle\\\\meta\"\")",
+      "mcp__vercel__list_teams",
+      "mcp__vercel__list_projects",
+      "mcp__vercel__get_project",
+      "mcp__vercel__list_deployments",
+      "mcp__vercel__get_deployment",
+      "mcp__vercel__get_deployment_build_logs",
+      "mcp__vercel__web_fetch_vercel_url",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(timeout:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(findstr:*)",
+      "Bash(npm run build:*)",
+      "mcp__claude_ai_Hugging_Face__hf_doc_search"
     ]
   }
 }

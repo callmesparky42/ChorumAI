@@ -45,9 +45,10 @@ interface ProjectItemProps {
     refreshTrigger: number
     onOpenSettings: (e: React.MouseEvent) => void
     deletingId: string | null
+    activeConversationId?: string | null
 }
 
-function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversation, onNewConversation, onDelete, onDeleteConversation, onHover, refreshTrigger, onOpenSettings, deletingId }: ProjectItemProps) {
+function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversation, onNewConversation, onDelete, onDeleteConversation, onHover, refreshTrigger, onOpenSettings, deletingId, activeConversationId }: ProjectItemProps) {
     const [expanded, setExpanded] = useState(false)
     const [conversations, setConversations] = useState<Conversation[]>([])
     const [loadingConvos, setLoadingConvos] = useState(false)
@@ -218,14 +219,25 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
                                     e.stopPropagation()
                                     onSelectConversation(convo.id)
                                 }}
-                                className="w-full text-left px-2 py-1.5 rounded text-xs text-gray-500 hover:bg-gray-900 hover:text-gray-300 flex items-center gap-2 transition-colors"
+                                className={clsx(
+                                    "w-full text-left px-2 py-1.5 rounded text-xs flex items-center gap-2 transition-colors",
+                                    activeConversationId === convo.id
+                                        ? "bg-blue-600/10 text-blue-400 font-medium"
+                                        : "text-gray-500 hover:bg-gray-900 hover:text-gray-300"
+                                )}
                                 title={convo.preview || convo.title}
                             >
-                                <MessageSquare className="w-3 h-3 shrink-0 text-gray-600" />
+                                <MessageSquare className={clsx(
+                                    "w-3 h-3 shrink-0",
+                                    activeConversationId === convo.id ? "text-blue-500" : "text-gray-600"
+                                )} />
                                 <span className="truncate flex-1">
                                     {convo.title}
                                 </span>
-                                <span className="text-gray-700 text-[10px] group-hover/convo:opacity-0 transition-opacity">{convo.messageCount}</span>
+                                <span className={clsx(
+                                    "text-[10px] transition-opacity",
+                                    activeConversationId === convo.id ? "text-blue-500/60" : "text-gray-700 group-hover/convo:opacity-0"
+                                )}>{convo.messageCount}</span>
                             </button>
                             <button
                                 onClick={(e) => {
@@ -349,6 +361,7 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
 
     const router = useRouter()
     const searchParams = useSearchParams()
+    const activeConversationId = searchParams.get('conversationId')
 
     // Get refresh trigger from store
     const { conversationRefreshTrigger, startNewConversation } = useChorumStore()
@@ -579,6 +592,7 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
                             deletingId={deletingId}
                             onHover={setHoveredProjectId}
                             isHovered={hoveredProjectId === project.id}
+                            activeConversationId={activeConversationId}
 
                             refreshTrigger={conversationRefreshTrigger}
                             onOpenSettings={(e) => {

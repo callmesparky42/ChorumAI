@@ -21,6 +21,7 @@ function ChorumContent() {
     const handleSelectProject = useCallback((projectId: string) => {
         const params = new URLSearchParams(searchParams)
         params.set('project', projectId)
+        params.delete('conversationId') // Clear conversation when switching projects or starting new
         // Start a new conversation when switching projects
         startNewConversation()
         router.push(`/app?${params.toString()}`)
@@ -28,7 +29,10 @@ function ChorumContent() {
 
     const handleSelectConversation = useCallback((conversationId: string) => {
         loadConversation(conversationId)
-    }, [loadConversation])
+        const params = new URLSearchParams(searchParams)
+        params.set('conversationId', conversationId)
+        router.push(`/app?${params.toString()}`)
+    }, [loadConversation, searchParams, router])
 
     return (
         <div className="h-screen bg-[#0A0A0A] text-[#F5F5F5] overflow-hidden">

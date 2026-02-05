@@ -42,6 +42,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     const { messages, sendMessage, isLoading, isAgentPanelOpen, toggleAgentPanel } = useChorumStore()
     const { config: reviewConfig, updateConfig: updateReviewConfig } = useReviewStore()
@@ -57,6 +58,41 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [messages])
+
+    // Global paste listener
+    useEffect(() => {
+        const handleGlobalPaste = (e: ClipboardEvent) => {
+            // If explicit input is focused, let it handle it
+            if (document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT') {
+                return
+            }
+
+            if (e.clipboardData) {
+                if (e.clipboardData.files.length > 0) {
+                    processFiles(e.clipboardData.files)
+                    e.preventDefault()
+                } else {
+                    const text = e.clipboardData.getData('text')
+                    if (text) {
+                        setMessage(prev => prev + text)
+                        // focus textarea
+                        textareaRef.current?.focus()
+                        e.preventDefault()
+                    }
+                }
+            }
+        }
+
+        window.addEventListener('paste', handleGlobalPaste)
+        return () => window.removeEventListener('paste', handleGlobalPaste)
+    }, [])
+
+    const handleTextareaPaste = (e: React.ClipboardEvent) => {
+        if (e.clipboardData.files.length > 0) {
+            e.preventDefault()
+            processFiles(e.clipboardData.files)
+        }
+    }
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files
@@ -377,7 +413,9 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                             )}
 
                             <textarea
+                                ref={textareaRef}
                                 value={message}
+                                onPaste={handleTextareaPaste}
                                 onChange={(e) => setMessage(e.target.value)}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter' && !e.shiftKey) {
