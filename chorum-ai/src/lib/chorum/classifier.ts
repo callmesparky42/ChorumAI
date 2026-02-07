@@ -5,7 +5,7 @@
  */
 
 export type QueryComplexity = 'trivial' | 'simple' | 'moderate' | 'complex' | 'deep'
-export type QueryIntent = 'question' | 'generation' | 'analysis' | 'discussion' | 'continuation' | 'greeting'
+export type QueryIntent = 'question' | 'generation' | 'analysis' | 'debugging' | 'discussion' | 'continuation' | 'greeting'
 
 export interface QueryClassification {
     complexity: QueryComplexity
