@@ -1,6 +1,7 @@
 import { decrypt } from '@/lib/crypto'
 import { auth } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+import { waitUntil } from '@vercel/functions'
 import { ChorumRouter, BudgetExhaustedError } from '@/lib/chorum/router'
 import { db } from '@/lib/db'
 import { messages, routingLog, usageLog, providerCredentials, projects, users, conversations, projectDocuments } from '@/lib/db/schema'
@@ -788,55 +789,61 @@ export async function POST(req: NextRequest) {
             })
 
             // Check if we need to summarize old messages (async, don't wait)
+            // Use waitUntil to prevent Vercel from killing the connection before completion
             if (projectId) {
-                checkAndSummarize(projectId, async (conversationText) => {
-                    // Use the cheapest available provider for summarization
-                    const cheapestProvider = providerConfigs.sort((a, b) =>
-                        (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
-                    )[0]
+                waitUntil(
+                    checkAndSummarize(projectId, async (conversationText) => {
+                        // Use the cheapest available provider for summarization
+                        const cheapestProvider = providerConfigs.sort((a, b) =>
+                            (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
+                        )[0]
 
-                    const prompt = buildSummarizationPrompt(conversationText)
+                        const prompt = buildSummarizationPrompt(conversationText)
 
-                    // Use provider factory for summarization
-                    const result = await callProvider(
-                        {
-                            provider: cheapestProvider.provider,
-                            apiKey: cheapestProvider.apiKey,
-                            model: cheapestProvider.provider === 'openai' ? 'gpt-3.5-turbo' :
-                                cheapestProvider.provider === 'anthropic' ? 'claude-3-haiku-20240307' :
-                                    cheapestProvider.model,
-                            baseUrl: cheapestProvider.baseUrl,
-                            isLocal: cheapestProvider.isLocal
-                        },
-                        [{ role: 'user', content: prompt }],
-                        'You are a helpful assistant that summarizes conversations.'
-                    )
-                    return result.content
-                }).catch(err => console.warn('Summarization failed:', err))
+                        // Use provider factory for summarization
+                        const result = await callProvider(
+                            {
+                                provider: cheapestProvider.provider,
+                                apiKey: cheapestProvider.apiKey,
+                                model: cheapestProvider.provider === 'openai' ? 'gpt-3.5-turbo' :
+                                    cheapestProvider.provider === 'anthropic' ? 'claude-3-haiku-20240307' :
+                                        cheapestProvider.model,
+                                baseUrl: cheapestProvider.baseUrl,
+                                isLocal: cheapestProvider.isLocal
+                            },
+                            [{ role: 'user', content: prompt }],
+                            'You are a helpful assistant that summarizes conversations.'
+                        )
+                        return result.content
+                    }).catch(err => console.warn('Summarization failed:', err))
+                )
             }
 
             // [Conversation Title] Generate title for new conversations (async)
+            // Use waitUntil to prevent Vercel from killing the connection before completion
             if (isNewConversation && conversationId) {
                 const cheapestProvider = providerConfigs.sort((a, b) =>
                     (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
                 )[0]
 
-                generateConversationTitle(content, {
-                    provider: cheapestProvider.provider,
-                    apiKey: cheapestProvider.apiKey,
-                    model: cheapestProvider.model,
-                    baseUrl: cheapestProvider.baseUrl,
-                    isLocal: cheapestProvider.isLocal
-                }).then(async (title) => {
-                    try {
-                        await db.update(conversations)
-                            .set({ title, updatedAt: new Date() })
-                            .where(eq(conversations.id, conversationId))
-                        console.log(`[Conversation] Title generated: "${title}"`)
-                    } catch (e) {
-                        console.warn('[Conversation] Failed to save title:', e)
-                    }
-                }).catch(err => console.warn('[Conversation] Title generation failed:', err))
+                waitUntil(
+                    generateConversationTitle(content, {
+                        provider: cheapestProvider.provider,
+                        apiKey: cheapestProvider.apiKey,
+                        model: cheapestProvider.model,
+                        baseUrl: cheapestProvider.baseUrl,
+                        isLocal: cheapestProvider.isLocal
+                    }).then(async (title) => {
+                        try {
+                            await db.update(conversations)
+                                .set({ title, updatedAt: new Date() })
+                                .where(eq(conversations.id, conversationId))
+                            console.log(`[Conversation] Title generated: "${title}"`)
+                        } catch (e) {
+                            console.warn('[Conversation] Failed to save title:', e)
+                        }
+                    }).catch(err => console.warn('[Conversation] Title generation failed:', err))
+                )
             }
         } catch (e) {
             console.warn('Failed to log to DB', e)
