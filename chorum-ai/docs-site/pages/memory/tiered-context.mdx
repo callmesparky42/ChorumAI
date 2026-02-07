@@ -1,0 +1,288 @@
+---
+title: Tiered Context Compilation
+description: How Chorum adapts memory injection to different model sizes.
+---
+
+# Tiered Context Compilation
+
+Tiered Context Compilation is Chorum's solution to a fundamental problem: different AI models have wildly different context window sizes, from 8K tokens to 200K+ tokens.
+
+## The Problem
+
+Without adaptive context injection, you face a dilemma:
+
+| Small Models (8K-16K) | Large Models (128K-200K) |
+|-----------------------|--------------------------|
+| Memory injection consumes 60%+ of available space | Memory injection uses \<1% of available space |
+| Conversation gets crowded out | Underutilized—could benefit from richer context |
+| Slow, expensive for simple queries | Missing opportunities for deeper grounding |
+
+**The insight:** A 5,000-token memory injection into an 8K model is overwhelming. The same injection into a 200K model is a rounding error.
+
+---
+
+## How It Works
+
+Chorum pre-compiles your project memory into **three density tiers**, each optimized for different context window sizes:
+
+```
+Learning Store (source of truth)
+     |
+     | Compiled once, cached until learnings change
+     |
+     +-- Tier 1: "DNA Summary"    (~200-400 tokens, dense prose)
+     +-- Tier 2: "Field Guide"    (~1000-2500 tokens, structured summaries)
+     +-- Tier 3: "Full Dossier"   (dynamic, full relevance pipeline)
+```
+
+### Tier Selection
+
+When you send a message, Chorum automatically selects the right tier based on your model's context window:
+
+| Model Context | Tier | Budget | What Gets Injected |
+|---------------|------|--------|-------------------|
+| ≤ 16K tokens | **Tier 1** | ~480 tokens (6% of context) | Dense paragraph of critical rules |
+| 16K-64K tokens | **Tier 2** | ~2,500 tokens (8% of context) | All invariants + clustered patterns |
+| \> 64K tokens | **Tier 3** | Up to 10K tokens (dynamic) | Full relevance-scored selection |
+
+---
+
+## Tier 1: DNA Summary
+
+**For:** Small local models (Ollama, LM Studio), mobile models, cost-sensitive scenarios
+
+**Format:** A single dense paragraph (~300 tokens) that captures your project's essential identity.
+
+**Example:**
+
+```
+This project uses Next.js 14 with App Router, TypeScript (strict mode), 
+and PostgreSQL via Drizzle ORM. All API routes must authenticate via 
+middleware—never skip auth checks. Use Zod for runtime validation, 
+early returns to reduce nesting, and server components by default. 
+Never log PII to console. Error handling follows the Result<T, E> 
+pattern. The repository pattern is used for all data access.
+```
+
+**What's included:**
+- Top 5 invariants by usage (compiled into prose)
+- Dominant architectural patterns (1-2 sentences)
+- Nothing else—every word must carry information
+
+**Compilation:** Uses an LLM to compress your top learnings into flowing prose. Falls back to rule-based formatting if no LLM is available.
+
+---
+
+## Tier 2: Field Guide
+
+**For:** Medium-context models (Mistral, DeepSeek, Groq-hosted models)
+
+**Format:** Structured sections (~1,500 tokens) with all invariants listed and patterns clustered by domain.
+
+**Example:**
+
+```markdown
+## Rules (Never Violate)
+- All API routes require auth middleware
+- Never log PII to console
+- Always use Zod for runtime validation
+
+## Patterns & Decisions
+**Database:** Repository pattern, migrations via Drizzle, RLS on all tables
+**Frontend:** Early returns, Tailwind utility classes, server components by default
+**Error Handling:** Result<T, E> pattern, never throw in async functions
+
+## Recipes
+- To add a new API route: create route.ts, add auth middleware, validate with Zod
+```
+
+**What's included:**
+- **All** invariants (they're short and critical)
+- Top 5-8 patterns/decisions, clustered by domain
+- Top 3 golden paths (if any)
+- Semantic deduplication (similar items merged)
+
+**Compilation:** Can compile without an LLM using rule-based clustering. LLM is used optionally to summarize large domain clusters.
+
+---
+
+## Tier 3: Full Dossier
+
+**For:** Large-context models (Claude, GPT-4o, Gemini)
+
+**Format:** Dynamic, per-query relevance scoring (the existing system from [Relevance Gating](./relevance-gating.md)).
+
+**What's included:**
+- Full relevance pipeline: semantic similarity, recency, domain matching
+- All five learning types: patterns, decisions, invariants, antipatterns, golden paths
+- Budget adapts to query complexity (500 → 8,000 tokens)
+- Individual item selection based on your specific query
+
+**Why it's different:** Tier 3 is computed fresh for each query. Tiers 1 and 2 are pre-compiled and cached.
+
+---
+
+## Cache Mechanics
+
+### Pre-Compilation
+
+When you add, edit, or delete a learning:
+
+1. **Cache invalidation** — Tier 1 and Tier 2 caches are marked stale
+2. **Lazy recompilation** — Next time a Tier 1/2 model is used, cache is rebuilt in the background
+3. **Zero-latency injection** — Once cached, injection is just string concatenation (~0ms overhead)
+
+### Cache Miss Behavior
+
+If you use a small model before the cache is ready:
+
+- **Graceful fallback** to Tier 3 (full relevance pipeline)
+- **Async recompilation** triggers in the background
+- **Next request** uses the cached tier
+
+This ensures you never get a degraded experience—just slightly slower on the first request.
+
+---
+
+## Performance Impact
+
+| Tier | Injection Latency | Compilation Cost | When Compiled |
+|------|-------------------|------------------|---------------|
+| **Tier 1** | ~0ms (cache read) | ~$0.0001 (one-time) | On learning change |
+| **Tier 2** | ~0ms (cache read) | ~$0.0002 (one-time) | On learning change |
+| **Tier 3** | ~220ms (scoring) | $0 (no LLM call) | Every query |
+
+**Key benefit:** Small models get instant, perfectly-sized context. Large models get the full power of dynamic relevance scoring.
+
+---
+
+## Why This Matters
+
+### Before Tiered Context
+
+- Small models: "I can't fit your memory and still have room to think"
+- Large models: "You gave me 3,000 tokens but I have 200,000 available"
+- You: "I have to manually adjust settings per model"
+
+### After Tiered Context
+
+- Small models: "Perfect—just the critical rules, I can work with this"
+- Large models: "Great—rich context, I can see the full picture"
+- You: "It just works, regardless of which model I pick"
+
+---
+
+## Cognitive Inspiration
+
+Tiered Context mirrors how human memory works:
+
+| Human Memory | Chorum Tier | Analogy |
+|--------------|-------------|---------|
+| **Working memory** (7±2 items) | Tier 1 | "What you can hold in your head right now" |
+| **Short-term memory** (recent context) | Tier 2 | "What you remember from this morning's standup" |
+| **Long-term memory** (full recall) | Tier 3 | "Everything you know about this project" |
+
+When you're under cognitive load (small context window), you rely on compressed heuristics. When you have mental space (large context window), you can access detailed episodic memory.
+
+Chorum adapts the same way.
+
+---
+
+## Model Examples
+
+Here's how popular models map to tiers:
+
+| Model | Context Window | Tier | Typical Budget |
+|-------|----------------|------|----------------|
+| Llama 3.1 8B (local) | 8K | **Tier 1** | 480 tokens |
+| Mistral Small | 32K | **Tier 2** | 2,500 tokens |
+| DeepSeek V3 | 64K | **Tier 2** | 2,500 tokens |
+| Claude 3.5 Sonnet | 200K | **Tier 3** | Up to 10K tokens |
+| GPT-4o | 128K | **Tier 3** | Up to 10K tokens |
+| Gemini 1.5 Pro | 1M | **Tier 3** | Up to 10K tokens |
+
+---
+
+## User Controls
+
+### Automatic (Default)
+
+Chorum selects the tier based on your chosen model's context window. No configuration needed.
+
+### Manual Override
+
+In **Settings → Memory & Learning → Advanced**, you can:
+
+- **Force Tier 3** for all models (ignore context window, always use full pipeline)
+- **Set custom context window** for local models (if Chorum's default is wrong)
+
+Most users never need to touch these settings.
+
+---
+
+## Technical Details
+
+### Semantic Deduplication
+
+Before compilation, similar learnings are clustered:
+
+- Items with \>85% cosine similarity are grouped
+- The most recent/most-used version becomes the "canonical" representative
+- Only canonical items participate in Tier 1/2 compilation
+
+This prevents "Use early returns" and "Prefer early returns over deep nesting" from both appearing.
+
+### Per-Type Decay Curves
+
+Different learning types age differently:
+
+| Type | Decay Rate | Rationale |
+|------|------------|-----------|
+| Invariant | None (1.0 forever) | Constraints don't expire |
+| Decision | Very slow (365-day half-life) | Architecture ages slowly |
+| Pattern | Slow (90-day half-life) | Conventions stabilize |
+| Golden Path | Moderate (30-day half-life) | Procedures get stale |
+| Antipattern | Fast (14-day half-life) | "Don't do X" loses relevance as you learn |
+
+**The Cognitive Science Behind This**
+
+This isn't arbitrary — it mirrors how human memory actually works:
+
+**Invariants = Threat Memory**  
+In human cognition, constraint violations trigger the amygdala (threat detection). "Never touch a hot stove" is learned once and remembered forever. Chorum treats invariants the same way: **zero decay**. An invariant learned 3 years ago scores identically to one learned yesterday.
+
+**Decisions = High-Salience Episodic Memory**  
+Major architectural decisions don't fade — they **compound**. When you chose PostgreSQL over MongoDB, that decision becomes more important over time as the entire codebase builds on it. The 365-day half-life means a year-old decision still has 0.50 recency, reflecting its foundational nature.
+
+**Patterns = Procedural Memory**  
+Coding conventions stabilize quickly and stay relevant for months. Like learning to ride a bike, once established, they become implicit knowledge. The 90-day half-life matches how procedural skills age in human memory.
+
+**Golden Paths = Working Procedures**  
+Step-by-step recipes get stale as tooling and processes evolve. The 30-day half-life reflects this reality — deployment procedures from last month might already be outdated.
+
+**Antipatterns = Inhibitory Learning**  
+"Don't use `any` type" serves its purpose quickly. After two weeks, you've internalized it. After a month, you don't need the reminder anymore — it's part of your implicit knowledge. The aggressive 14-day half-life reflects this cognitive pattern.
+
+**Why This Matters for Tiered Context**
+
+Tier 1 and Tier 2 compilation respects these decay curves. When compiling your project's "DNA Summary," Chorum:
+- Always includes invariants (they never decay)
+- Prioritizes recent decisions (they compound over time)
+- Includes stable patterns (they've proven their value)
+- De-emphasizes stale golden paths (they may be outdated)
+- Filters out old antipatterns (you've already learned the lesson)
+
+This ensures your compiled context contains **living knowledge**, not historical artifacts.
+
+---
+
+## Related Documentation
+
+- **[Memory Overview](./overview.md)** — How the memory system works
+- **[Relevance Gating](./relevance-gating.md)** — How Tier 3 scoring works
+- **[Learning Types](./learning-types.md)** — What each memory type means
+- **[Confidence Scoring](./confidence-scoring.md)** — How project confidence affects injection
+
+---
+
+*"The right amount of context at the right time—whether you have 8,000 tokens or 200,000."*

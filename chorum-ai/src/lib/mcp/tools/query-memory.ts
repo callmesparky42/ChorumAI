@@ -53,7 +53,7 @@ export async function queryMemory(
   }
 
   // Generate query embedding
-  const queryEmbedding = await embeddings.embed(input.query)
+  const queryEmbedding = await embeddings.embed(input.query, ctx.userId)
 
   // Convert to MemoryCandidate format
   const candidates: MemoryCandidate[] = items.map(item => ({

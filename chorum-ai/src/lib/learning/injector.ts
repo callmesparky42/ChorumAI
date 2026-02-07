@@ -36,6 +36,8 @@ export interface LearningContext {
         budget: number
         itemsSelected: number
         latencyMs: number
+        tier?: number
+        tierLabel?: string
     }
 }
 
@@ -49,17 +51,86 @@ export interface LearningContext {
  * 4. Score & Select (Relevance Engine)
  * 5. Formatting (Context Assembly)
  */
+import { selectInjectionTier } from '../chorum/tiers'
+import { getCachedContext, recompileCache } from './cache'
+
+// ... imports remain the same ...
+
 export async function injectLearningContext(
     basePrompt: string,
     projectId: string,
     userQuery: string,
-    conversationDepth: number = 0
+    userId: string, // Added userId for cache recompilation
+    conversationDepth: number = 0,
+    contextWindow: number = 128000
 ): Promise<LearningContext> {
     const start = Date.now()
 
-    // 1. Classify Query
+    // 0. Select Tier
+    const tierConfig = selectInjectionTier(contextWindow)
+
+    // TIER 1 or TIER 2: Use pre-compiled cache
+    if (tierConfig.tier === 1 || tierConfig.tier === 2) {
+        const cached = await getCachedContext(projectId, tierConfig.tier)
+
+        if (cached) {
+            // Fast path: inject cached string directly
+            const systemPrompt = basePrompt + '\n\n---\n# Project Context\n' + cached
+
+            // Console logging for verification (Task 4.1)
+            console.log(`[Chorum] Context tier: ${tierConfig.tier} (${tierConfig.label}) | ` +
+                `Model context: ${contextWindow.toLocaleString()} tokens | ` +
+                `Budget: ${tierConfig.maxBudget} tokens | ` +
+                `Cache: HIT`)
+
+            return {
+                systemPrompt,
+                learningItems: [],       // Not individually tracked for cached tiers
+                injectedItems: [],
+                criticalFiles: [],
+                invariants: [],
+                relevance: {
+                    complexity: 'cached',
+                    budget: tierConfig.maxBudget,
+                    itemsSelected: 0,       // Cache is pre-compiled
+                    latencyMs: Date.now() - start,
+                    tier: tierConfig.tier,
+                    tierLabel: tierConfig.label
+                }
+            }
+        }
+
+        // Cache miss: trigger async recompilation, fall through to Tier 3
+        console.log(`[Chorum] Context tier: ${tierConfig.tier} (${tierConfig.label}) | ` +
+            `Model context: ${contextWindow.toLocaleString()} tokens | ` +
+            `Budget: ${tierConfig.maxBudget} tokens | ` +
+            `Cache: MISS → fallback Tier 3`)
+
+        // Don't block the request — compile in background
+        recompileCache(projectId, userId).catch(err =>
+            console.error('[Cache] Recompilation failed:', err)
+        )
+        // Fall through to Tier 3 as graceful degradation
+    } else {
+        // Tier 3 Logging
+        console.log(`[Chorum] Context tier: ${tierConfig.tier} (${tierConfig.label}) | ` +
+            `Model context: ${contextWindow.toLocaleString()} tokens | ` +
+            `Budget: ${tierConfig.maxBudget} tokens | ` +
+            `Cache: N/A`)
+    }
+
+    // 1. Classify Query (Tier 3 or Fallback Logic)
     const classification = classifier.classify(userQuery, conversationDepth)
     const budget = classifier.calculateBudget(classification)
+
+    // Override budget if we are falling back? 
+    // Spec says: "Fall through to Tier 3". Tier 3 uses existing dynamic budget.
+    // But if we intended Tier 1/2 and fell back, we might be injecting MORE tokens than Tier 1/2 allowed?
+    // Tier 1 allows ~500. Tier 3 logic might give 2000.
+    // For an 8K model, 2000 is risky.
+    // However, the spec says: "Fall through to Tier 3 as graceful degradation".
+    // I will stick to existing logic for fallback, assuming it's better than nothing, 
+    // and cache recompilation will fix it for next time.
 
     // Early exit for trivial queries (e.g. "hi") - just return invariants if any, or nothing
     if (budget.maxTokens === 0) {
@@ -85,7 +156,7 @@ export async function injectLearningContext(
         const results = await Promise.all([
             getProjectLearning(projectId),
             db.select().from(projectFileMetadata).where(eq(projectFileMetadata.projectId, projectId)),
-            embeddings.embed(userQuery),
+            embeddings.embed(userQuery, userId),
             getLinksForProject(projectId)
         ])
 

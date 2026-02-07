@@ -56,7 +56,7 @@ Under the hood, every learning is converted to a vector embedding—a numerical 
 1. **Learn** — Chorum analyzes conversations to extract patterns, decisions, and invariants
 2. **Store** — Each learning is embedded and stored with metadata (type, timestamp, source)
 3. **Retrieve** — When you ask a question, relevant memories are scored and ranked
-4. **Inject** — Top-ranked memories are injected into the LLM's context
+4. **Inject** — Memories are injected into the LLM's context, adapted to the model's size via [Tiered Context](./tiered-context.md)
 
 ---
 
@@ -91,10 +91,9 @@ Manual learnings bypass the approval queue—they're added immediately.
 When you send a message, Chorum:
 
 1. **Classifies** your query (trivial? complex? code-related?)
-2. **Assigns** a token budget based on complexity
-3. **Scores** all your learnings for relevance to this query
-4. **Selects** the highest-scoring items that fit the budget
-5. **Injects** them into the system prompt
+2. **Selects** the right memory tier based on your model's context window (see [Tiered Context](./tiered-context.md))
+3. **Scores** relevant learnings (Tier 3) or uses pre-compiled summaries (Tier 1/2)
+4. **Injects** them into the system prompt
 
 The AI sees something like:
 
@@ -135,6 +134,7 @@ Confidence increases with usage and diverse interactions. It decays slowly over 
 
 - **[Learning Types](./learning-types.md)** — Deep dive into patterns, decisions, invariants
 - **[Relevance Gating](./relevance-gating.md)** — How Chorum decides what to inject
+- **[Tiered Context](./tiered-context.md)** — How memory adapts to different model sizes
 - **[Confidence Scoring](./confidence-scoring.md)** — How project confidence works
 - **[Memory Management](./management.md)** — Viewing, editing, and deleting learnings
 - **[MCP Integration](../mcp/overview.md)** — Exposing memory to external agents

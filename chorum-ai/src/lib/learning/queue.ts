@@ -86,7 +86,10 @@ export async function processQueue(userId?: string): Promise<{ processed: number
                     item.projectId,
                     item.userMessage,
                     item.assistantResponse,
-                    providerConfig
+                    providerConfig,
+                    undefined, // projectContext
+                    undefined, // sourceMessageId
+                    item.userId
                 )
 
                 // Mark as completed

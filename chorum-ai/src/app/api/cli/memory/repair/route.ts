@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
                     ? `${item.content} ${item.context}`
                     : item.content
 
-                const embedding = await embeddings.embed(textToEmbed)
+                const embedding = await embeddings.embed(textToEmbed, session?.user?.id)
 
                 await db.update(projectLearningPaths)
                     .set({ embedding })

@@ -42,3 +42,15 @@ export {
     setCriticalFile,
     removeCriticalFile
 } from './manager'
+
+// Cache & Compiler
+export {
+    getCachedContext,
+    recompileCache,
+    invalidateCache
+} from './cache'
+
+export {
+    compileTier1,
+    compileTier2
+} from './compiler'

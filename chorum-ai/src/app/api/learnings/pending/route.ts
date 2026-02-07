@@ -74,7 +74,7 @@ export async function PATCH(request: Request) {
     if (action === 'approve') {
       // Generate embedding for the content
       const content = editedContent || pending.content
-      const embedding = await embeddings.embed(content)
+      const embedding = await embeddings.embed(content, session.user.id)
 
       // Move to project learning paths
       await db.insert(projectLearningPaths).values({

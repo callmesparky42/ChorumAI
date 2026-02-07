@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
         // Generate embedding
         let embedding: number[] | null = null
         try {
-            embedding = await embeddings.embed(content)
+            embedding = await embeddings.embed(content, userId)
         } catch (e) {
             console.warn('Embedding generation failed:', e)
         }

@@ -1393,17 +1393,16 @@ function SettingsContent() {
                     <>
                         {/* Centered About Content */}
                         <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-                            <div className="w-24 h-24 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center mb-6 shadow-2xl shadow-blue-900/20">
-                                <span className="text-4xl font-bold">C</span>
-                            </div>
+                            <img src="/logo.png" alt="ChorumAI" className="w-48 h-48 object-contain mb-6" />
 
                             <h1 className="text-4xl font-bold mb-2">ChorumAI</h1>
                             <p className="text-gray-400 text-lg mb-8">Built with intelligence, not just tokens.</p>
+                            <p className="text-gray-400 text-lg mb-8">Wanna chat? youcancallmedaniel@proton.me</p>
 
                             <div className="flex items-center gap-6">
                                 <div className="text-center px-6 py-3 bg-gray-900 rounded-xl border border-gray-800">
                                     <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Version</p>
-                                    <p className="text-xl font-mono text-white mt-1">v0.1.0</p>
+                                    <p className="text-xl font-mono text-white mt-1">v1.1.3</p>
                                 </div>
                                 <a
                                     href="https://github.com/ChorumAI/chorum-ai"
@@ -1420,7 +1419,7 @@ function SettingsContent() {
                             </div>
 
                             <p className="mt-12 text-sm text-gray-600 max-w-sm">
-                                ChorumAI is an open-source initiative to build a better, more intelligent interface for LLMs.
+                                ChorumAI — Sovereign data platform for your context.
                             </p>
                         </div>
                     </>

@@ -193,8 +193,97 @@ The source is shown (e.g., "analyzer", "claude-code", "cursor") so you know wher
 
 ---
 
+## How Learning Types Age
+
+Not all knowledge ages the same way. Just as humans remember different types of information for different lengths of time, Chorum's Learning Engine applies **per-type decay curves** that mirror how each knowledge type naturally ages.
+
+### The Cognitive Model
+
+Human memory doesn't decay uniformly. A traumatic warning ("don't touch the hot stove") stays vivid for life. A procedural skill you practiced once ("how to reset the router") fades in weeks. Architectural understanding ("why we built the system this way") compounds over time rather than decaying.
+
+Chorum models this same behavior:
+
+| Learning Type | Decay Rate | Human Memory Parallel |
+|---------------|------------|----------------------|
+| **Invariant** | **No decay** (always 1.0) | **Threat/constraint memory** — "Never do X" warnings stay perpetually vivid |
+| **Decision** | **365-day half-life** | **Episodic memory with high salience** — Major life decisions compound, don't fade |
+| **Pattern** | **90-day half-life** | **Procedural memory** — Skills stabilize quickly, stay relevant for months |
+| **Golden Path** | **30-day half-life** | **Working procedures** — Step-by-step recipes get stale as tools change |
+| **Antipattern** | **14-day half-life** | **Inhibitory learning** — "Don't do X" loses relevance as you internalize the lesson |
+
+### Why This Matters
+
+**Before per-type decay:**
+- A 6-month-old invariant ("never log PII") scored the same as a 6-month-old antipattern ("don't use that deprecated API")
+- Both would have a recency score of ~0.05, making them equally likely to be ignored
+- Critical rules disappeared from context just because they were old
+
+**After per-type decay:**
+- Invariants **never** lose recency (always 1.0) — they surface whenever semantically relevant
+- Decisions age gracefully (0.83 recency after 90 days, 0.50 after a year)
+- Antipatterns fade quickly (0.50 after 2 weeks, 0.02 after a month) as you internalize the lesson
+
+### The Half-Life Model
+
+Chorum uses **exponential decay with type-specific half-lives**:
+
+```
+recency = e^(-daysSince × ln(2) / halfLife)
+```
+
+**What this means:**
+- At `halfLife` days, recency drops to 0.50
+- At `2 × halfLife` days, recency drops to 0.25
+- Each type has a **floor** — a minimum recency it never drops below
+
+**Example: A 90-day-old pattern**
+- Half-life: 90 days
+- Recency: 0.50 (exactly at half-life)
+- Floor: 0.15 (even after years, it contributes *something*)
+
+**Example: A 90-day-old invariant**
+- Half-life: None (no decay)
+- Recency: 1.0 (same as day 1)
+- Floor: 1.0 (perpetual)
+
+### Why Antipatterns Fade Fast
+
+Antipatterns are **inhibitory learning** — they teach you what NOT to do. In cognitive science, inhibitory memories serve their purpose quickly:
+
+1. **Week 1**: "Don't use `any` type" — you see it, you remember
+2. **Week 2**: You've internalized it, you don't need the reminder
+3. **Month 1**: The antipattern is now part of your implicit knowledge
+
+After 14 days (one half-life), the antipattern's recency is 0.50. After 30 days, it's near the floor (0.02). This is **intentional** — if you're still making the same mistake after a month, the problem isn't memory retrieval, it's something else.
+
+### Why Decisions Compound
+
+Architectural decisions are different — they **gain** importance over time:
+
+- **Day 1**: "We chose PostgreSQL over MongoDB"
+- **Month 6**: The entire codebase is built on PostgreSQL
+- **Year 1**: Switching would require a complete rewrite
+
+A decision made a year ago isn't "stale" — it's **foundational**. The 365-day half-life means a year-old decision still has 0.50 recency, and the floor of 0.30 ensures it never becomes irrelevant.
+
+This mirrors how humans remember major life decisions: they don't fade, they become part of your identity.
+
+### Why Invariants Never Expire
+
+Invariants are **constraints** — rules that define the boundaries of acceptable behavior. In human cognition, these are processed by the amygdala (threat detection) and prefrontal cortex (rule enforcement):
+
+- "Never touch a hot stove" — learned once, remembered forever
+- "Never share passwords" — doesn't become less true over time
+- "All API routes require auth" — perpetual requirement
+
+Chorum treats invariants the same way: **zero decay, perpetual relevance**. An invariant learned 3 years ago scores identically to one learned yesterday. If it's semantically relevant to your query, it surfaces.
+
+---
+
 ## Related Documentation
 
 - **[Memory Overview](./overview.md)** — How the memory system works
 - **[Relevance Gating](./relevance-gating.md)** — How learnings are scored and selected
+- **[Tiered Context](./tiered-context.md)** — How memory adapts to different model sizes
 - **[Memory Management](./management.md)** — Editing and organizing your learnings
+

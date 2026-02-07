@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, decimal, integer, jsonb, boolean, primaryKey, vector, unique } from 'drizzle-orm/pg-core'
+import { pgTable, text, uuid, timestamp, decimal, integer, jsonb, boolean, primaryKey, vector, unique, index } from 'drizzle-orm/pg-core'
 import type { AdapterAccount } from "next-auth/adapters"
 import type { AgentDefinition } from '@/lib/agents/types'
 
@@ -139,7 +139,8 @@ export const providerCredentials = pgTable('provider_credentials', {
   costPer1M: jsonb('cost_per_1m').$type<{ input: number; output: number }>(),
   baseUrl: text('base_url'), // Custom endpoint URL (e.g., http://localhost:11434 for Ollama)
   isLocal: boolean('is_local').default(false), // Local vs cloud provider
-  displayName: text('display_name') // User-friendly name (e.g., "My Local Phi-3")
+  displayName: text('display_name'), // User-friendly name (e.g., "My Local Phi-3")
+  contextWindow: integer('context_window') // User override for model context window
 })
 
 export const projects = pgTable('projects', {
@@ -232,6 +233,22 @@ export const projectLearningPaths = pgTable('project_learning_paths', {
 
   createdAt: timestamp('created_at').defaultNow()
 })
+
+export const learningContextCache = pgTable('learning_context_cache', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  tier: integer('tier').notNull(),
+  compiledContext: text('compiled_context').notNull(),
+  tokenEstimate: integer('token_estimate').notNull(),
+  learningCount: integer('learning_count').default(0),
+  invariantCount: integer('invariant_count').default(0),
+  compiledAt: timestamp('compiled_at').defaultNow(),
+  invalidatedAt: timestamp('invalidated_at'),
+  compilerModel: text('compiler_model'),
+}, (t) => ({
+  unqProjectTier: unique('learning_cache_project_tier_unq').on(t.projectId, t.tier),
+  idxProject: index('idx_learning_cache_project').on(t.projectId),
+}))
 
 export const projectConfidence = pgTable('project_confidence', {
   id: uuid('id').primaryKey().defaultRandom(),

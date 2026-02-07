@@ -7,6 +7,8 @@ description: How Chorum decides what memory to inject into each conversation.
 
 Relevance gating is how Chorum decides which memories to inject into each conversation—balancing context richness against speed and cost.
 
+This is the **Tier 3** system used for large-context models. For small and medium models, Chorum uses [Tiered Context](./tiered-context.md) with pre-compiled memory summaries.
+
 ## Why This Matters
 
 Without intelligent gating, you'd face two bad options:
@@ -255,5 +257,7 @@ Even if an invariant would push you over the token budget, if it scores > 0.70 r
 ## Related Documentation
 
 - **[Memory Overview](./overview.md)** — How the memory system works
+- **[Tiered Context](./tiered-context.md)** — How memory adapts to different model sizes
 - **[Learning Types](./learning-types.md)** — What each memory type means
 - **[Confidence Scoring](./confidence-scoring.md)** — How project confidence affects injection
+

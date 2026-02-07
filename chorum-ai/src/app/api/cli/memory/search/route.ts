@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
         }
 
         // Generate query embedding
-        const queryEmbedding = await embeddings.embed(query)
+        const queryEmbedding = await embeddings.embed(query, session?.user?.id)
 
         // Semantic search
         // Note: Drizzle's pg-vector support might vary by version. 

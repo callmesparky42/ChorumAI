@@ -138,10 +138,13 @@ function hashContent(content: string): string {
 /**
  * Store extracted learnings, deduplicating against existing entries
  */
+import { invalidateCache } from './cache'
+
 export async function storeLearnings(
     projectId: string,
     learnings: ExtractedLearning[],
-    sourceMessageId?: string
+    sourceMessageId?: string,
+    userId?: string
 ): Promise<{ stored: number; duplicates: number }> {
     let stored = 0
     let duplicates = 0
@@ -173,7 +176,7 @@ export async function storeLearnings(
                 ? `${learning.content} ${learning.context}`
                 : learning.content
 
-            embedding = await embeddings.embed(textToEmbed)
+            embedding = await embeddings.embed(textToEmbed, userId)
         } catch (e) {
             console.error('[Analyzer] Failed to generate embedding:', e)
             // We continue without embedding, but log it. 
@@ -193,6 +196,12 @@ export async function storeLearnings(
         stored++
     }
 
+    if (stored > 0) {
+        invalidateCache(projectId).catch(err =>
+            console.error('[Analyzer] Failed to invalidate cache:', err)
+        )
+    }
+
     return { stored, duplicates }
 }
 
@@ -205,7 +214,8 @@ export async function extractAndStoreLearnings(
     assistantResponse: string,
     providerConfig: FullProviderConfig,
     projectContext?: string,
-    sourceMessageId?: string
+    sourceMessageId?: string,
+    userId?: string
 ): Promise<{ stored: number; duplicates: number }> {
     const result = await analyzeConversation(
         userMessage,
@@ -226,5 +236,5 @@ export async function extractAndStoreLearnings(
         return { stored: 0, duplicates: 0 }
     }
 
-    return await storeLearnings(projectId, allLearnings, sourceMessageId)
+    return await storeLearnings(projectId, allLearnings, sourceMessageId, userId)
 }

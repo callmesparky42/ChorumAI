@@ -35,6 +35,7 @@ export interface ProviderConfig {
     baseUrl?: string      // Custom endpoint URL
     isLocal?: boolean     // Local vs cloud
     displayName?: string  // User-friendly name
+    contextWindow: number // Token limit
 }
 
 export interface RoutingDecision {
@@ -44,6 +45,7 @@ export interface RoutingDecision {
     estimatedCost: number
     alternatives: { provider: Provider; cost: number }[]
     taskType: TaskType
+    contextWindow: number
 }
 
 export class ChorumRouter {
@@ -73,7 +75,8 @@ export class ChorumRouter {
                     reasoning: 'User override',
                     estimatedCost: this.calculateCost(provider, estimatedTokens),
                     alternatives: [],
-                    taskType
+                    taskType,
+                    contextWindow: provider.contextWindow
                 }
             }
         }
@@ -137,7 +140,8 @@ export class ChorumRouter {
             reasoning: this.buildReasoning(taskType, selected, alternatives),
             estimatedCost: this.calculateCost(selected, estimatedTokens),
             alternatives,
-            taskType
+            taskType,
+            contextWindow: selected.contextWindow
         }
     }
 

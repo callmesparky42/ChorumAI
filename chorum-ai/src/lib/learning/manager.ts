@@ -16,8 +16,9 @@ import type {
     SetCriticalFileInput
 } from './types'
 import { verifyReference } from './grounding'
+import { invalidateCache } from './cache'
 
-// ============================================================================
+
 // Learning Items CRUD
 // ============================================================================
 
@@ -83,6 +84,9 @@ export async function addLearningItem(input: CreateLearningItemInput): Promise<L
         })
         .returning()
 
+    // Invalidate compiled cache
+    invalidateCache(input.projectId).catch(console.error)
+
     // Trigger asynchronous confidence recalculation
     recalculateProjectConfidence(input.projectId).catch(err =>
         console.error('[Confidence] Recalculation failed after add:', err)
@@ -103,6 +107,10 @@ export async function updateLearningItem(
         .where(eq(projectLearningPaths.id, id))
         .returning()
 
+    if (updated) {
+        invalidateCache(updated.projectId).catch(console.error)
+    }
+
     return updated as LearningItem | null
 }
 
@@ -113,6 +121,10 @@ export async function deleteLearningItem(id: string): Promise<boolean> {
     const result = await db.delete(projectLearningPaths)
         .where(eq(projectLearningPaths.id, id))
         .returning()
+
+    if (result.length > 0) {
+        invalidateCache(result[0].projectId).catch(console.error)
+    }
 
     return result.length > 0
 }
@@ -312,6 +324,8 @@ export async function setCriticalFile(input: SetCriticalFileInput): Promise<void
                 linkedInvariants: input.linkedInvariants
             })
     }
+
+    invalidateCache(input.projectId).catch(console.error)
 }
 
 /**

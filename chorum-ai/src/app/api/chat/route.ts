@@ -11,6 +11,7 @@ import { checkAndSummarize, buildSummarizationPrompt } from '@/lib/chorum/summar
 import { generateConversationTitle } from '@/lib/chorum/title'
 import { anonymizePii } from '@/lib/pii'
 import { callProvider, generateImage, type FullProviderConfig, type ChatResult, type ToolDefinition, type ChatMessage } from '@/lib/providers'
+import { getPreset } from '@/lib/providers/presets'
 import { getToolsForUser, executeToolCall, type McpTool } from '@/lib/mcp-client'
 import {
     callProviderWithFallback,
@@ -206,26 +207,8 @@ export async function POST(req: NextRequest) {
             console.log(`[Memory] Strategy: ${memory.strategy}, History ref: ${memory.historyReferenceDetected}, Messages: ${memory.recentMessages.length}`)
         }
 
-        // [Learning System] Relevance Gating Injection
-        // Returns cached data to avoid double DB call during validation
+        // [Learning System] Injection moved to after routing decision to use contextWindow
         let learningContext: LearningContext | null = null
-        if (projectId) {
-            // Use conversation depth from memory context
-            const depth = memory.recentMessages.length + (existingConversationId ? 10 : 0) // Estimate if just partial fetch
-            // Or just use memory.recentMessages.length as explicit context depth
-
-            learningContext = await injectLearningContext(
-                systemPrompt,
-                projectId,
-                content,
-                memory.recentMessages.length
-            )
-            systemPrompt = learningContext.systemPrompt
-
-            if (learningContext.relevance) {
-                console.log(`[Relevance] ${learningContext.relevance.complexity} query → Injected ${learningContext.relevance.itemsSelected} items (${learningContext.relevance.latencyMs}ms)`)
-            }
-        }
 
         // Get provider credentials
         const creds = await db.query.providerCredentials.findMany({
@@ -241,21 +224,24 @@ export async function POST(req: NextRequest) {
                 providerConfigs.push({
                     provider: 'anthropic', model: 'claude-sonnet-4-20250514', apiKey: process.env.ANTHROPIC_API_KEY,
                     capabilities: ['deep_reasoning', 'code_generation'], costPer1M: { input: 3, output: 15 }, dailyBudget: 10, spentToday: 0,
-                    securitySettings: securitySettings || undefined
+                    securitySettings: securitySettings || undefined,
+                    contextWindow: 200000
                 })
             }
             if (process.env.OPENAI_API_KEY) {
                 providerConfigs.push({
                     provider: 'openai', model: 'gpt-4o', apiKey: process.env.OPENAI_API_KEY,
                     capabilities: ['code_generation', 'general'], costPer1M: { input: 10, output: 30 }, dailyBudget: 10, spentToday: 0,
-                    securitySettings: securitySettings || undefined
+                    securitySettings: securitySettings || undefined,
+                    contextWindow: 128000
                 })
             }
             if (process.env.GOOGLE_AI_API_KEY) {
                 providerConfigs.push({
                     provider: 'google', model: 'gemini-1.5-pro', apiKey: process.env.GOOGLE_AI_API_KEY,
                     capabilities: ['cost_efficient', 'long_context'], costPer1M: { input: 3.5, output: 10.5 }, dailyBudget: 5, spentToday: 0,
-                    securitySettings: securitySettings || undefined
+                    securitySettings: securitySettings || undefined,
+                    contextWindow: 1000000
                 })
             }
         } else {
@@ -286,7 +272,8 @@ export async function POST(req: NextRequest) {
                 isLocal: c.isLocal || false,
                 displayName: c.displayName || undefined,
                 // Pass security settings for SSL/TLS configuration
-                securitySettings: securitySettings || undefined
+                securitySettings: securitySettings || undefined,
+                contextWindow: c.contextWindow || getPreset(c.provider)?.contextWindow || 128000
             }))
         }
 
@@ -319,13 +306,38 @@ export async function POST(req: NextRequest) {
                         model: 'fallback',
                         reasoning: 'Cloud budget exhausted',
                         estimatedCost: 0,
-                        alternatives: []
+                        alternatives: [],
+                        contextWindow: 8000,
+                        taskType: 'general'
                     }
+
+
                 } else {
                     throw error
                 }
             } else {
                 throw error
+            }
+        }
+
+        // [Learning System] Relevance Gating Injection
+        // Now using the decided context window to select the right tier
+        if (projectId && decision) {
+            // Use conversation depth from memory context
+            const depth = memory.recentMessages.length + (existingConversationId ? 10 : 0)
+
+            learningContext = await injectLearningContext(
+                systemPrompt,
+                projectId,
+                content,
+                userId, // Pass userId for cache recompilation
+                memory.recentMessages.length,
+                decision.contextWindow // Pass the routing decision's context window
+            )
+            systemPrompt = learningContext.systemPrompt
+
+            if (learningContext.relevance) {
+                console.log(`[Relevance] ${learningContext.relevance.complexity} query → Injected ${learningContext.relevance.itemsSelected} items (${learningContext.relevance.latencyMs}ms)`)
             }
         }
 
@@ -835,7 +847,8 @@ export async function POST(req: NextRequest) {
                                 isLocal: cheapestProvider.isLocal || false
                             },
                             systemPrompt,
-                            assistantMsgId
+                            assistantMsgId,
+                            session?.user?.id
                         )
                     }
                 } else {

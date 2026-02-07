@@ -4,6 +4,7 @@
  */
 
 import { QueryClassification } from './classifier'
+import type { LearningType } from '../learning/types'
 
 // Interface matching the DB schema shape (plus embedding)
 export interface MemoryCandidate {
@@ -20,6 +21,197 @@ export interface MemoryCandidate {
     score?: number
     retrievalReason?: string
     linkType?: string
+}
+
+// ============================================================================
+// Per-Type Decay Curves
+// Cognitive rationale: different knowledge types age at different rates.
+// Half-life = days until recency drops to 0.50
+// ============================================================================
+
+export interface DecayConfig {
+    halfLifeDays: number | null  // null = no decay (always 1.0)
+    floor: number                // Minimum recency score (never drops below this)
+    rationale: string            // For documentation/logging
+}
+
+export const DECAY_CURVES: Record<LearningType, DecayConfig> = {
+    invariant: {
+        halfLifeDays: null,
+        floor: 1.0,
+        rationale: 'Constraints never expire — "never use console.log" is perpetual'
+    },
+    decision: {
+        halfLifeDays: 365,
+        floor: 0.3,
+        rationale: 'Architecture ages very slowly — decisions compound over project lifetime'
+    },
+    pattern: {
+        halfLifeDays: 90,
+        floor: 0.15,
+        rationale: 'Conventions stabilize quickly and stay relevant for months'
+    },
+    golden_path: {
+        halfLifeDays: 30,
+        floor: 0.05,
+        rationale: 'Procedures get stale as tooling and processes evolve'
+    },
+    antipattern: {
+        halfLifeDays: 14,
+        floor: 0.02,
+        rationale: '"Don\'t do X" loses relevance as the developer learns to avoid it'
+    }
+}
+
+const LN2 = Math.LN2 // 0.6931...
+
+/**
+ * Calculate recency score using type-specific decay curve.
+ *
+ * @param daysSince - Days since the learning was created
+ * @param type - Learning type (determines decay rate)
+ * @returns Recency score between floor and 1.0
+ */
+export function calculateDecay(daysSince: number, type: string): number {
+    const config = DECAY_CURVES[type as LearningType]
+    if (!config) {
+        // Unknown type: fall back to moderate 30-day decay
+        return Math.max(0.05, Math.exp(-daysSince * LN2 / 30))
+    }
+
+    // No decay: always 1.0 (invariants)
+    if (config.halfLifeDays === null) {
+        return config.floor // floor is 1.0 for invariants
+    }
+
+    // Exponential decay with half-life and floor
+    const raw = Math.exp(-daysSince * LN2 / config.halfLifeDays)
+    return Math.max(config.floor, raw)
+}
+
+// ============================================================================
+// Dynamic Weight Profiles
+// Weights shift based on what the user is trying to accomplish.
+// All weights for a profile should sum to ~1.0 (excluding type boost).
+// ============================================================================
+
+export interface WeightProfile {
+    semantic: number    // Cosine similarity weight
+    recency: number     // Decay-adjusted recency weight
+    domain: number      // Domain overlap weight
+    usage: number       // Usage frequency weight
+    typeBoostMultiplier: Record<string, number>  // Per-type boost multipliers
+}
+
+const WEIGHT_PROFILES: Record<string, WeightProfile> = {
+    question: {
+        semantic: 0.55,
+        recency: 0.10,
+        domain: 0.20,
+        usage: 0.05,
+        typeBoostMultiplier: {
+            invariant: 1.0,
+            pattern: 1.0,
+            decision: 1.0,
+            golden_path: 1.0,
+            antipattern: 1.0
+        }
+    },
+    generation: {
+        semantic: 0.45,
+        recency: 0.10,
+        domain: 0.25,
+        usage: 0.05,
+        typeBoostMultiplier: {
+            invariant: 1.0,
+            pattern: 2.0,      // Patterns are critical when generating code
+            decision: 1.0,
+            golden_path: 1.5,  // Recipes help with generation
+            antipattern: 1.0
+        }
+    },
+    analysis: {
+        semantic: 0.50,
+        recency: 0.05,
+        domain: 0.20,
+        usage: 0.05,
+        typeBoostMultiplier: {
+            invariant: 1.0,
+            pattern: 1.0,
+            decision: 2.0,     // Decisions are critical when analyzing
+            golden_path: 0.5,
+            antipattern: 1.0
+        }
+    },
+    discussion: {
+        // Same as question — general conversational context
+        semantic: 0.55,
+        recency: 0.10,
+        domain: 0.20,
+        usage: 0.05,
+        typeBoostMultiplier: {
+            invariant: 1.0,
+            pattern: 1.0,
+            decision: 1.0,
+            golden_path: 1.0,
+            antipattern: 1.0
+        }
+    },
+    continuation: {
+        semantic: 0.40,
+        recency: 0.30,         // Recent context matters most in continuations
+        domain: 0.10,
+        usage: 0.05,
+        typeBoostMultiplier: {
+            invariant: 1.0,
+            pattern: 1.0,
+            decision: 1.0,
+            golden_path: 1.0,
+            antipattern: 1.0
+        }
+    },
+    greeting: {
+        // Greetings get trivial budget anyway, but define for completeness
+        semantic: 0.50,
+        recency: 0.15,
+        domain: 0.15,
+        usage: 0.05,
+        typeBoostMultiplier: {
+            invariant: 1.0,
+            pattern: 1.0,
+            decision: 1.0,
+            golden_path: 1.0,
+            antipattern: 1.0
+        }
+    }
+}
+
+/**
+ * Get the weight profile for a given query intent.
+ * Falls back to 'question' profile if intent is unknown.
+ */
+function getWeightProfile(intent: string): WeightProfile {
+    return WEIGHT_PROFILES[intent] || WEIGHT_PROFILES.question
+}
+
+// ============================================================================
+// Usage Scoring
+// ============================================================================
+
+/**
+ * Usage score: logarithmic curve that rewards initial usage but plateaus.
+ * Items with very high usage (>20) get a slight PENALTY as a signal
+ * that they should be promoted to compiled tiers, not re-retrieved.
+ */
+export function calculateUsageScore(usageCount: number): number {
+    if (usageCount <= 0) return 0
+
+    // Log curve: rises quickly for first few uses, then flattens
+    // ln(1) = 0, ln(5) ≈ 1.6, ln(10) ≈ 2.3, ln(20) ≈ 3.0
+    const logScore = Math.log(usageCount + 1) / Math.log(21) // Normalized to ~1.0 at 20 uses
+
+    // Cap at 0.15 (same ceiling as before)
+    return Math.min(logScore * 0.15, 0.15)
 }
 
 export class RelevanceEngine {
@@ -39,11 +231,11 @@ export class RelevanceEngine {
                 semanticScore = this.cosineSimilarity(item.embedding, queryEmbedding)
             }
 
-            // 2. Recency Score (Decay over 30 days)
+            // 2. Recency Score (Per-Type Decay)
             const daysSince = item.createdAt
                 ? (Date.now() - item.createdAt.getTime()) / (1000 * 60 * 60 * 24)
                 : 365
-            const recencyScore = Math.exp(-daysSince / 30) // e^(-t/30)
+            const recencyScore = calculateDecay(daysSince, item.type)
 
             // 3. Domain Score
             let domainScore = 0
@@ -53,27 +245,55 @@ export class RelevanceEngine {
             }
 
             // 4. Usage Score
-            const usageScore = Math.min((item.usageCount || 0) / 10, 0.15)
+            const usageScore = calculateUsageScore(item.usageCount || 0)
 
-            // 5. Type Boost
+            // 5. Type Boost — modulated by intent
+            const profile = getWeightProfile(classification.intent)
+
             let typeBoost = 0
             switch (item.type) {
                 case 'invariant': typeBoost = 0.25; break; // Invariants are critical
                 case 'pattern': typeBoost = 0.1; break;
                 case 'decision': typeBoost = 0.1; break;
                 case 'golden_path': typeBoost = 0.15; break; // Golden paths are solutions
+                case 'antipattern': typeBoost = 0.05; break;
             }
 
-            // Weighted Combination
-            // Semantic is king (50%), identifying valid context
-            // Invariants get huge boost to always surface if marginally relevant
+            // Apply intent-specific multiplier to type boost
+            const typeMultiplier = profile.typeBoostMultiplier[item.type] ?? 1.0
+            typeBoost *= typeMultiplier
+
+            // 6. Weighted Combination
             const totalScore = (
-                semanticScore * 0.5 +
-                recencyScore * 0.15 +
-                domainScore * 0.15 +
-                usageScore +
+                semanticScore * profile.semantic +
+                recencyScore * profile.recency +
+                domainScore * profile.domain +
+                usageScore * profile.usage +
                 typeBoost
             )
+
+            // Debug logging
+            if (process.env.CHORUM_DEBUG_DECAY === 'true') {
+                console.log(
+                    `[Chorum:Decay] ${item.type.padEnd(12)} | ` +
+                    `Age: ${Math.floor(daysSince).toString().padStart(4)}d | ` +
+                    `Recency: ${recencyScore.toFixed(3)} | ` +
+                    `Half-life: ${DECAY_CURVES[item.type as LearningType]?.halfLifeDays ?? '30(fallback)'}d`
+                )
+            }
+
+            if (process.env.CHORUM_DEBUG_SCORING === 'true') {
+                console.log(
+                    `[Chorum:Score] ${item.type.padEnd(12)} | ` +
+                    `Total: ${totalScore.toFixed(3)} | ` +
+                    `Sem: ${(semanticScore * profile.semantic).toFixed(3)} | ` +
+                    `Rec: ${(recencyScore * profile.recency).toFixed(3)} | ` +
+                    `Dom: ${(domainScore * profile.domain).toFixed(3)} | ` +
+                    `Use: ${(usageScore * profile.usage).toFixed(3)} | ` +
+                    `Typ: ${typeBoost.toFixed(3)} | ` +
+                    `Intent: ${classification.intent}`
+                )
+            }
 
             return { ...item, score: totalScore }
         })

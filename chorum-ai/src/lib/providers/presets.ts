@@ -13,6 +13,7 @@ export interface ProviderPreset {
     defaultBaseUrl?: string
     isLocal: boolean
     category: 'cloud' | 'local'
+    contextWindow: number
 }
 
 export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
@@ -29,7 +30,8 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         capabilities: ['deep_reasoning', 'code_generation', 'general'],
         requiresKey: true,
         isLocal: false,
-        category: 'cloud'
+        category: 'cloud',
+        contextWindow: 200000
     },
     openai: {
         name: 'OpenAI (GPT)',
@@ -46,7 +48,8 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         capabilities: ['code_generation', 'structured_output', 'general'],
         requiresKey: true,
         isLocal: false,
-        category: 'cloud'
+        category: 'cloud',
+        contextWindow: 128000
     },
     google: {
         name: 'Google (Gemini)',
@@ -60,7 +63,8 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         capabilities: ['cost_efficient', 'long_context', 'general'],
         requiresKey: true,
         isLocal: false,
-        category: 'cloud'
+        category: 'cloud',
+        contextWindow: 1000000
     },
     mistral: {
         name: 'Mistral AI',
@@ -78,7 +82,8 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         requiresKey: true,
         defaultBaseUrl: 'https://api.mistral.ai/v1',
         isLocal: false,
-        category: 'cloud'
+        category: 'cloud',
+        contextWindow: 32000
     },
     deepseek: {
         name: 'DeepSeek',
@@ -92,7 +97,8 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         requiresKey: true,
         defaultBaseUrl: 'https://api.deepseek.com/v1',
         isLocal: false,
-        category: 'cloud'
+        category: 'cloud',
+        contextWindow: 64000
     },
     ollama: {
         name: 'Ollama (Local)',
@@ -114,7 +120,8 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         requiresKey: false,
         defaultBaseUrl: 'http://localhost:11434',
         isLocal: true,
-        category: 'local'
+        category: 'local',
+        contextWindow: 8000
     },
     lmstudio: {
         name: 'LM Studio (Local)',
@@ -127,7 +134,8 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         requiresKey: false,
         defaultBaseUrl: 'http://localhost:1234/v1',
         isLocal: true,
-        category: 'local'
+        category: 'local',
+        contextWindow: 8000
     },
     'openai-compatible': {
         name: 'OpenAI-Compatible API',
@@ -139,7 +147,8 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
         capabilities: ['general'],
         requiresKey: false, // Optional for most local servers
         isLocal: true,
-        category: 'local'
+        category: 'local',
+        contextWindow: 128000
     }
 }
 
