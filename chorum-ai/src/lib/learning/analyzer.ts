@@ -7,9 +7,10 @@
 
 import { db } from '@/lib/db'
 import { projectLearningPaths } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { callProvider, type FullProviderConfig } from '@/lib/providers'
 import { embeddings } from '@/lib/chorum/embeddings'
+import { invalidateCache } from './cache'
 import crypto from 'crypto'
 
 export interface ExtractedLearning {
@@ -137,10 +138,7 @@ Analyze this conversation and extract any learnings.`
     }
 }
 
-// ... imports
-import { sql } from 'drizzle-orm'
-
-// ... interfaces
+// --- Semantic Deduplication Helpers ---
 
 interface ExistingItemForDedup {
     id: string
@@ -148,6 +146,13 @@ interface ExistingItemForDedup {
     embedding: number[] | null
     usageCount: number | null
     createdAt: Date | null
+}
+
+/**
+ * Generate MD5 hash of content for strict deduplication
+ */
+function hashContent(content: string): string {
+    return crypto.createHash('md5').update(content.trim().toLowerCase()).digest('hex')
 }
 
 /**
@@ -224,7 +229,6 @@ async function mergeWithExisting(
 /**
  * Store extracted learnings, deduplicating against existing entries
  */
-import { invalidateCache } from './cache'
 
 export async function storeLearnings(
     projectId: string,
