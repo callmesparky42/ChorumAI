@@ -1269,63 +1269,125 @@ function SettingsContent() {
                 {activeTab === 'help' && (
                     <>
                         <div className="mb-8">
-                            <h2 className="text-2xl font-semibold">Help & Documentation</h2>
-                            <p className="text-gray-400 mt-1">Getting started with ChorumAI.</p>
+                            <h2 className="text-2xl font-semibold">Resources & Support</h2>
+                            <p className="text-gray-400 mt-1">Everything you need to master ChorumAI.</p>
                         </div>
 
-                        <div className="space-y-8 max-w-3xl">
-                            <section className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-                                <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                                    <Server className="w-5 h-5 text-blue-400" />
-                                    Onboarding LLMs
-                                </h3>
-                                <div className="space-y-4 text-sm text-gray-300">
-                                    <p>
-                                        To use ChorumAI, you need to provide API keys. We support the major AI providers directly.
-                                        You can get your keys from their respective developer consoles:
+                        <div className="space-y-6 max-w-4xl">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Documentation Card */}
+                                <a
+                                    href="https://docs.chorumai.com"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors group"
+                                >
+                                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                                        <FileText className="w-5 h-5 text-blue-400" />
+                                        Documentation
+                                    </h3>
+                                    <p className="text-sm text-gray-400 mb-3">
+                                        Comprehensive guides, API references, tutorials, and best practices.
                                     </p>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                                        <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center justify-between p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group">
-                                            <span>Anthropic Console</span>
-                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
-                                        </a>
-                                        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center justify-between p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group">
-                                            <span>OpenAI Platform</span>
-                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
-                                        </a>
-                                        <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center justify-between p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group">
-                                            <span>Google AI Studio</span>
-                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
-                                        </a>
-                                        <a href="https://console.mistral.ai/" target="_blank" rel="noopener noreferrer"
-                                            className="flex items-center justify-between p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group">
-                                            <span>Mistral AI Console</span>
-                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400" />
-                                        </a>
+                                    <div className="inline-flex items-center gap-2 text-sm text-blue-400 group-hover:text-blue-300 transition-colors">
+                                        Visit docs.chorumai.com
+                                        <ExternalLink className="w-3 h-3" />
                                     </div>
-                                    <p className="mt-4 text-gray-400">
-                                        Once you have a key, go to the <strong>Providers</strong> tab to add it. You can set a daily budget for each key to control costs.
-                                    </p>
-                                </div>
-                            </section>
+                                </a>
 
-                            <section className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-                                <h3 className="text-lg font-medium text-white mb-4">Projects & Chat</h3>
-                                <div className="space-y-3 text-sm text-gray-300">
-                                    <p>
-                                        <strong>Projects:</strong> All conversations are organized into projects. The sidebar on the left allows you to create new projects or switch between them.
-                                    </p>
-                                    <p>
-                                        <strong>Intelligent Routing:</strong> ChorumAI automatically selects the best model for your task. For example, it might use Claude 3.5 Sonnet for coding and Gemini 1.5 Pro for large context analysis.
-                                    </p>
-                                    <p>
-                                        <strong>Cost Meter:</strong> The top bar shows your session usage. Detailed logs are available in the Dashboard or Database.
-                                    </p>
-                                </div>
-                            </section>
+                                {/* Quick Reference Card */}
+                                <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+                                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                                        <Zap className="w-5 h-5 text-yellow-400" />
+                                        Quick Reference
+                                    </h3>
+                                    <div className="space-y-3 text-sm text-gray-300">
+                                        <div>
+                                            <p className="font-medium text-white mb-1">Projects</p>
+                                            <p className="text-gray-400">Organize conversations by project. Switch using the sidebar.</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-white mb-1">Intelligent Routing</p>
+                                            <p className="text-gray-400">ChorumAI auto-selects the best model for your task.</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-white mb-1">Cost Tracking</p>
+                                            <p className="text-gray-400">Monitor usage in real-time via the top bar.</p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* H4X0R Terminal Easter Egg */}
+                                <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+                                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                                        <Terminal className="w-5 h-5 text-green-400" />
+                                        H4X0R Terminal
+                                    </h3>
+                                    <div className="bg-black/40 rounded-lg p-4 font-mono text-[10px] leading-tight text-green-400 mb-3 overflow-x-auto">
+                                        <pre>{`██   ██ ██   ██ ██   ██  ██████  ██████  
+██   ██ ██   ██  ██ ██  ██  ████ ██   ██ 
+███████ ███████   ███   ██ ██ ██ ██████  
+██   ██     ██   ██ ██  ████  ██ ██   ██ 
+██   ██     ██  ██   ██  ██████  ██   ██`}</pre>
+                                    </div>
+                                    <a
+                                        href="https://github.com/ChorumAI/chorum-ai/tree/main/h4x0r"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition-colors"
+                                    >
+                                        Installation & Usage
+                                        <ExternalLink className="w-3 h-3" />
+                                    </a>
+                                </section>
+
+                                {/* Community & Support */}
+                                <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors md:col-span-2">
+                                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                                        <HelpCircle className="w-5 h-5 text-blue-400" />
+                                        Community & Support
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <a
+                                            href="https://github.com/ChorumAI/chorum-ai"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-3 p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group"
+                                        >
+                                            <Github className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-white">GitHub</p>
+                                                <p className="text-xs text-gray-500">Source & Issues</p>
+                                            </div>
+                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                        </a>
+
+                                        <a
+                                            href="mailto:youcancallmedaniel@proton.me"
+                                            className="flex items-center gap-3 p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group"
+                                        >
+                                            <User className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-white">Contact Us</p>
+                                                <p className="text-xs text-gray-500">Get in touch</p>
+                                            </div>
+                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                        </a>
+
+                                        <Link
+                                            href="/changelog"
+                                            className="flex items-center gap-3 p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group"
+                                        >
+                                            <Activity className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-white">What's New</p>
+                                                <p className="text-xs text-gray-500">Changelog</p>
+                                            </div>
+                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                        </Link>
+                                    </div>
+                                </section>
+                            </div>
                         </div>
                     </>
                 )}
@@ -1397,7 +1459,7 @@ function SettingsContent() {
 
                             <h1 className="text-4xl font-bold mb-2">ChorumAI</h1>
                             <p className="text-gray-400 text-lg mb-8">Built with intelligence, not just tokens.</p>
-                            <p className="text-gray-400 text-lg mb-8">Wanna chat? youcancallmedaniel@proton.me</p>
+                            <p className="text-gray-400 text-lg mb-8">Wanna chat? <a href="mailto:youcancallmedaniel@proton.me">Send an email</a></p>
 
                             <div className="flex items-center gap-6">
                                 <div className="text-center px-6 py-3 bg-gray-900 rounded-xl border border-gray-800">
@@ -1419,7 +1481,7 @@ function SettingsContent() {
                             </div>
 
                             <p className="mt-12 text-sm text-gray-600 max-w-sm">
-                                ChorumAI — Sovereign data platform for your context.
+                                Sovereign data platform for your context.
                             </p>
                         </div>
                     </>

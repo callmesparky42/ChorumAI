@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-02-07
+
+### Added
+- **Semantic Deduplication**: Implemented consolidation-on-write to merge near-duplicates (>0.85 cosine similarity) instead of creating new entries, reducing corpus bloat (`src/lib/learning/analyzer.ts`).
+- **Debugging Query Intent**: Added `'debugging'` intent with specialized weight profile (0.35 recency, 2.0x antipattern boost) to improve relevance during bug fixing (`src/lib/chorum/classifier.ts`, `src/lib/chorum/relevance.ts`).
+- **Proportional Domain Scoring**: Replaced binary domain overlap with proportional Jaccard-like scoring (overlap / max size) to reward higher domain precision (`src/lib/chorum/relevance.ts`).
+- **Golden Path Extraction**: Added `golden_path` as a first-class extraction category for capturing step-by-step procedures (`src/lib/learning/analyzer.ts`).
+- **Decay-Aware Compilation**: Tier 1/2 compilers now strictly filter out items that have decayed below relevance threshold (`0.10`), ensuring caches reflect currently relevant knowledge (`src/lib/learning/compiler.ts`).
+
 ## [0.2.1] - 2026-02-07
 
 ### Fixed

@@ -272,7 +272,9 @@ Tier 1 and Tier 2 compilation respects these decay curves. When compiling your p
 - De-emphasizes stale golden paths (they may be outdated)
 - Filters out old antipatterns (you've already learned the lesson)
 
-This ensures your compiled context contains **living knowledge**, not historical artifacts.
+**Decay-Aware Filtering:** Items that have decayed below the relevance threshold (0.10) are excluded from Tier 1/2 caches entirely. This means a golden path from 6 months ago or an antipattern from a year ago won't appear in your compiled context, even if they have high historical usage counts. The cache reflects **currently relevant knowledge**, not historical artifacts.
+
+This ensures your compiled context contains **living knowledge**, not stale information.
 
 ---
 

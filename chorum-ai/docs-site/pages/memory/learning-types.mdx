@@ -156,6 +156,54 @@ All automatic extractions go to **Pending Learnings** for your approval before b
 
 ---
 
+## How Chorum Prevents Duplicate Knowledge
+
+As you work with Chorum, the same concepts naturally come up in different conversations. You might say "use early returns to reduce nesting" in one session and "prefer early returns over deep nesting" in another. These are semantically identical—they mean the same thing—but the wording differs slightly.
+
+### The Problem: Near-Duplicate Bloat
+
+Without deduplication, your memory corpus would accumulate near-duplicates:
+
+```
+✗ "Use early returns to reduce nesting"
+✗ "Prefer early returns over deep nesting"  
+✗ "Always use early returns to avoid deep if/else chains"
+```
+
+All three express the same pattern, but they'd compete for injection budget space. When Chorum retrieves memory for a query, it has a token limit. If 3 slots are filled with variations of the same idea, that's 2 wasted slots that could have held different, complementary knowledge.
+
+**The result:** Diluted retrieval quality. Your memory becomes bloated with redundancy, and the signal-to-noise ratio degrades.
+
+### The Solution: Semantic Deduplication
+
+When Chorum stores a new learning, it:
+
+1. **Generates an embedding** — A vector representation capturing the learning's meaning
+2. **Compares** it to existing learnings of the same type in your project
+3. **Checks similarity** — If cosine similarity > 85%, it's a near-duplicate
+4. **Merges instead of duplicating** — The existing learning is updated:
+   - Content is refreshed with the new phrasing (if more precise)
+   - Embedding is updated
+   - Usage count increments (signaling reinforcement)
+
+**Example:**
+
+You already have: *"Use early returns to reduce nesting"*
+
+You say: *"Prefer early returns over deep nesting"*
+
+Chorum detects 92% similarity → merges them → your corpus stays clean.
+
+### Why This Matters
+
+**Cleaner corpus** — No redundant entries competing for space  
+**Better retrieval** — Budget slots go to diverse, complementary knowledge  
+**Reinforcement signal** — Repeated mentions increment usage count, boosting relevance
+
+This happens automatically at write time, so you never see the duplicates—they're prevented before they pollute your memory.
+
+---
+
 ## Adding Learnings Manually
 
 1. Go to **Settings → Memory & Learning → Learned Knowledge**

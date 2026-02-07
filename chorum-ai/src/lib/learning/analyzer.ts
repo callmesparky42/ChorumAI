@@ -13,7 +13,7 @@ import { embeddings } from '@/lib/chorum/embeddings'
 import crypto from 'crypto'
 
 export interface ExtractedLearning {
-    type: 'pattern' | 'decision' | 'invariant' | 'antipattern'
+    type: 'pattern' | 'decision' | 'invariant' | 'antipattern' | 'golden_path'
     content: string
     context?: string
 }
@@ -23,6 +23,7 @@ export interface AnalysisResult {
     decisions: ExtractedLearning[]
     invariants: ExtractedLearning[]
     antipatterns: ExtractedLearning[]
+    goldenPaths: ExtractedLearning[]
 }
 
 const EXTRACTION_PROMPT = `You are analyzing a conversation turn to extract project-specific learnings.
@@ -37,13 +38,15 @@ Categories to extract:
 - DECISIONS: Explicit technical decisions with rationale (e.g., "We chose X because Y")
 - INVARIANTS: Rules that must NEVER be violated (e.g., "Always validate input before...")
 - ANTIPATTERNS: Things to avoid (e.g., "Don't use X because...")
+- GOLDEN_PATHS: Step-by-step procedures that worked well (e.g., "To deploy: run X, then Y, then Z")
 
 Return a JSON object with this structure:
 {
   "patterns": [{ "content": "...", "context": "..." }],
   "decisions": [{ "content": "...", "context": "..." }],
   "invariants": [{ "content": "...", "context": "..." }],
-  "antipatterns": [{ "content": "...", "context": "..." }]
+  "antipatterns": [{ "content": "...", "context": "..." }],
+  "golden_paths": [{ "content": "...", "context": "..." }]
 }
 
 If nothing worth extracting, return empty arrays for all categories.
@@ -62,7 +65,8 @@ export async function analyzeConversation(
         patterns: [],
         decisions: [],
         invariants: [],
-        antipatterns: []
+        antipatterns: [],
+        goldenPaths: []
     }
 
     if (!providerConfig) {
@@ -120,6 +124,11 @@ Analyze this conversation and extract any learnings.`
                 type: 'antipattern' as const,
                 content: a.content,
                 context: a.context
+            })),
+            goldenPaths: (parsed.golden_paths || []).map((g: any) => ({
+                type: 'golden_path' as const,
+                content: g.content,
+                context: g.context
             }))
         }
     } catch (e) {
@@ -128,11 +137,88 @@ Analyze this conversation and extract any learnings.`
     }
 }
 
+// ... imports
+import { sql } from 'drizzle-orm'
+
+// ... interfaces
+
+interface ExistingItemForDedup {
+    id: string
+    content: string
+    embedding: number[] | null
+    usageCount: number | null
+    createdAt: Date | null
+}
+
 /**
- * Generate a content hash for deduplication
+ * Calculate cosine similarity between two vectors
  */
-function hashContent(content: string): string {
-    return crypto.createHash('md5').update(content.toLowerCase().trim()).digest('hex')
+function cosineSimilarity(a: number[], b: number[]): number {
+    if (a.length !== b.length) return 0
+    let dot = 0, magA = 0, magB = 0
+    for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i]
+        magA += a[i] * a[i]
+        magB += b[i] * b[i]
+    }
+    return dot / (Math.sqrt(magA) * Math.sqrt(magB) || 1)
+}
+
+/**
+ * Find an existing item that is semantically near-duplicate of the new embedding.
+ * Returns the closest match above threshold, or null if no near-duplicate exists.
+ */
+function findNearDuplicate(
+    existingItems: ExistingItemForDedup[],
+    newEmbedding: number[],
+    threshold: number
+): ExistingItemForDedup | null {
+    let bestMatch: ExistingItemForDedup | null = null
+    let bestSimilarity = 0
+
+    for (const item of existingItems) {
+        if (!item.embedding || item.embedding.length === 0) continue
+
+        const similarity = cosineSimilarity(
+            newEmbedding,
+            item.embedding as number[]
+        )
+
+        if (similarity >= threshold && similarity > bestSimilarity) {
+            bestMatch = item
+            bestSimilarity = similarity
+        }
+    }
+
+    return bestMatch
+}
+
+/**
+ * Merge a new learning into an existing near-duplicate.
+ * Updates the existing item with newer wording and embedding.
+ */
+async function mergeWithExisting(
+    existing: ExistingItemForDedup,
+    newLearning: ExtractedLearning,
+    projectId: string,
+    newEmbedding: number[]
+): Promise<void> {
+    // Update existing item with newer wording and embedding
+    await db.update(projectLearningPaths)
+        .set({
+            content: newLearning.content,
+            context: newLearning.context || undefined,
+            embedding: newEmbedding,
+            usageCount: sql`${projectLearningPaths.usageCount} + 1`
+        })
+        .where(eq(projectLearningPaths.id, existing.id))
+
+    // Log the merge for observability
+    console.log(
+        `[Chorum:Dedup] Merged near-duplicate into ${existing.id.slice(0, 8)}... | ` +
+        `Old: "${existing.content.slice(0, 40)}..." → ` +
+        `New: "${newLearning.content.slice(0, 40)}..."`
+    )
 }
 
 /**
@@ -145,30 +231,15 @@ export async function storeLearnings(
     learnings: ExtractedLearning[],
     sourceMessageId?: string,
     userId?: string
-): Promise<{ stored: number; duplicates: number }> {
+): Promise<{ stored: number; duplicates: number; merged: number }> {
     let stored = 0
     let duplicates = 0
+    let merged = 0
 
     for (const learning of learnings) {
         const contentHash = hashContent(learning.content)
 
-        // Check for existing entry with same content
-        const existing = await db.select()
-            .from(projectLearningPaths)
-            .where(
-                and(
-                    eq(projectLearningPaths.projectId, projectId),
-                    eq(projectLearningPaths.type, learning.type)
-                )
-            )
-            .then(rows => rows.find(r => hashContent(r.content) === contentHash))
-
-        if (existing) {
-            duplicates++
-            continue
-        }
-
-        // Generate embedding
+        // Generate embedding first (needed for strict semantic check)
         let embedding: number[] | null = null
         try {
             // Context helps clarify the embedding space
@@ -179,8 +250,49 @@ export async function storeLearnings(
             embedding = await embeddings.embed(textToEmbed, userId)
         } catch (e) {
             console.error('[Analyzer] Failed to generate embedding:', e)
-            // We continue without embedding, but log it. 
-            // The system will fallback to recency/type scoring.
+            // Continue without embedding (will skip semantic dedup)
+        }
+
+        // 1. Exact Duplicate Check (MD5)
+        const existingExact = await db.select()
+            .from(projectLearningPaths)
+            .where(
+                and(
+                    eq(projectLearningPaths.projectId, projectId),
+                    eq(projectLearningPaths.type, learning.type)
+                )
+            )
+            .then(rows => rows.find(r => hashContent(r.content) === contentHash))
+
+        if (existingExact) {
+            duplicates++
+            continue
+        }
+
+        // 2. Semantic Duplicate Check (Cosine Similarity)
+        if (embedding && embedding.length > 0) {
+            const existingItems = await db.select({
+                id: projectLearningPaths.id,
+                content: projectLearningPaths.content,
+                embedding: projectLearningPaths.embedding,
+                usageCount: projectLearningPaths.usageCount,
+                createdAt: projectLearningPaths.createdAt
+            })
+                .from(projectLearningPaths)
+                .where(
+                    and(
+                        eq(projectLearningPaths.projectId, projectId),
+                        eq(projectLearningPaths.type, learning.type)
+                    )
+                )
+
+            const nearDuplicate = findNearDuplicate(existingItems, embedding, 0.85)
+
+            if (nearDuplicate) {
+                await mergeWithExisting(nearDuplicate, learning, projectId, embedding)
+                merged++
+                continue
+            }
         }
 
         // Insert new learning
@@ -196,13 +308,13 @@ export async function storeLearnings(
         stored++
     }
 
-    if (stored > 0) {
+    if (stored > 0 || merged > 0) {
         invalidateCache(projectId).catch(err =>
             console.error('[Analyzer] Failed to invalidate cache:', err)
         )
     }
 
-    return { stored, duplicates }
+    return { stored, duplicates, merged }
 }
 
 /**
@@ -216,7 +328,7 @@ export async function extractAndStoreLearnings(
     projectContext?: string,
     sourceMessageId?: string,
     userId?: string
-): Promise<{ stored: number; duplicates: number }> {
+): Promise<{ stored: number; duplicates: number; merged: number }> {
     const result = await analyzeConversation(
         userMessage,
         assistantResponse,
@@ -229,11 +341,12 @@ export async function extractAndStoreLearnings(
         ...result.patterns,
         ...result.decisions,
         ...result.invariants,
-        ...result.antipatterns
+        ...result.antipatterns,
+        ...result.goldenPaths
     ]
 
     if (allLearnings.length === 0) {
-        return { stored: 0, duplicates: 0 }
+        return { stored: 0, duplicates: 0, merged: 0 }
     }
 
     return await storeLearnings(projectId, allLearnings, sourceMessageId, userId)

@@ -1,21 +1,15 @@
-import type { LearningItem } from './types'
-import { callProvider, type FullProviderConfig } from '@/lib/providers'
+import { calculateDecay } from '@/lib/chorum/relevance'
 
-export interface CompiledCache {
-    tier: 1 | 2
-    compiledContext: string
-    tokenEstimate: number
-    learningCount: number
-    invariantCount: number
-}
-
-// Minimal type for provider config needed by compiler
-export interface CompilerProviderConfig {
-    provider: string
-    model: string
-    apiKey: string
-    baseUrl?: string
-    isLocal?: boolean
+/**
+ * Filter items whose decay score has fallen below the relevance floor.
+ * Items that have decayed below threshold shouldn't be compiled into
+ * cached context, even if they have high usage counts.
+ */
+function isStillRelevant(item: LearningItem, minDecayScore: number = 0.10): boolean {
+    const daysSince = item.createdAt
+        ? (Date.now() - item.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+        : 365
+    return calculateDecay(daysSince, item.type) > minDecayScore
 }
 
 /**
@@ -32,15 +26,30 @@ export async function compileTier1(
     const patterns = learnings.filter(l => l.type === 'pattern')
     const decisions = learnings.filter(l => l.type === 'decision')
 
-    // 2. Rank within each type by usage count
-    const topInvariants = invariants.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0)).slice(0, 5)
-    const topPatterns = patterns.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0)).slice(0, 5)
-    const topDecisions = decisions.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0)).slice(0, 3)
+    // 2. Rank within each type by usage count (filtered by decay)
+    const topInvariants = invariants
+        .filter(i => isStillRelevant(i))
+        .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+        .slice(0, 5)
+
+    const topPatterns = patterns
+        .filter(i => isStillRelevant(i))
+        .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+        .slice(0, 5)
+
+    const topDecisions = decisions
+        .filter(i => isStillRelevant(i))
+        .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+        .slice(0, 3)
+
+    // ... (rest of compileTier1)
 
     // 3. If total items <= 3 or no provider, just format directly
     if (!provider || topInvariants.length + topPatterns.length + topDecisions.length <= 3) {
+        // ...
         const minimal = formatMinimalContext(topInvariants, topPatterns, topDecisions)
         return {
+            // ...
             tier: 1,
             compiledContext: minimal,
             tokenEstimate: estimateTokens(minimal),
@@ -87,7 +96,7 @@ export async function compileTier2(
     const goldenPaths = learnings.filter(l => l.type === 'golden_path')
     const antipatterns = learnings.filter(l => l.type === 'antipattern')
 
-    // 1. ALL invariants go in
+    // 1. ALL invariants go in (they never decay)
     const invariantSection = invariants.length
         ? `## Rules (Never Violate)\n${invariants.map(i => `- ${i.content}`).join('\n')}`
         : ''
@@ -99,29 +108,42 @@ export async function compileTier2(
     const clusterSections: string[] = []
     for (const [domain, items] of Object.entries(domainClusters)) {
         if (items.length <= 3 || !provider) {
-            // Small cluster or no provider: list top 3
-            const top = items.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0)).slice(0, 3)
-            clusterSections.push(`**${domain}:** ${top.map(i => i.content).join('; ')}`)
+            // Small cluster or no provider: list top 3 relevant
+            const top = items
+                .filter(i => isStillRelevant(i))
+                .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+                .slice(0, 3)
+
+            if (top.length > 0) {
+                clusterSections.push(`**${domain}:** ${top.map(i => i.content).join('; ')}`)
+            }
         } else {
+            // Filter relevant items before summarizing
+            const relevantItems = items.filter(i => isStillRelevant(i))
+
+            if (relevantItems.length === 0) continue
+
             try {
-                const summary = await summarizeCluster(domain, items, provider)
+                const summary = await summarizeCluster(domain, relevantItems, provider)
                 clusterSections.push(`**${domain}:** ${summary}`)
             } catch (e) {
                 console.warn(`Cluster summary for ${domain} failed, falling back to list`, e)
-                const top = items.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0)).slice(0, 3)
+                const top = relevantItems.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0)).slice(0, 3)
                 clusterSections.push(`**${domain}:** ${top.map(i => i.content).join('; ')}`)
             }
         }
     }
 
     // 4. Recipes (Golden Paths)
-    const gpSection = goldenPaths.length
-        ? `## Recipes\n${goldenPaths.slice(0, 3).map(g => `- ${g.content}`).join('\n')}`
+    const relevantGP = goldenPaths.filter(g => isStillRelevant(g))
+    const gpSection = relevantGP.length
+        ? `## Recipes\n${relevantGP.slice(0, 3).map(g => `- ${g.content}`).join('\n')}`
         : ''
 
     // 5. Antipatterns
-    const apSection = antipatterns.length
-        ? `## Avoid\n${antipatterns.slice(0, 3).map(a => `- ${a.content}`).join('\n')}`
+    const relevantAP = antipatterns.filter(a => isStillRelevant(a))
+    const apSection = relevantAP.length
+        ? `## Avoid\n${relevantAP.slice(0, 3).map(a => `- ${a.content}`).join('\n')}`
         : ''
 
     // 6. Assemble

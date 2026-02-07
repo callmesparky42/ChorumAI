@@ -100,7 +100,7 @@ export async function processQueue(userId?: string): Promise<{ processed: number
                     })
                     .where(eq(learningQueue.id, item.id))
 
-                console.log(`[Queue] Processed item ${item.id}: ${result.stored} stored, ${result.duplicates} duplicates`)
+                console.log(`[Queue] Processed item ${item.id}: ${result.stored} stored, ${result.duplicates} duplicates, ${result.merged} merged`)
                 processed++
             } catch (e) {
                 const errorMessage = e instanceof Error ? e.message : 'Unknown error'

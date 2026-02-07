@@ -79,7 +79,9 @@ export class RelevanceClassifier {
             intent = 'greeting'
         } else if (lower.includes('write') || lower.includes('generate') || lower.includes('create') || lower.includes('implement')) {
             intent = 'generation'
-        } else if (lower.includes('why') || lower.includes('analyze') || lower.includes('explain') || lower.includes('debug')) {
+        } else if (lower.includes('debug') || lower.includes('fix') || lower.includes('error') || lower.includes('bug') || lower.includes('crash') || lower.includes('failing') || lower.includes('broken') || lower.includes('not working')) {
+            intent = 'debugging'
+        } else if (lower.includes('why') || lower.includes('analyze') || lower.includes('explain')) {
             intent = 'analysis'
         } else if (lower.includes('what') || lower.includes('how') || lower.includes('?')) {
             intent = 'question'
@@ -98,7 +100,7 @@ export class RelevanceClassifier {
 
         if (intent === 'greeting' || (length < THRESHOLDS.TRIVIAL_MAX_LENGTH && !referencesHistory)) {
             complexity = 'trivial'
-        } else if (intent === 'analysis' || (hasCodeContext && length > THRESHOLDS.COMPLEX_CODE_LENGTH)) {
+        } else if (intent === 'analysis' || intent === 'debugging' || (hasCodeContext && length > THRESHOLDS.COMPLEX_CODE_LENGTH)) {
             complexity = 'complex'
         } else if (intent === 'generation' || hasCodeContext) {
             complexity = 'moderate'
@@ -136,7 +138,7 @@ export class RelevanceClassifier {
         if (classification.conversationDepth > BUDGET_MODIFIERS.CONVERSATION_DEPTH_THRESHOLD) {
             base *= BUDGET_MODIFIERS.DEEP_CONVERSATION
         }
-        if (classification.intent === 'analysis') {
+        if (classification.intent === 'analysis' || classification.intent === 'debugging') {
             base *= BUDGET_MODIFIERS.ANALYSIS_INTENT
         }
 

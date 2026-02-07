@@ -78,8 +78,21 @@ Chorum classifies your query in under 50ms using local heuristics (no LLM call r
 | **Trivial** | Greetings, thanks, short affirmations | "hi", "thanks!" |
 | **Simple** | Quick questions, single concepts | "What port does this run on?" |
 | **Moderate** | Standard development tasks | "Write a function to validate email" |
-| **Complex** | Debugging, multi-file work | "Why is this test failing?" |
+| **Complex** | Debugging, multi-file work, analysis | "Why is this test failing?", "Debug this error" |
 | **Deep** | Architecture, analysis | "Review this system design" |
+
+### Query Intent
+
+Chorum also classifies the **intent** of your query to adjust scoring weights:
+
+| Intent | When Detected | Scoring Adjustments |
+|--------|---------------|---------------------|
+| **Question** | "what", "how", "?" | Balanced weights (default) |
+| **Generation** | "write", "create", "implement" | Patterns +2.0x, Golden Paths +1.5x |
+| **Analysis** | "why", "analyze", "explain" | Decisions +2.0x |
+| **Debugging** | "debug", "fix", "error", "bug" | Recency +35%, Antipatterns +2.0x |
+| **Discussion** | General conversation | Balanced weights |
+| **Continuation** | Follow-up in long thread | Recency +30% |
 
 ### Classification Signals
 
@@ -143,7 +156,14 @@ recencyScore = e^(-daysSince / 30)
 ```
 
 **Domain Match (15%)**
-If your query is about TypeScript and a learning is tagged "typescript", it gets a +0.15 boost.
+
+Proportional scoring based on domain overlap. If your query mentions "database" and "security", a learning tagged with both scores higher than one tagged with just "database":
+
+```
+domainScore = 0.2 × (overlap / max(queryDomains, learningDomains))
+```
+
+This rewards precision—learnings that match more of your query's domains rank higher.
 
 **Usage Frequency (5%)**
 Patterns that get referenced frequently are more valuable. Capped at +0.15 after 10 uses.

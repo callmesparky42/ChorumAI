@@ -54,7 +54,7 @@ Under the hood, every learning is converted to a vector embedding—a numerical 
 ```
 
 1. **Learn** — Chorum analyzes conversations to extract patterns, decisions, and invariants
-2. **Store** — Each learning is embedded and stored with metadata (type, timestamp, source)
+2. **Store** — Each learning is embedded and stored with metadata (type, timestamp, source). Chorum checks for semantic near-duplicates (>85% similar) and merges them instead of creating bloat.
 3. **Retrieve** — When you ask a question, relevant memories are scored and ranked
 4. **Inject** — Memories are injected into the LLM's context, adapted to the model's size via [Tiered Context](./tiered-context.md)
 

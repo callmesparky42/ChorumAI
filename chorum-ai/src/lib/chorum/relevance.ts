@@ -170,6 +170,19 @@ const WEIGHT_PROFILES: Record<string, WeightProfile> = {
             antipattern: 1.0
         }
     },
+    debugging: {
+        semantic: 0.30,         // Lower — when debugging, you often don't know the right search terms
+        recency: 0.35,          // Highest of any intent — recent context is critical when debugging
+        domain: 0.15,
+        usage: 0.05,
+        typeBoostMultiplier: {
+            invariant: 1.0,
+            pattern: 1.0,
+            decision: 0.5,      // Architectural decisions less relevant when fixing a bug
+            golden_path: 1.5,   // Step-by-step recipes can help fix recurring issues
+            antipattern: 2.0    // "Don't do X" is critical when you might be doing X
+        }
+    },
     greeting: {
         // Greetings get trivial budget anyway, but define for completeness
         semantic: 0.50,
@@ -239,9 +252,13 @@ export class RelevanceEngine {
 
             // 3. Domain Score
             let domainScore = 0
-            if (item.domains && classification.domains.length > 0) {
+            if (item.domains && item.domains.length > 0 && classification.domains.length > 0) {
                 const overlap = item.domains.filter(d => classification.domains.includes(d))
-                if (overlap.length > 0) domainScore = 0.2
+                if (overlap.length > 0) {
+                    // Proportional: reward items that match on more domains
+                    // Jaccard-inspired: overlap / max(either set) — biased toward precision
+                    domainScore = 0.2 * (overlap.length / Math.max(item.domains.length, classification.domains.length))
+                }
             }
 
             // 4. Usage Score
