@@ -5,6 +5,7 @@ import { LearningDashboard } from '@/components/LearningDashboard'
 import { McpSettings } from '@/components/settings/McpSettings'
 import { McpServersSettings } from '@/components/settings/McpServersSettings'
 import { PendingLearnings } from '@/components/PendingLearnings'
+import { SearchSettings } from '@/components/settings/SearchSettings'
 import Link from 'next/link'
 import clsx from 'clsx'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -320,6 +321,7 @@ function SettingsContent() {
         { id: 'general', label: 'General', icon: User },
         { id: 'security', label: 'Security', icon: Lock },
         { id: 'memory', label: 'Memory & Learning', icon: Brain },
+        { id: 'search', label: 'Web Search', icon: ExternalLink },
         { id: 'mcp', label: 'MCP Integration', icon: Terminal },
         { id: 'mcp-servers', label: 'MCP Servers', icon: Server },
         { id: 'resilience', label: 'Resilience', icon: RefreshCw },
@@ -681,6 +683,14 @@ function SettingsContent() {
                             </div>
                         )}
                     </>
+                )}
+
+
+                {/* Search Tab */}
+                {activeTab === 'search' && (
+                    <div className="max-w-3xl">
+                        <SearchSettings />
+                    </div>
                 )}
 
                 {/* MCP Integration Tab */}
@@ -1302,15 +1312,15 @@ function SettingsContent() {
                                         Quick Reference
                                     </h3>
                                     <div className="space-y-3 text-sm text-gray-300">
-                                        <a href="https://docs.chorumai.com/projects" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
+                                        <a href="https://docs.chorumai.com/projects/overview" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
                                             <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Projects</p>
                                             <p className="text-gray-400">Organize conversations by project. Switch using the sidebar.</p>
                                         </a>
-                                        <a href="https://docs.chorumai.com/chat/routing" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
+                                        <a href="https://docs.chorumai.com/settings/api-keys" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
                                             <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Intelligent Routing</p>
                                             <p className="text-gray-400">ChorumAI auto-selects the best model for your task.</p>
                                         </a>
-                                        <a href="https://docs.chorumai.com/settings" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
+                                        <a href="https://docs.chorumai.com/settings/budgets" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
                                             <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Cost Tracking</p>
                                             <p className="text-gray-400">Monitor usage in real-time via the top bar.</p>
                                         </a>
@@ -1464,7 +1474,7 @@ function SettingsContent() {
                             <div className="flex items-center gap-6">
                                 <div className="text-center px-6 py-3 bg-gray-900 rounded-xl border border-gray-800">
                                     <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Version</p>
-                                    <p className="text-xl font-mono text-white mt-1">v1.1.3</p>
+                                    <p className="text-xl font-mono text-white mt-1">v1.1.4</p>
                                 </div>
                                 <a
                                     href="https://github.com/ChorumAI/chorum-ai"
@@ -1489,260 +1499,264 @@ function SettingsContent() {
             </div>
 
             {/* Add Provider Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-lg p-6 shadow-2xl">
-                        <h3 className="text-lg font-medium mb-4">Add Provider</h3>
-                        <form onSubmit={handleAddProvider} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-2">Provider Type</label>
-                                <select
-                                    value={formProvider}
-                                    onChange={(e) => {
-                                        const newProvider = e.target.value
-                                        setFormProvider(newProvider)
-                                        // Set default model for this provider
-                                        const preset = PROVIDER_PRESETS[newProvider]
-                                        if (preset?.models?.[0]) setFormModel(preset.models[0])
-                                        // Set default base URL
-                                        setFormBaseUrl(preset?.defaultBaseUrl || '')
-                                        // Fetch available models for local providers
-                                        if (newProvider === 'ollama' || newProvider === 'lmstudio') {
-                                            fetchLocalModels(newProvider)
-                                        }
-                                    }}
-                                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                >
-                                    <optgroup label="Cloud Providers">
-                                        <option value="anthropic">Anthropic (Claude)</option>
-                                        <option value="openai">OpenAI (GPT)</option>
-                                        <option value="google">Google (Gemini)</option>
-                                        <option value="mistral">Mistral AI</option>
-                                        <option value="deepseek">DeepSeek</option>
-                                        <option value="perplexity">Perplexity AI</option>
-                                        <option value="xai">xAI (Grok)</option>
-                                        <option value="glm">GLM-4 (Zhipu AI)</option>
-                                    </optgroup>
-                                    <optgroup label="Local / Custom">
-                                        <option value="ollama">Ollama (Local)</option>
-                                        <option value="lmstudio">LM Studio (Local)</option>
-                                        <option value="openai-compatible">OpenAI-Compatible API</option>
-                                    </optgroup>
-                                </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
+            {
+                showModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-lg p-6 shadow-2xl">
+                            <h3 className="text-lg font-medium mb-4">Add Provider</h3>
+                            <form onSubmit={handleAddProvider} className="space-y-4">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">
-                                        Model
-                                        {fetchingLocalModels && (
-                                            <Loader2 className="inline w-3 h-3 ml-1 animate-spin" />
+                                    <label className="block text-xs font-medium text-gray-400 mb-2">Provider Type</label>
+                                    <select
+                                        value={formProvider}
+                                        onChange={(e) => {
+                                            const newProvider = e.target.value
+                                            setFormProvider(newProvider)
+                                            // Set default model for this provider
+                                            const preset = PROVIDER_PRESETS[newProvider]
+                                            if (preset?.models?.[0]) setFormModel(preset.models[0])
+                                            // Set default base URL
+                                            setFormBaseUrl(preset?.defaultBaseUrl || '')
+                                            // Fetch available models for local providers
+                                            if (newProvider === 'ollama' || newProvider === 'lmstudio') {
+                                                fetchLocalModels(newProvider)
+                                            }
+                                        }}
+                                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                    >
+                                        <optgroup label="Cloud Providers">
+                                            <option value="anthropic">Anthropic (Claude)</option>
+                                            <option value="openai">OpenAI (GPT)</option>
+                                            <option value="google">Google (Gemini)</option>
+                                            <option value="mistral">Mistral AI</option>
+                                            <option value="deepseek">DeepSeek</option>
+                                            <option value="perplexity">Perplexity AI</option>
+                                            <option value="xai">xAI (Grok)</option>
+                                            <option value="glm">GLM-4 (Zhipu AI)</option>
+                                        </optgroup>
+                                        <optgroup label="Local / Custom">
+                                            <option value="ollama">Ollama (Local)</option>
+                                            <option value="lmstudio">LM Studio (Local)</option>
+                                            <option value="openai-compatible">OpenAI-Compatible API</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">
+                                            Model
+                                            {fetchingLocalModels && (
+                                                <Loader2 className="inline w-3 h-3 ml-1 animate-spin" />
+                                            )}
+                                        </label>
+                                        <select
+                                            value={formModel}
+                                            onChange={(e) => setFormModel(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                            disabled={fetchingLocalModels}
+                                        >
+                                            {/* Show discovered models for local providers */}
+                                            {(formProvider === 'ollama' && localModels.ollama.available) ? (
+                                                localModels.ollama.models.map(m => (
+                                                    <option key={m} value={m}>{m}</option>
+                                                ))
+                                            ) : (formProvider === 'lmstudio' && localModels.lmstudio.available) ? (
+                                                localModels.lmstudio.models.map(m => (
+                                                    <option key={m} value={m}>{m}</option>
+                                                ))
+                                            ) : (
+                                                PROVIDER_PRESETS[formProvider]?.models.map(m => (
+                                                    <option key={m} value={m}>{m}</option>
+                                                ))
+                                            )}
+                                            <option value="custom">Custom...</option>
+                                        </select>
+                                        {/* Show error/warning for local providers */}
+                                        {formProvider === 'ollama' && !localModels.ollama.available && localModels.ollama.error && (
+                                            <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
+                                                <WifiOff className="w-3 h-3" />
+                                                {localModels.ollama.error}
+                                            </p>
                                         )}
-                                    </label>
+                                        {formProvider === 'lmstudio' && !localModels.lmstudio.available && localModels.lmstudio.error && (
+                                            <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
+                                                <WifiOff className="w-3 h-3" />
+                                                {localModels.lmstudio.error}
+                                            </p>
+                                        )}
+                                        {/* Show success indicator */}
+                                        {formProvider === 'ollama' && localModels.ollama.available && (
+                                            <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
+                                                <Wifi className="w-3 h-3" />
+                                                Connected - {localModels.ollama.models.length} model(s) found
+                                            </p>
+                                        )}
+                                        {formProvider === 'lmstudio' && localModels.lmstudio.available && (
+                                            <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
+                                                <Wifi className="w-3 h-3" />
+                                                Connected - {localModels.lmstudio.models.length} model(s) found
+                                            </p>
+                                        )}
+                                    </div>
+                                    {formModel === 'custom' && (
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-400 mb-1">Custom Model ID</label>
+                                            <input
+                                                type="text"
+                                                onChange={e => setFormModel(e.target.value)}
+                                                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                                placeholder="model-name"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {providerNeedsKey(formProvider) && (
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">API Key</label>
+                                        <input
+                                            type="password"
+                                            value={formKey}
+                                            onChange={e => setFormKey(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                            placeholder="sk-..."
+                                            required={providerNeedsKey(formProvider)}
+                                        />
+                                    </div>
+                                )}
+
+                                {providerIsLocal(formProvider) && (
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Base URL</label>
+                                        <input
+                                            type="text"
+                                            value={formBaseUrl}
+                                            onChange={e => setFormBaseUrl(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white font-mono text-sm"
+                                            placeholder="http://localhost:11434"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">The endpoint URL for your local server</p>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    {!providerIsLocal(formProvider) && (
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-400 mb-1">Daily Budget ($)</label>
+                                            <input
+                                                type="number"
+                                                value={formBudget}
+                                                onChange={e => setFormBudget(e.target.value)}
+                                                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Display Name (optional)</label>
+                                        <input
+                                            type="text"
+                                            value={formDisplayName}
+                                            onChange={e => setFormDisplayName(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                            placeholder="My Custom LLM"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-3 mt-6">
+                                    <button type="button" onClick={() => { setShowModal(false); resetForm() }} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+                                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white">Add Provider</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Edit Provider Modal */}
+            {
+                showEditModal && editingProvider && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-lg p-6 shadow-2xl">
+                            <h3 className="text-lg font-medium mb-4">Edit Provider</h3>
+                            <p className="text-sm text-gray-400 mb-4">
+                                Editing: <span className="text-white font-medium">{PROVIDER_PRESETS[editingProvider.provider]?.name || editingProvider.provider}</span>
+                            </p>
+                            <form onSubmit={handleEditProvider} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-400 mb-1">Model</label>
                                     <select
                                         value={formModel}
                                         onChange={(e) => setFormModel(e.target.value)}
                                         className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                        disabled={fetchingLocalModels}
                                     >
-                                        {/* Show discovered models for local providers */}
-                                        {(formProvider === 'ollama' && localModels.ollama.available) ? (
-                                            localModels.ollama.models.map(m => (
-                                                <option key={m} value={m}>{m}</option>
-                                            ))
-                                        ) : (formProvider === 'lmstudio' && localModels.lmstudio.available) ? (
-                                            localModels.lmstudio.models.map(m => (
-                                                <option key={m} value={m}>{m}</option>
-                                            ))
-                                        ) : (
-                                            PROVIDER_PRESETS[formProvider]?.models.map(m => (
-                                                <option key={m} value={m}>{m}</option>
-                                            ))
-                                        )}
-                                        <option value="custom">Custom...</option>
+                                        {PROVIDER_PRESETS[editingProvider.provider]?.models.map(m => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                        <option value={formModel}>{formModel}</option>
                                     </select>
-                                    {/* Show error/warning for local providers */}
-                                    {formProvider === 'ollama' && !localModels.ollama.available && localModels.ollama.error && (
-                                        <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
-                                            <WifiOff className="w-3 h-3" />
-                                            {localModels.ollama.error}
-                                        </p>
-                                    )}
-                                    {formProvider === 'lmstudio' && !localModels.lmstudio.available && localModels.lmstudio.error && (
-                                        <p className="text-xs text-amber-500 mt-1 flex items-center gap-1">
-                                            <WifiOff className="w-3 h-3" />
-                                            {localModels.lmstudio.error}
-                                        </p>
-                                    )}
-                                    {/* Show success indicator */}
-                                    {formProvider === 'ollama' && localModels.ollama.available && (
-                                        <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
-                                            <Wifi className="w-3 h-3" />
-                                            Connected - {localModels.ollama.models.length} model(s) found
-                                        </p>
-                                    )}
-                                    {formProvider === 'lmstudio' && localModels.lmstudio.available && (
-                                        <p className="text-xs text-green-500 mt-1 flex items-center gap-1">
-                                            <Wifi className="w-3 h-3" />
-                                            Connected - {localModels.lmstudio.models.length} model(s) found
-                                        </p>
-                                    )}
                                 </div>
-                                {formModel === 'custom' && (
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-400 mb-1">Custom Model ID</label>
-                                        <input
-                                            type="text"
-                                            onChange={e => setFormModel(e.target.value)}
-                                            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                            placeholder="model-name"
-                                        />
-                                    </div>
-                                )}
-                            </div>
 
-                            {providerNeedsKey(formProvider) && (
                                 <div>
                                     <label className="block text-xs font-medium text-gray-400 mb-1">API Key</label>
-                                    <input
-                                        type="password"
-                                        value={formKey}
-                                        onChange={e => setFormKey(e.target.value)}
-                                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                        placeholder="sk-..."
-                                        required={providerNeedsKey(formProvider)}
-                                    />
+                                    <div className="w-full bg-gray-950/50 border border-gray-800 rounded-lg px-3 py-2 text-gray-500 font-mono text-sm">
+                                        ••••••••••••••••
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">To change the API key, delete this provider and create a new one.</p>
                                 </div>
-                            )}
 
-                            {providerIsLocal(formProvider) && (
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">Base URL</label>
-                                    <input
-                                        type="text"
-                                        value={formBaseUrl}
-                                        onChange={e => setFormBaseUrl(e.target.value)}
-                                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white font-mono text-sm"
-                                        placeholder="http://localhost:11434"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">The endpoint URL for your local server</p>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                {!providerIsLocal(formProvider) && (
+                                {editingProvider.isLocal && (
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-400 mb-1">Daily Budget ($)</label>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Base URL</label>
                                         <input
-                                            type="number"
-                                            value={formBudget}
-                                            onChange={e => setFormBudget(e.target.value)}
-                                            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                            min="0"
-                                            step="0.01"
+                                            type="text"
+                                            value={formBaseUrl}
+                                            onChange={e => setFormBaseUrl(e.target.value)}
+                                            className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white font-mono text-sm"
+                                            placeholder="http://localhost:11434"
                                         />
                                     </div>
                                 )}
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">Display Name (optional)</label>
-                                    <input
-                                        type="text"
-                                        value={formDisplayName}
-                                        onChange={e => setFormDisplayName(e.target.value)}
-                                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                        placeholder="My Custom LLM"
-                                    />
-                                </div>
-                            </div>
 
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => { setShowModal(false); resetForm() }} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white">Add Provider</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Edit Provider Modal */}
-            {showEditModal && editingProvider && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-lg p-6 shadow-2xl">
-                        <h3 className="text-lg font-medium mb-4">Edit Provider</h3>
-                        <p className="text-sm text-gray-400 mb-4">
-                            Editing: <span className="text-white font-medium">{PROVIDER_PRESETS[editingProvider.provider]?.name || editingProvider.provider}</span>
-                        </p>
-                        <form onSubmit={handleEditProvider} className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1">Model</label>
-                                <select
-                                    value={formModel}
-                                    onChange={(e) => setFormModel(e.target.value)}
-                                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                >
-                                    {PROVIDER_PRESETS[editingProvider.provider]?.models.map(m => (
-                                        <option key={m} value={m}>{m}</option>
-                                    ))}
-                                    <option value={formModel}>{formModel}</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1">API Key</label>
-                                <div className="w-full bg-gray-950/50 border border-gray-800 rounded-lg px-3 py-2 text-gray-500 font-mono text-sm">
-                                    ••••••••••••••••
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">To change the API key, delete this provider and create a new one.</p>
-                            </div>
-
-                            {editingProvider.isLocal && (
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">Base URL</label>
-                                    <input
-                                        type="text"
-                                        value={formBaseUrl}
-                                        onChange={e => setFormBaseUrl(e.target.value)}
-                                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white font-mono text-sm"
-                                        placeholder="http://localhost:11434"
-                                    />
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-4">
-                                {!editingProvider.isLocal && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    {!editingProvider.isLocal && (
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-400 mb-1">Daily Budget ($)</label>
+                                            <input
+                                                type="number"
+                                                value={formBudget}
+                                                onChange={e => setFormBudget(e.target.value)}
+                                                className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
+                                                min="0"
+                                                step="0.01"
+                                            />
+                                        </div>
+                                    )}
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-400 mb-1">Daily Budget ($)</label>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Display Name</label>
                                         <input
-                                            type="number"
-                                            value={formBudget}
-                                            onChange={e => setFormBudget(e.target.value)}
+                                            type="text"
+                                            value={formDisplayName}
+                                            onChange={e => setFormDisplayName(e.target.value)}
                                             className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                            min="0"
-                                            step="0.01"
+                                            placeholder="My Custom LLM"
                                         />
                                     </div>
-                                )}
-                                <div>
-                                    <label className="block text-xs font-medium text-gray-400 mb-1">Display Name</label>
-                                    <input
-                                        type="text"
-                                        value={formDisplayName}
-                                        onChange={e => setFormDisplayName(e.target.value)}
-                                        className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white"
-                                        placeholder="My Custom LLM"
-                                    />
                                 </div>
-                            </div>
 
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => { setShowEditModal(false); setEditingProvider(null); resetForm() }} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white">Save Changes</button>
-                            </div>
-                        </form>
+                                <div className="flex justify-end gap-3 mt-6">
+                                    <button type="button" onClick={() => { setShowEditModal(false); setEditingProvider(null); resetForm() }} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
+                                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     )
 }
 

@@ -28,6 +28,7 @@ import { queueForLearning } from '@/lib/learning/queue'
 import { extractAndStoreLearnings } from '@/lib/learning/analyzer'
 import { getExperimentVariant } from '@/lib/experiments'
 import { ensureUserExists } from '@/lib/user-init'
+import { WEB_SEARCH_TOOL_DEFINITION, executeWebSearch, isSearchEnabled } from '@/lib/search'
 
 export async function POST(req: NextRequest) {
     try {
@@ -381,6 +382,17 @@ export async function POST(req: NextRequest) {
         let toolDefinitions: ToolDefinition[] = []
         try {
             mcpTools = await getToolsForUser(userId)
+
+            // [Search] Inject native search tool if enabled
+            if (await isSearchEnabled(userId)) {
+                // We treat it compatible with McpTool interface for the definition part
+                mcpTools.push({
+                    ...WEB_SEARCH_TOOL_DEFINITION,
+                    serverId: 'native-search',
+                    serverName: 'Chorum Search'
+                })
+            }
+
             toolDefinitions = mcpTools.map(t => ({
                 name: t.name,
                 description: t.description,
@@ -586,7 +598,19 @@ export async function POST(req: NextRequest) {
 
                     try {
                         console.log(`[MCP] Executing tool: ${toolCall.name}`)
-                        const toolResult = await executeToolCall(userId, toolCall.name, toolCall.arguments)
+
+                        let toolResult;
+
+                        // Handle Native Search Tool
+                        if (toolCall.name === WEB_SEARCH_TOOL_DEFINITION.name) {
+                            toolResult = await executeWebSearch(
+                                userId,
+                                toolCall.arguments as { query: string; num_results?: number }
+                            )
+                        } else {
+                            // Handle External MCP Tools
+                            toolResult = await executeToolCall(userId, toolCall.name, toolCall.arguments)
+                        }
 
                         const resultContent = toolResult.content
                             .filter(c => c.type === 'text' && c.text)
@@ -905,6 +929,10 @@ export async function POST(req: NextRequest) {
             tools: toolsUsed.length > 0 ? {
                 used: toolsUsed,
                 availableCount: toolDefinitions.length
+            } : null,
+            search: toolsUsed.some(t => t.name === WEB_SEARCH_TOOL_DEFINITION.name) ? {
+                executed: true,
+                count: toolsUsed.filter(t => t.name === WEB_SEARCH_TOOL_DEFINITION.name).length
             } : null
         })
 

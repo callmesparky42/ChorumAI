@@ -22,6 +22,7 @@ The sidebar shows all settings categories:
 | **General** | Profile info, display preferences |
 | **Security** | HTTPS enforcement, PII anonymization, SSL |
 | **Memory & Learning** | Auto-learn, context injection, summarization |
+| **Web Search** | Configure Serper API, enable internet access |
 | **MCP Integration** | Connect external AI agents (Claude Desktop, Cursor) |
 | **Resilience** | Fallback chains, local model configuration |
 | **Help** | Documentation links, support |
@@ -50,7 +51,10 @@ Set daily limits per provider to avoid surprise bills. See [Budget Management](.
 ### 3. Memory & Learning
 Enable auto-learning so Chorum remembers your patterns and decisions.
 
-### 4. Security
+### 4. Web Search
+Enable internet access for real-time information. See [Web Search](./web-search.md).
+
+### 5. Security
 Enable PII anonymization if you're working with sensitive data.
 
 ---

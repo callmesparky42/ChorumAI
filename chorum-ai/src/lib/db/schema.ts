@@ -28,7 +28,15 @@ export const users = pgTable('user', {
     autoSummarize: boolean        // Auto-summarize old conversations
     validateResponses: boolean    // Check against invariants
     smartAgentRouting: boolean    // Auto-select agent per message
+    // Search settings
+    search?: {
+      enabled: boolean
+      provider: 'serper'
+      autoSearch: boolean
+    }
   }>(),
+  // Third-party API keys (encrypted)
+  serperApiKeyEncrypted: text('serper_api_key_encrypted'),
   // Onboarding tracking
   onboardingCompleted: boolean('onboarding_completed').default(false),
   onboardingStep: integer('onboarding_step').default(0), // 0=not started, 1-5=in progress, 6=complete
