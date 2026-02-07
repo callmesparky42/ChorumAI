@@ -1302,18 +1302,18 @@ function SettingsContent() {
                                         Quick Reference
                                     </h3>
                                     <div className="space-y-3 text-sm text-gray-300">
-                                        <div>
-                                            <p className="font-medium text-white mb-1">Projects</p>
+                                        <a href="https://docs.chorumai.com/projects" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
+                                            <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Projects</p>
                                             <p className="text-gray-400">Organize conversations by project. Switch using the sidebar.</p>
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-white mb-1">Intelligent Routing</p>
+                                        </a>
+                                        <a href="https://docs.chorumai.com/chat/routing" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
+                                            <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Intelligent Routing</p>
                                             <p className="text-gray-400">ChorumAI auto-selects the best model for your task.</p>
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-white mb-1">Cost Tracking</p>
+                                        </a>
+                                        <a href="https://docs.chorumai.com/settings" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
+                                            <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Cost Tracking</p>
                                             <p className="text-gray-400">Monitor usage in real-time via the top bar.</p>
-                                        </div>
+                                        </a>
                                     </div>
                                 </section>
 

@@ -1,6 +1,7 @@
 import { parseChangelog } from '@/lib/changelog/parser';
-import { Calendar, Package, Plus, Wrench, Trash2, AlertTriangle, Shield } from 'lucide-react';
+import { Calendar, Package, Plus, Wrench, Trash2, AlertTriangle, Shield, ArrowLeft } from 'lucide-react';
 import { ChangelogEntry, ChangelogSection } from '@/lib/changelog/parser';
+import Link from 'next/link';
 
 const categoryIcons = {
     Added: Plus,
@@ -85,6 +86,11 @@ function ReleaseCard({ entry, isLatest }: { entry: ChangelogEntry; isLatest: boo
 // Simple markdown formatter for inline formatting
 function formatMarkdown(text: string): string {
     return text
+        // Remove file path references like (src/lib/...) or (`src/lib/...`)
+        .replace(/\s*\(`?src\/[^)]+`?\)\.?/g, '.')
+        .replace(/\s*\(`?[a-zA-Z]+\/[a-zA-Z/]+\.[a-z]+`?(?:,\s*`?[a-zA-Z]+\/[a-zA-Z/]+\.[a-z]+`?)*\)\.?/g, '.')
+        // Clean up double periods
+        .replace(/\.\.+/g, '.')
         // Bold: **text** -> <strong>text</strong>
         .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>')
         // Code: `text` -> <code>text</code>
@@ -98,9 +104,20 @@ export default function ChangelogPage() {
 
     return (
         <div className="min-h-screen bg-black">
+            {/* Back Button */}
+            <div className="absolute top-6 left-6">
+                <Link
+                    href="/"
+                    className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to App
+                </Link>
+            </div>
+
             {/* Hero Section */}
             <div className="border-b border-gray-800 bg-gradient-to-b from-gray-900/50 to-black">
-                <div className="max-w-4xl mx-auto px-6 py-16">
+                <div className="max-w-4xl mx-auto px-6 py-16 pt-20">
                     <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
                         What's New
                     </h1>
