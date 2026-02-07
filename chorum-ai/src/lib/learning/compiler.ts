@@ -1,4 +1,28 @@
 import { calculateDecay } from '@/lib/chorum/relevance'
+import { callProvider } from '@/lib/providers'
+import type { LearningItem } from './types'
+
+/**
+ * Provider config for the compiler LLM calls
+ */
+export interface CompilerProviderConfig {
+    provider: string
+    apiKey: string
+    model: string
+    baseUrl?: string
+    isLocal?: boolean
+}
+
+/**
+ * Compiled cache output
+ */
+export interface CompiledCache {
+    tier: 1 | 2
+    compiledContext: string
+    tokenEstimate: number
+    learningCount: number
+    invariantCount: number
+}
 
 /**
  * Filter items whose decay score has fallen below the relevance floor.
