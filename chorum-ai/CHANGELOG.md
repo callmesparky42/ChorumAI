@@ -5,9 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-02-07
+
+### Fixed
+- **Usage count never incremented**: The `usageCount` field on learning items was used as a relevance signal but never actually incremented, making the entire usage dimension dead weight. Added fire-and-forget `UPDATE ... SET usage_count = usage_count + 1` in `injectLearningContext()` for all selected items (`src/lib/learning/injector.ts`).
+- **Tier 1/2 cache miss fallback could blast small models**: When a Tier 1 (8K context) or Tier 2 model had a cache miss, the fallback to the Tier 3 pipeline could assign a budget (e.g. 2,000 tokens) far exceeding what the model could afford (~500 tokens). Added budget clamping: `Math.min(budget.maxTokens, tierConfig.maxBudget)` on cache miss fallback (`src/lib/learning/injector.ts`).
+
 ## [0.2.0] - 2026-02-03
 
 ### Added
+- **Tiered Context Compilation**: Pre-compiled context caches for small/medium models to avoid latency and context overflow.
+  - Tier 1 "DNA Summary" for ≤16K models (max 6% of context window).
+  - Tier 2 "Field Guide" for 16K–64K models (max 8% of context window).
+  - Tier 3 "Full Dossier" for 64K+ models (existing dynamic pipeline).
+  - New `selectInjectionTier()` in `src/lib/chorum/tiers.ts`.
+  - New `LearningCompiler` in `src/lib/learning/compiler.ts` for Tier 1/2 pre-compilation.
+  - New `learningContextCache` table and `src/lib/learning/cache.ts` for cache storage/retrieval.
+- **Multi-Provider Embeddings**: Embedding generation falls back across providers (OpenAI → Google → Mistral → Ollama) so non-OpenAI users still get semantic scoring (`src/lib/chorum/embeddings.ts`).
+- **Per-Type Decay Curves**: Replaced single 30-day exponential decay with type-specific half-lives — invariants never decay, decisions (365d), patterns (90d), golden paths (30d), antipatterns (14d) (`src/lib/chorum/relevance.ts`).
+- **Dynamic Weight Profiles**: Relevance scoring weights now shift by query intent — debugging boosts recency, generation boosts patterns, analysis boosts decisions (`src/lib/chorum/relevance.ts`).
+- **Logarithmic Usage Scoring**: Replaced linear `min(usageCount/10, 0.15)` with log curve that rewards initial usage but plateaus, signaling high-use items for promotion (`src/lib/chorum/relevance.ts`).
+- **Context Window Field**: Added `contextWindow` column to `providerCredentials` for per-model tier selection (`src/lib/db/schema.ts`).
+- **Learning Queue**: Background processing queue for learning extraction to avoid blocking chat responses (`src/lib/learning/queue.ts`).
+- **Memory Documentation Site**: Added docs pages for memory system overview, learning types, relevance gating, and tiered context (`docs-site/pages/memory/`).
 - **Memory Safety Layer**: Implemented "Deterministic Grounding" to prevent poison-pill memory injection.
   - Added `verifyReference` in `src/lib/learning/grounding.ts`.
   - Added `provenance` field to learning items for Source Tagging (conversation & message tracking).
@@ -49,5 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `CollapsibleContent` and `CollapsibleSection` components for future use.
 
 ### Changed
+- Provider presets now include `contextWindow` values for all models (`src/lib/providers/presets.ts`).
+- Chat API route passes `contextWindow` from provider credentials to `injectLearningContext()` (`src/app/api/chat/route.ts`).
+- Router resolves context window from provider credentials for tier selection (`src/lib/chorum/router.ts`).
 - Renamed "None" to "No Agent" in the Agent Selector for clarity.
 - Updated `LearningItemMetadata` interface in `src/lib/learning/types.ts` to support provenance tracking.

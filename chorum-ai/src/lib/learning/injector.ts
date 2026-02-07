@@ -7,8 +7,8 @@
 import { getProjectLearning } from './manager'
 import { getLinksForProject } from './links'
 import { db } from '@/lib/db'
-import { projectFileMetadata } from '@/lib/db/schema'
-import { eq, or } from 'drizzle-orm'
+import { projectFileMetadata, projectLearningPaths } from '@/lib/db/schema'
+import { eq, or, sql } from 'drizzle-orm'
 import { classifier } from '@/lib/chorum/classifier'
 import { embeddings } from '@/lib/chorum/embeddings'
 import { relevance, type MemoryCandidate } from '@/lib/chorum/relevance'
@@ -123,14 +123,13 @@ export async function injectLearningContext(
     const classification = classifier.classify(userQuery, conversationDepth)
     const budget = classifier.calculateBudget(classification)
 
-    // Override budget if we are falling back? 
-    // Spec says: "Fall through to Tier 3". Tier 3 uses existing dynamic budget.
-    // But if we intended Tier 1/2 and fell back, we might be injecting MORE tokens than Tier 1/2 allowed?
-    // Tier 1 allows ~500. Tier 3 logic might give 2000.
-    // For an 8K model, 2000 is risky.
-    // However, the spec says: "Fall through to Tier 3 as graceful degradation".
-    // I will stick to existing logic for fallback, assuming it's better than nothing, 
-    // and cache recompilation will fix it for next time.
+    // BUG FIX: Clamp fallback budget for small models.
+    // When Tier 1/2 cache misses and falls through to Tier 3, the classifier might assign
+    // a budget (e.g. 2000 tokens) that exceeds what the small model can afford.
+    // Clamp to tierConfig.maxBudget so an 8K model never gets more than ~500 tokens injected.
+    if (tierConfig.tier !== 3) {
+        budget.maxTokens = Math.min(budget.maxTokens, tierConfig.maxBudget)
+    }
 
     // Early exit for trivial queries (e.g. "hi") - just return invariants if any, or nothing
     if (budget.maxTokens === 0) {
@@ -241,7 +240,20 @@ export async function injectLearningContext(
         selectedItems = []
     }
 
-    // 5. Assemble Context
+    // 5. Bump usage counts for selected items (fire-and-forget)
+    if (selectedItems.length > 0) {
+        const selectedIds = selectedItems.map(i => i.id)
+        db.update(projectLearningPaths)
+            .set({
+                usageCount: sql`${projectLearningPaths.usageCount} + 1`,
+                lastUsedAt: new Date()
+            })
+            .where(inArray(projectLearningPaths.id, selectedIds))
+            .execute()
+            .catch(err => console.error('[Chorum] Usage count update failed:', err))
+    }
+
+    // 6. Assemble Context
     const learningContextStr = relevance.assembleContext(selectedItems)
 
     // Build Prompt
