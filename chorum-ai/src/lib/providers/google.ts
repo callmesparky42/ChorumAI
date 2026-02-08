@@ -90,19 +90,32 @@ export async function callGoogle(
     })
 
     const lastMessage = messages[messages.length - 1]
-    const lastMessageParts: Part[] = [{ text: lastMessage?.content || '' }]
-    if (lastMessage?.images && lastMessage.images.length > 0) {
-        lastMessage.images.forEach(img => {
-            const match = img.match(/^data:(image\/\w+);base64,(.+)$/)
-            if (match) {
-                lastMessageParts.push({
-                    inlineData: {
-                        mimeType: match[1],
-                        data: match[2]
-                    }
-                })
+
+    // Handle last message with tool results - send function responses
+    let lastMessageParts: Part[]
+    if (lastMessage?.toolResults && lastMessage.toolResults.length > 0) {
+        lastMessageParts = lastMessage.toolResults.map(tr => ({
+            functionResponse: {
+                name: findToolName(messages, tr.toolCallId) || 'unknown',
+                response: { result: tr.content }
             }
-        })
+        }))
+    } else {
+        // Regular message - just text (and optionally images)
+        lastMessageParts = [{ text: lastMessage?.content || '' }]
+        if (lastMessage?.images && lastMessage.images.length > 0) {
+            lastMessage.images.forEach(img => {
+                const match = img.match(/^data:(image\/\w+);base64,(.+)$/)
+                if (match) {
+                    lastMessageParts.push({
+                        inlineData: {
+                            mimeType: match[1],
+                            data: match[2]
+                        }
+                    })
+                }
+            })
+        }
     }
 
     const chat = model.startChat({ history: validHistory })
