@@ -90,7 +90,7 @@ Chorum also classifies the **intent** of your query to adjust scoring weights:
 | **Question** | "what", "how", "?" | Balanced weights (default) |
 | **Generation** | "write", "create", "implement" | Patterns +2.0x, Golden Paths +1.5x |
 | **Analysis** | "why", "analyze", "explain" | Decisions +2.0x |
-| **Debugging** | "debug", "fix", "error", "bug" | Recency +35%, Antipatterns +2.0x |
+| **Debugging** | "debug", "fix", "error", "bug", "trace", "stack", "exception", "breakpoint", etc. | Recency +35%, Antipatterns +2.0x |
 | **Discussion** | General conversation | Balanced weights |
 | **Continuation** | Follow-up in long thread | Recency +30% |
 
@@ -136,26 +136,34 @@ Every learning in your project memory is scored from 0.0 to 1.0.
 ### Scoring Formula
 
 ```
-Final Score = 
-    (Semantic Similarity × 0.50) +
-    (Recency Score × 0.15) +
-    (Domain Match × 0.15) +
-    (Usage Frequency × 0.05) +
-    (Type Boost × varies)
+Final Score =
+    (Semantic Similarity × W_semantic) +
+    (Recency Score × W_recency) +
+    (Domain Match × W_domain) +
+    (Usage Frequency × W_usage) +
+    (Co-occurrence Bonus) +
+    (Type Boost × intent multiplier)
 ```
+
+Base weights come from the intent profile (e.g., "question" uses semantic=0.55, recency=0.10) and are then **dynamically shifted** based on conversation context:
+
+| Context Signal | Weight Shift | Rationale |
+|----------------|--------------|-----------|
+| Deep conversation (>10 turns) | Recency +0.10, Semantic -0.10 | Recent context matters more as conversation evolves |
+| Code context present | Domain +0.08, Usage +0.02, Semantic -0.10 | Domain matching is critical when code is present |
+| History references ("we discussed...") | Semantic +0.10, Recency -0.05, Domain -0.05 | Past conversations need strong semantic matching |
+
+Weights are clamped to [0, 1] and re-normalized to sum to 1.0 after shifting.
 
 ### Components
 
-**Semantic Similarity (50%)**
+**Semantic Similarity (~50%)**
 How closely does this learning match the meaning of your query? Uses vector embeddings for comparison.
 
-**Recency Score (15%)**
-More recent learnings score higher. Decays exponentially over 30 days:
-```
-recencyScore = e^(-daysSince / 30)
-```
+**Recency Score (~15%)**
+More recent learnings score higher. Uses per-type decay curves (see [Tiered Context](./tiered-context.md#per-type-decay-curves)).
 
-**Domain Match (15%)**
+**Domain Match (~15%)**
 
 Proportional scoring based on domain overlap. If your query mentions "database" and "security", a learning tagged with both scores higher than one tagged with just "database":
 
@@ -165,17 +173,21 @@ domainScore = 0.2 × (overlap / max(queryDomains, learningDomains))
 
 This rewards precision—learnings that match more of your query's domains rank higher.
 
-**Usage Frequency (5%)**
-Patterns that get referenced frequently are more valuable. Capped at +0.15 after 10 uses.
+**Usage Frequency (~5%)**
+Patterns that get referenced frequently are more valuable. Logarithmic curve that plateaus after ~20 uses, capped at +0.15.
 
-**Type Boost (varies)**
+**Co-occurrence Bonus (up to +0.10)**
+Items that frequently co-occur with high-scoring items in positive-feedback contexts get a bonus. This surfaces knowledge that consistently works well together — e.g., if "use Zod validation" and "early returns" always appear together in successful responses, both get a retrieval boost.
 
-| Type | Boost |
-|------|-------|
-| Invariant | +0.25 |
-| Pattern | +0.10 |
-| Decision | +0.10 |
-| Antipattern | +0.10 |
+**Type Boost (varies by intent)**
+
+| Type | Base Boost | Modified by Intent |
+|------|------------|-------------------|
+| Invariant | +0.25 | Stable across intents |
+| Golden Path | +0.15 | +1.5x for debugging, generation |
+| Pattern | +0.10 | +2.0x for generation |
+| Decision | +0.10 | +2.0x for analysis, 0.5x for debugging |
+| Antipattern | +0.05 | +2.0x for debugging |
 
 Invariants get the highest boost because they prevent mistakes.
 
@@ -186,13 +198,22 @@ Invariants get the highest boost because they prevent mistakes.
 With scores calculated, Chorum selects memories to fill the token budget:
 
 1. **Sort** all memories by score (highest first)
-2. **Add** highest-scoring items until budget is reached
-3. **Skip** items scoring below 0.30 (noise threshold)
-4. **Exception:** Always include invariants scoring > 0.70, even if over budget
+2. **Apply intent-adaptive thresholds** — skip items below the minimum score for this intent
+3. **Add** highest-scoring items until budget is reached
 
-### The 0.30 Threshold
+### Intent-Adaptive Thresholds
 
-Items below 0.30 relevance are likely noise. Better to inject nothing than confuse the model with unrelated context.
+Different intents use different noise thresholds. Debugging casts a wider net to catch relevant antipatterns and golden paths, while generation demands precision:
+
+| Intent | General Threshold | Invariant Threshold |
+|--------|-------------------|---------------------|
+| **Debugging** | 0.25 | 0.15 |
+| **Continuation** | 0.30 | 0.18 |
+| **Question / Analysis / Discussion** | 0.35 | 0.20 |
+| **Generation** | 0.40 | 0.20 |
+| **Greeting** | 0.50 | 0.30 |
+
+Invariants always have a lower threshold than general items because they prevent mistakes.
 
 ---
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, Users, Plus, X, Image as ImageIcon, PanelRight, PanelRightClose, Zap, Paperclip } from 'lucide-react'
+import { Send, Bot, Users, Plus, X, Image as ImageIcon, PanelRight, PanelRightClose, Zap, Paperclip, Bug } from 'lucide-react'
 import { Message } from './Message'
 import { ProviderSelector } from './ProviderSelector'
 import { AgentSelector } from './AgentSelector'
@@ -10,6 +10,7 @@ import { ChoralThinking } from './ChoralSpinner'
 import { FileConsentDialog } from './FileConsentDialog'
 import { useChorumStore } from '@/lib/store'
 import { useReviewStore } from '@/lib/review/store'
+import { BugReportDialog } from './BugReportDialog'
 import type { Attachment } from '@/lib/chat/types'
 import clsx from 'clsx'
 
@@ -39,6 +40,7 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
     // File consent dialog state
     const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
     const [showConsentDialog, setShowConsentDialog] = useState(false)
+    const [showBugReport, setShowBugReport] = useState(false)
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -275,6 +277,14 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
             {/* Header */}
             <div className="h-14 border-b border-gray-800 flex items-center justify-between px-6 bg-gray-950/50 backdrop-blur-md sticky top-0 z-10">
                 <div className="flex items-center gap-3">
+                    {/* Bug Report Button */}
+                    <button
+                        onClick={() => setShowBugReport(true)}
+                        className="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-red-400 transition-colors"
+                        title="Report a Bug"
+                    >
+                        <Bug className="w-4 h-4" />
+                    </button>
                     {/* Show responding agent (from last message), not selected agent */}
                     {respondingAgent && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 rounded-full border border-gray-700">
@@ -486,6 +496,11 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                     onConfirm={handleConsentConfirm}
                     onCancel={handleConsentCancel}
                 />
+            )}
+
+            {/* Bug Report Dialog */}
+            {showBugReport && (
+                <BugReportDialog onClose={() => setShowBugReport(false)} />
             )}
         </div>
     )

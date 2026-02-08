@@ -238,6 +238,7 @@ export const projectLearningPaths = pgTable('project_learning_paths', {
   domains: jsonb('domains').$type<string[]>().default([]),
   usageCount: integer('usage_count').default(0),
   lastUsedAt: timestamp('last_used_at'),
+  promotedAt: timestamp('promoted_at'), // Set when usage exceeds promotion threshold
 
   createdAt: timestamp('created_at').defaultNow()
 })

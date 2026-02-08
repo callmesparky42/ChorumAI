@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-02-08
+
+### Added
+- **Expanded Debugging Intent Detection**: Added `trace`, `stack`, `exception`, `undefined`, `typeerror`, `null pointer`, `logs`, `breakpoint`, `segfault`, and `panic` as debugging keyword triggers, improving classification accuracy for bug-fixing workflows (`src/lib/chorum/classifier.ts`).
+- **Co-occurrence Scoring**: Items that frequently co-occur with high-scoring seeds in positive-feedback contexts now receive a relevance bonus (up to +0.10), surfacing knowledge that consistently appears together (`src/lib/learning/injector.ts`, `src/lib/learning/cooccurrence.ts`).
+- **Intent-Adaptive Score Thresholds**: Replaced hardcoded relevance thresholds (0.35/0.20) with per-intent lookup table — debugging uses lower thresholds (0.25/0.15) to cast a wider net, generation uses higher thresholds (0.40/0.20) for precision (`src/lib/chorum/relevance.ts`).
+- **Confidence-Gated Injection**: `selectMemory()` now accepts the query intent and applies intent-specific minimum score thresholds before injecting items into context (`src/lib/chorum/relevance.ts`).
+- **Promotion Pipeline**: High-usage learning items (≥10 retrievals) are automatically promoted to guarantee inclusion in Tier 1/2 compiled caches, bypassing decay filters (`src/lib/learning/compiler.ts`, `src/lib/learning/cache.ts`).
+  - New `promotedAt` column on `project_learning_paths` table.
+  - `promoteHighUsageItems()` runs automatically before cache recompilation.
+  - Migration: `drizzle/0025_promotion_pipeline.sql`.
+- **Dynamic Weight Shifting**: Relevance scoring weights now shift based on conversation signals beyond intent — deep conversations (>10 turns) boost recency, code-heavy queries boost domain matching, and history-referencing queries boost semantic similarity. Weights are re-normalized after shifting (`src/lib/chorum/relevance.ts`).
+
 ## [1.1.4] - 2026-02-07
 
 ### Added

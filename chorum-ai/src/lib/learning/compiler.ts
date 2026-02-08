@@ -1,6 +1,39 @@
 import { calculateDecay } from '@/lib/chorum/relevance'
 import { callProvider } from '@/lib/providers'
+import { db } from '@/lib/db'
+import { projectLearningPaths } from '@/lib/db/schema'
+import { eq, gte, isNull, and } from 'drizzle-orm'
 import type { LearningItem } from './types'
+
+// ============================================================================
+// Promotion Pipeline
+// Items with high usage are "promoted" — guaranteed inclusion in Tier 1/2 caches.
+// ============================================================================
+
+/** Usage count threshold to trigger promotion */
+const PROMOTION_THRESHOLD = 10
+
+/**
+ * Promote high-usage items that haven't been promoted yet.
+ * Sets promotedAt timestamp so they're guaranteed in compiled caches.
+ * Returns the count of newly promoted items.
+ */
+export async function promoteHighUsageItems(projectId: string): Promise<number> {
+    const result = await db.update(projectLearningPaths)
+        .set({ promotedAt: new Date() })
+        .where(and(
+            eq(projectLearningPaths.projectId, projectId),
+            gte(projectLearningPaths.usageCount, PROMOTION_THRESHOLD),
+            isNull(projectLearningPaths.promotedAt)
+        ))
+        .returning({ id: projectLearningPaths.id })
+
+    if (result.length > 0) {
+        console.log(`[Chorum:Promote] Promoted ${result.length} items (usage >= ${PROMOTION_THRESHOLD})`)
+    }
+
+    return result.length
+}
 
 /**
  * Provider config for the compiler LLM calls
@@ -51,19 +84,33 @@ export async function compileTier1(
     const decisions = learnings.filter(l => l.type === 'decision')
 
     // 2. Rank within each type by usage count (filtered by decay)
+    //    Promoted items always included regardless of decay score.
     const topInvariants = invariants
-        .filter(i => isStillRelevant(i))
-        .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+        .filter(i => i.promotedAt || isStillRelevant(i))
+        .sort((a, b) => {
+            // Promoted items sort first, then by usage
+            if (a.promotedAt && !b.promotedAt) return -1
+            if (!a.promotedAt && b.promotedAt) return 1
+            return (b.usageCount || 0) - (a.usageCount || 0)
+        })
         .slice(0, 5)
 
     const topPatterns = patterns
-        .filter(i => isStillRelevant(i))
-        .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+        .filter(i => i.promotedAt || isStillRelevant(i))
+        .sort((a, b) => {
+            if (a.promotedAt && !b.promotedAt) return -1
+            if (!a.promotedAt && b.promotedAt) return 1
+            return (b.usageCount || 0) - (a.usageCount || 0)
+        })
         .slice(0, 5)
 
     const topDecisions = decisions
-        .filter(i => isStillRelevant(i))
-        .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+        .filter(i => i.promotedAt || isStillRelevant(i))
+        .sort((a, b) => {
+            if (a.promotedAt && !b.promotedAt) return -1
+            if (!a.promotedAt && b.promotedAt) return 1
+            return (b.usageCount || 0) - (a.usageCount || 0)
+        })
         .slice(0, 3)
 
     // ... (rest of compileTier1)
@@ -133,17 +180,22 @@ export async function compileTier2(
     for (const [domain, items] of Object.entries(domainClusters)) {
         if (items.length <= 3 || !provider) {
             // Small cluster or no provider: list top 3 relevant
+            // Promoted items always included
             const top = items
-                .filter(i => isStillRelevant(i))
-                .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+                .filter(i => i.promotedAt || isStillRelevant(i))
+                .sort((a, b) => {
+                    if (a.promotedAt && !b.promotedAt) return -1
+                    if (!a.promotedAt && b.promotedAt) return 1
+                    return (b.usageCount || 0) - (a.usageCount || 0)
+                })
                 .slice(0, 3)
 
             if (top.length > 0) {
                 clusterSections.push(`**${domain}:** ${top.map(i => i.content).join('; ')}`)
             }
         } else {
-            // Filter relevant items before summarizing
-            const relevantItems = items.filter(i => isStillRelevant(i))
+            // Filter relevant items before summarizing (promoted items always pass)
+            const relevantItems = items.filter(i => i.promotedAt || isStillRelevant(i))
 
             if (relevantItems.length === 0) continue
 
@@ -159,13 +211,13 @@ export async function compileTier2(
     }
 
     // 4. Recipes (Golden Paths)
-    const relevantGP = goldenPaths.filter(g => isStillRelevant(g))
+    const relevantGP = goldenPaths.filter(g => g.promotedAt || isStillRelevant(g))
     const gpSection = relevantGP.length
         ? `## Recipes\n${relevantGP.slice(0, 3).map(g => `- ${g.content}`).join('\n')}`
         : ''
 
     // 5. Antipatterns
-    const relevantAP = antipatterns.filter(a => isStillRelevant(a))
+    const relevantAP = antipatterns.filter(a => a.promotedAt || isStillRelevant(a))
     const apSection = relevantAP.length
         ? `## Avoid\n${relevantAP.slice(0, 3).map(a => `- ${a.content}`).join('\n')}`
         : ''

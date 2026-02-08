@@ -41,6 +41,7 @@ export interface LearningItem {
     domains?: string[] | null
     usageCount?: number
     lastUsedAt?: Date | null
+    promotedAt?: Date | null
     createdAt: Date | null
 }
 

@@ -3,7 +3,7 @@
  * Scores memory items and selects the best ones to fit the token budget.
  */
 
-import { QueryClassification } from './classifier'
+import { QueryClassification, QueryIntent } from './classifier'
 import type { LearningType } from '../learning/types'
 
 // Interface matching the DB schema shape (plus embedding)
@@ -200,11 +200,72 @@ const WEIGHT_PROFILES: Record<string, WeightProfile> = {
 }
 
 /**
- * Get the weight profile for a given query intent.
- * Falls back to 'question' profile if intent is unknown.
+ * Get a dynamically shifted weight profile based on intent + classification signals.
+ *
+ * Shifts applied:
+ * - Deep conversations (depth > 10): recency +0.10, semantic -0.10
+ *     Rationale: recent context matters more as conversation evolves
+ * - Code-heavy queries: domain +0.08, usage +0.02, semantic -0.10
+ *     Rationale: domain matching is critical when code is present
+ * - History-referencing queries: semantic +0.10, recency -0.05, domain -0.05
+ *     Rationale: "remember when we..." needs strong semantic matching
+ *
+ * Shifts are additive and clamped to [0, 1]. Sum is re-normalized.
  */
-function getWeightProfile(intent: string): WeightProfile {
-    return WEIGHT_PROFILES[intent] || WEIGHT_PROFILES.question
+function getWeightProfile(intent: string, classification?: QueryClassification): WeightProfile {
+    const base = WEIGHT_PROFILES[intent] || WEIGHT_PROFILES.question
+
+    // No classification? Return static profile.
+    if (!classification) return base
+
+    // Start with a mutable copy of the base weights
+    let semantic = base.semantic
+    let recency = base.recency
+    let domain = base.domain
+    let usage = base.usage
+
+    // Shift 1: Deep conversations → boost recency
+    if (classification.conversationDepth > 10) {
+        recency += 0.10
+        semantic -= 0.10
+    }
+
+    // Shift 2: Code context → boost domain
+    if (classification.hasCodeContext) {
+        domain += 0.08
+        usage += 0.02
+        semantic -= 0.10
+    }
+
+    // Shift 3: History references → boost semantic
+    if (classification.referencesHistory) {
+        semantic += 0.10
+        recency -= 0.05
+        domain -= 0.05
+    }
+
+    // Clamp all weights to [0, 1]
+    semantic = Math.max(0, Math.min(1, semantic))
+    recency = Math.max(0, Math.min(1, recency))
+    domain = Math.max(0, Math.min(1, domain))
+    usage = Math.max(0, Math.min(1, usage))
+
+    // Re-normalize so weights sum to ~1.0 (excluding type boost)
+    const sum = semantic + recency + domain + usage
+    if (sum > 0) {
+        semantic /= sum
+        recency /= sum
+        domain /= sum
+        usage /= sum
+    }
+
+    return {
+        semantic,
+        recency,
+        domain,
+        usage,
+        typeBoostMultiplier: base.typeBoostMultiplier
+    }
 }
 
 // ============================================================================
@@ -225,6 +286,21 @@ export function calculateUsageScore(usageCount: number): number {
 
     // Cap at 0.15 (same ceiling as before)
     return Math.min(logScore * 0.15, 0.15)
+}
+
+// ============================================================================
+// Intent-Adaptive Score Thresholds
+// Debugging casts a wider net (lower threshold); generation demands precision.
+// ============================================================================
+
+const INTENT_THRESHOLDS: Record<QueryIntent, { general: number; invariant: number }> = {
+    debugging:     { general: 0.25, invariant: 0.15 },  // Wide net — surface antipatterns & golden paths
+    question:      { general: 0.35, invariant: 0.20 },
+    analysis:      { general: 0.35, invariant: 0.20 },
+    generation:    { general: 0.40, invariant: 0.20 },  // Precision — only inject highly relevant
+    discussion:    { general: 0.35, invariant: 0.20 },
+    continuation:  { general: 0.30, invariant: 0.18 },
+    greeting:      { general: 0.50, invariant: 0.30 },  // High bar — greetings rarely need context
 }
 
 export class RelevanceEngine {
@@ -264,8 +340,8 @@ export class RelevanceEngine {
             // 4. Usage Score
             const usageScore = calculateUsageScore(item.usageCount || 0)
 
-            // 5. Type Boost — modulated by intent
-            const profile = getWeightProfile(classification.intent)
+            // 5. Type Boost — modulated by intent (with dynamic weight shifting)
+            const profile = getWeightProfile(classification.intent, classification)
 
             let typeBoost = 0
             switch (item.type) {
@@ -319,19 +395,21 @@ export class RelevanceEngine {
     /**
      * Greedily selects items until budget is full.
      */
-    public selectMemory(candidates: MemoryCandidate[], maxTokens: number): MemoryCandidate[] {
+    public selectMemory(candidates: MemoryCandidate[], maxTokens: number, intent?: QueryIntent): MemoryCandidate[] {
         // Sort by score descending (copy array to avoid mutation)
         const sorted = [...candidates].sort((a, b) => (b.score || 0) - (a.score || 0))
 
         const selected: MemoryCandidate[] = []
         let currentTokens = 0
 
+        // Use intent-adaptive thresholds (fall back to 'question' defaults)
+        const thresholds = INTENT_THRESHOLDS[intent || 'question'] || INTENT_THRESHOLDS.question
+
         for (const item of sorted) {
             const score = item.score || 0
 
-            // Hard Threshold: Ignore noise
-            // Lower threshold for invariants (we want to catch them even if semantic match is weak)
-            const threshold = item.type === 'invariant' ? 0.2 : 0.35
+            // Confidence gate: skip items below intent-specific threshold
+            const threshold = item.type === 'invariant' ? thresholds.invariant : thresholds.general
             if (score < threshold) continue
 
             // Estimate tokens (approx 4 chars per token)

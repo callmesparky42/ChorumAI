@@ -1,0 +1,15 @@
+# .github/workflows/version-bump.yml
+on:
+  push:
+    branches: [main]
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'chore: bump version')"
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm version patch --no-git-tag-version
+      - run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -am "chore: bump version" && git push

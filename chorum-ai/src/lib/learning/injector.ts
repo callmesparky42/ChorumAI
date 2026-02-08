@@ -13,7 +13,7 @@ import { classifier } from '@/lib/chorum/classifier'
 import { embeddings } from '@/lib/chorum/embeddings'
 import { relevance, type MemoryCandidate } from '@/lib/chorum/relevance'
 import type { LearningItem } from './types'
-import { upsertCooccurrence } from './cooccurrence'
+import { upsertCooccurrence, getCohorts } from './cooccurrence'
 import { learningLinks } from '@/lib/db/schema'
 import { v4 as uuidv4 } from 'uuid'
 import { inArray, and } from 'drizzle-orm'
@@ -233,7 +233,36 @@ export async function injectLearningContext(
             // selectMemory will see the updated scores.
         }
 
-        selectedItems = relevance.selectMemory(scored, budget.maxTokens)
+        // [Co-occurrence Boost] Items that frequently co-occur with top seeds get a bonus
+        const cohorts = await getCohorts(projectId, 3)
+        if (cohorts.length > 0) {
+            const itemMap = new Map(scored.map(s => [s.id, s]))
+
+            // Identify top seeds
+            const seeds = scored
+                .filter(s => (s.score || 0) > 0.5)
+                .sort((a, b) => (b.score || 0) - (a.score || 0))
+                .slice(0, 10)
+            const seedIds = new Set(seeds.map(s => s.id))
+
+            for (const cohort of cohorts) {
+                const isSeedA = seedIds.has(cohort.itemA)
+                const isSeedB = seedIds.has(cohort.itemB)
+                if (!isSeedA && !isSeedB) continue // Neither item is a seed
+
+                const targetId = isSeedA ? cohort.itemB : cohort.itemA
+                const target = itemMap.get(targetId)
+                if (!target) continue
+
+                // Bonus: proportional to positive ratio, capped at 0.1
+                const positiveRatio = (cohort.positiveCount || 0) / Math.max(cohort.count ?? 1, 1)
+                const cooccurrenceBonus = Math.min(0.1, positiveRatio * 0.15)
+
+                target.score = (target.score || 0) + cooccurrenceBonus
+            }
+        }
+
+        selectedItems = relevance.selectMemory(scored, budget.maxTokens, classification.intent)
     } else {
         // Even if budget is 0, we might want to enforce invariants?
         // Let's assume budget 0 means strictly no overhead.

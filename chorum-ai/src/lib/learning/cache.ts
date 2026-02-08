@@ -5,7 +5,7 @@
 import { db } from '@/lib/db'
 import { learningContextCache, providerCredentials, usageLog, projectLearningPaths } from '@/lib/db/schema'
 import { eq, and, desc, gte, sql } from 'drizzle-orm'
-import { compileTier1, compileTier2, type CompilerProviderConfig } from './compiler'
+import { compileTier1, compileTier2, promoteHighUsageItems, type CompilerProviderConfig } from './compiler'
 import { decrypt } from '@/lib/crypto'
 import type { LearningItem, LearningItemMetadata } from './types'
 
@@ -54,6 +54,9 @@ export async function recompileCache(
     userId: string
 ): Promise<void> {
     console.log(`[Cache] Recompiling for project ${projectId}`)
+
+    // 0. Promote high-usage items before compilation
+    await promoteHighUsageItems(projectId)
 
     // 1. Fetch all learnings (Directly to avoid circular dependency with manager.ts)
     const rawItems = await db.select()

@@ -20,3 +20,21 @@ All notable changes to ChorumAI will be documented in this file.
 
 #### Library
 - Updated `LearningItemMetadata` interface to include `provenance` data.
+
+## [1.1.5] - 2026-02-08
+
+### Added
+
+#### Relevance Engine
+- **Co-occurrence Scoring**: Items frequently retrieved together with positive feedback now receive a relevance bonus (up to +0.10), leveraging existing co-occurrence tracking data.
+- **Intent-Adaptive Score Thresholds**: Relevance thresholds are now per-intent — debugging casts a wider net (0.25), generation demands precision (0.40), greetings set a high bar (0.50).
+- **Confidence-Gated Injection**: `selectMemory()` applies intent-specific minimum score thresholds before injection.
+- **Dynamic Weight Shifting**: Scoring weights shift based on conversation context — deep conversations boost recency, code-heavy queries boost domain matching, history references boost semantic similarity. All weights re-normalize after shifting.
+
+#### Classifier
+- **Expanded Debugging Detection**: Added 10 new keywords (`trace`, `stack`, `exception`, `undefined`, `typeerror`, `null pointer`, `logs`, `breakpoint`, `segfault`, `panic`) for more accurate debugging intent classification.
+
+#### Promotion Pipeline
+- **High-Usage Promotion**: Learning items with ≥10 retrievals are automatically promoted, guaranteeing inclusion in Tier 1/2 compiled caches regardless of decay.
+- New `promotedAt` column on `project_learning_paths`.
+- Promotion runs automatically before cache recompilation.

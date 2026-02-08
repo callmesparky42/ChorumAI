@@ -79,7 +79,7 @@ export class RelevanceClassifier {
             intent = 'greeting'
         } else if (lower.includes('write') || lower.includes('generate') || lower.includes('create') || lower.includes('implement')) {
             intent = 'generation'
-        } else if (lower.includes('debug') || lower.includes('fix') || lower.includes('error') || lower.includes('bug') || lower.includes('crash') || lower.includes('failing') || lower.includes('broken') || lower.includes('not working')) {
+        } else if (lower.includes('debug') || lower.includes('fix') || lower.includes('error') || lower.includes('bug') || lower.includes('crash') || lower.includes('failing') || lower.includes('broken') || lower.includes('not working') || lower.includes('trace') || lower.includes('stack') || lower.includes('exception') || lower.includes('undefined') || lower.includes('typeerror') || lower.includes('null pointer') || lower.includes('logs') || lower.includes('breakpoint') || lower.includes('segfault') || lower.includes('panic')) {
             intent = 'debugging'
         } else if (lower.includes('why') || lower.includes('analyze') || lower.includes('explain')) {
             intent = 'analysis'
