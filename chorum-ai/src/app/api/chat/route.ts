@@ -476,16 +476,23 @@ export async function POST(req: NextRequest) {
 
                 // Check for local providers as last resort
                 const localProviders: { ollama?: string; lmstudio?: string } = {}
-                if (fallbackSettings?.localFallbackModel) {
-                    localProviders.ollama = fallbackSettings.localFallbackModel
-                } else {
-                    // Auto-detect local providers
-                    const detected = await detectLocalProviders()
-                    if (detected.ollama.available && detected.ollama.models.length > 0) {
-                        localProviders.ollama = detected.ollama.models[0]
-                    }
-                    if (detected.lmstudio.available && detected.lmstudio.models.length > 0) {
-                        localProviders.lmstudio = detected.lmstudio.models[0]
+
+                // Only attempt local provider detection when NOT on Vercel/production
+                // Vercel sets VERCEL=1 or VERCEL_ENV; we also check for NODE_ENV=production
+                const isOnVercel = process.env.VERCEL || process.env.VERCEL_ENV || process.env.NODE_ENV === 'production'
+
+                if (!isOnVercel) {
+                    if (fallbackSettings?.localFallbackModel) {
+                        localProviders.ollama = fallbackSettings.localFallbackModel
+                    } else {
+                        // Auto-detect local providers (only in local dev environment)
+                        const detected = await detectLocalProviders()
+                        if (detected.ollama.available && detected.ollama.models.length > 0) {
+                            localProviders.ollama = detected.ollama.models[0]
+                        }
+                        if (detected.lmstudio.available && detected.lmstudio.models.length > 0) {
+                            localProviders.lmstudio = detected.lmstudio.models[0]
+                        }
                     }
                 }
 

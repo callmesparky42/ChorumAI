@@ -82,9 +82,15 @@ export class ChorumRouter {
         }
 
         // Filter providers by capability
-        const capable = this.providers.filter(p =>
+        let capable = this.providers.filter(p =>
             this.hasCapability(p, taskType)
         )
+
+        // On Vercel/production, exclude local providers (they aren't reachable)
+        const isOnVercel = process.env.VERCEL || process.env.VERCEL_ENV || process.env.NODE_ENV === 'production'
+        if (isOnVercel) {
+            capable = capable.filter(p => !p.isLocal)
+        }
 
         // Filter by budget
         const withinBudget = capable.filter(p =>
