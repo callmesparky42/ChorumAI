@@ -793,8 +793,13 @@ export async function POST(req: NextRequest) {
             if (projectId) {
                 waitUntil(
                     checkAndSummarize(projectId, async (conversationText) => {
-                        // Use the cheapest available provider for summarization
-                        const cheapestProvider = providerConfigs.sort((a, b) =>
+                        // Use the cheapest available CLOUD provider for summarization
+                        // Filter out local providers (Ollama, LM Studio) which aren't available on Vercel
+                        const cloudProviders = providerConfigs.filter(p => !p.isLocal)
+                        if (cloudProviders.length === 0) {
+                            throw new Error('No cloud providers available for summarization')
+                        }
+                        const cheapestProvider = cloudProviders.sort((a, b) =>
                             (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
                         )[0]
 
@@ -822,28 +827,38 @@ export async function POST(req: NextRequest) {
             // [Conversation Title] Generate title for new conversations (async)
             // Use waitUntil to prevent Vercel from killing the connection before completion
             if (isNewConversation && conversationId) {
-                const cheapestProvider = providerConfigs.sort((a, b) =>
-                    (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
-                )[0]
+                // Use cheapest CLOUD provider for title generation
+                // Filter out local providers which aren't available on Vercel
+                const cloudProviders = providerConfigs.filter(p => !p.isLocal)
+                const cheapestProvider = cloudProviders.length > 0
+                    ? cloudProviders.sort((a, b) =>
+                        (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
+                    )[0]
+                    : null
 
-                waitUntil(
-                    generateConversationTitle(content, {
-                        provider: cheapestProvider.provider,
-                        apiKey: cheapestProvider.apiKey,
-                        model: cheapestProvider.model,
-                        baseUrl: cheapestProvider.baseUrl,
-                        isLocal: cheapestProvider.isLocal
-                    }).then(async (title) => {
-                        try {
-                            await db.update(conversations)
-                                .set({ title, updatedAt: new Date() })
-                                .where(eq(conversations.id, conversationId))
-                            console.log(`[Conversation] Title generated: "${title}"`)
-                        } catch (e) {
-                            console.warn('[Conversation] Failed to save title:', e)
-                        }
-                    }).catch(err => console.warn('[Conversation] Title generation failed:', err))
-                )
+                if (!cheapestProvider) {
+                    console.warn('[Conversation] No cloud providers available for title generation')
+                } else {
+
+                    waitUntil(
+                        generateConversationTitle(content, {
+                            provider: cheapestProvider.provider,
+                            apiKey: cheapestProvider.apiKey,
+                            model: cheapestProvider.model,
+                            baseUrl: cheapestProvider.baseUrl,
+                            isLocal: cheapestProvider.isLocal
+                        }).then(async (title) => {
+                            try {
+                                await db.update(conversations)
+                                    .set({ title, updatedAt: new Date() })
+                                    .where(eq(conversations.id, conversationId))
+                                console.log(`[Conversation] Title generated: "${title}"`)
+                            } catch (e) {
+                                console.warn('[Conversation] Failed to save title:', e)
+                            }
+                        }).catch(err => console.warn('[Conversation] Title generation failed:', err))
+                    )
+                }
             }
         } catch (e) {
             console.warn('Failed to log to DB', e)
