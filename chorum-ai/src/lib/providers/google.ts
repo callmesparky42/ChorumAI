@@ -50,6 +50,7 @@ export async function callGoogle(
         }
 
         // Handle user message with tool results (function responses in Gemini)
+        // Gemini requires functionResponse to use role 'function', NOT 'user'
         if (m.role === 'user' && m.toolResults && m.toolResults.length > 0) {
             const parts: Part[] = m.toolResults.map(tr => ({
                 functionResponse: {
@@ -57,7 +58,7 @@ export async function callGoogle(
                     response: { result: tr.content }
                 }
             }))
-            geminiHistory.push({ role: 'user', parts })
+            geminiHistory.push({ role: 'function', parts })
             continue
         }
 
