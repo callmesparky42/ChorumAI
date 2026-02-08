@@ -11,7 +11,7 @@ import { getRelevantMemory, buildMemoryContext, type MemoryStrategy } from '@/li
 import { checkAndSummarize, buildSummarizationPrompt } from '@/lib/chorum/summarize'
 import { generateConversationTitle } from '@/lib/chorum/title'
 import { anonymizePii } from '@/lib/pii'
-import { callProvider, generateImage, type FullProviderConfig, type ChatResult, type ToolDefinition, type ChatMessage } from '@/lib/providers'
+import { callProvider, generateImage, BACKGROUND_PROVIDER_PREFERENCE, getCheapModel, type FullProviderConfig, type ChatResult, type ToolDefinition, type ChatMessage } from '@/lib/providers'
 import { getPreset } from '@/lib/providers/presets'
 import { getToolsForUser, executeToolCall, type McpTool } from '@/lib/mcp-client'
 import {
@@ -793,28 +793,30 @@ export async function POST(req: NextRequest) {
             if (projectId) {
                 waitUntil(
                     checkAndSummarize(projectId, async (conversationText) => {
-                        // Use the cheapest available CLOUD provider for summarization
-                        // Filter out local providers (Ollama, LM Studio) which aren't available on Vercel
+                        // Use explicit provider cascade for background tasks
+                        // Preference: Gemini Flash → GPT-4o-mini → DeepSeek → Claude Haiku → Mistral
                         const cloudProviders = providerConfigs.filter(p => !p.isLocal)
-                        if (cloudProviders.length === 0) {
+
+                        let selectedProvider: typeof cloudProviders[0] | undefined
+                        for (const preferredProvider of BACKGROUND_PROVIDER_PREFERENCE) {
+                            selectedProvider = cloudProviders.find(p => p.provider === preferredProvider)
+                            if (selectedProvider) break
+                        }
+
+                        if (!selectedProvider) {
                             throw new Error('No cloud providers available for summarization')
                         }
-                        const cheapestProvider = cloudProviders.sort((a, b) =>
-                            (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
-                        )[0]
 
                         const prompt = buildSummarizationPrompt(conversationText)
 
-                        // Use provider factory for summarization
+                        // Use provider factory with cheap model for summarization
                         const result = await callProvider(
                             {
-                                provider: cheapestProvider.provider,
-                                apiKey: cheapestProvider.apiKey,
-                                model: cheapestProvider.provider === 'openai' ? 'gpt-3.5-turbo' :
-                                    cheapestProvider.provider === 'anthropic' ? 'claude-3-haiku-20240307' :
-                                        cheapestProvider.model,
-                                baseUrl: cheapestProvider.baseUrl,
-                                isLocal: cheapestProvider.isLocal
+                                provider: selectedProvider.provider,
+                                apiKey: selectedProvider.apiKey,
+                                model: getCheapModel(selectedProvider.provider),
+                                baseUrl: selectedProvider.baseUrl,
+                                isLocal: false
                             },
                             [{ role: 'user', content: prompt }],
                             'You are a helpful assistant that summarizes conversations.'
@@ -827,26 +829,25 @@ export async function POST(req: NextRequest) {
             // [Conversation Title] Generate title for new conversations (async)
             // Use waitUntil to prevent Vercel from killing the connection before completion
             if (isNewConversation && conversationId) {
-                // Use cheapest CLOUD provider for title generation
-                // Filter out local providers which aren't available on Vercel
+                // Use explicit provider cascade for title generation
                 const cloudProviders = providerConfigs.filter(p => !p.isLocal)
-                const cheapestProvider = cloudProviders.length > 0
-                    ? cloudProviders.sort((a, b) =>
-                        (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
-                    )[0]
-                    : null
 
-                if (!cheapestProvider) {
+                let selectedProvider: typeof cloudProviders[0] | undefined
+                for (const preferredProvider of BACKGROUND_PROVIDER_PREFERENCE) {
+                    selectedProvider = cloudProviders.find(p => p.provider === preferredProvider)
+                    if (selectedProvider) break
+                }
+
+                if (!selectedProvider) {
                     console.warn('[Conversation] No cloud providers available for title generation')
                 } else {
-
                     waitUntil(
                         generateConversationTitle(content, {
-                            provider: cheapestProvider.provider,
-                            apiKey: cheapestProvider.apiKey,
-                            model: cheapestProvider.model,
-                            baseUrl: cheapestProvider.baseUrl,
-                            isLocal: cheapestProvider.isLocal
+                            provider: selectedProvider.provider,
+                            apiKey: selectedProvider.apiKey,
+                            model: getCheapModel(selectedProvider.provider),
+                            baseUrl: selectedProvider.baseUrl,
+                            isLocal: false
                         }).then(async (title) => {
                             try {
                                 await db.update(conversations)

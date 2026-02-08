@@ -122,7 +122,12 @@ export async function recompileCache(
     console.log(`[Cache] Recompiled Tier 1 (${tier1.tokenEstimate} toks) & Tier 2 (${tier2.tokenEstimate} toks)`)
 }
 
-// Helper to get cheapest capable provider
+/**
+ * Get optimal provider for background tasks (compilation, summarization)
+ * Uses explicit cascade rather than cost-based sorting for predictability.
+ * Preference order: Gemini (cheapest) → Anthropic → OpenAI → DeepSeek
+ * Each provider uses a hardcoded "cheap" model suitable for background tasks.
+ */
 async function getCheapestProvider(userId: string): Promise<CompilerProviderConfig | undefined> {
     const creds = await db.query.providerCredentials.findMany({
         where: and(
@@ -131,30 +136,49 @@ async function getCheapestProvider(userId: string): Promise<CompilerProviderConf
         )
     })
 
-    if (creds.length === 0) {
-        // Fallback to env vars if available
-        if (process.env.ANTHROPIC_API_KEY) return {
-            provider: 'anthropic', model: 'claude-3-haiku-20240307', apiKey: process.env.ANTHROPIC_API_KEY
+    // Filter out local providers (Ollama, LM Studio) - they're not available on Vercel
+    const cloudCreds = creds.filter(c => !c.isLocal)
+
+    // Helper to find a provider and return with preferred cheap model
+    const findProvider = (providerName: string, cheapModel: string): CompilerProviderConfig | undefined => {
+        const cred = cloudCreds.find(c => c.provider === providerName)
+        if (!cred) return undefined
+        return {
+            provider: cred.provider,
+            model: cheapModel,
+            apiKey: decrypt(cred.apiKeyEncrypted),
+            baseUrl: cred.baseUrl || undefined,
+            isLocal: false
         }
-        if (process.env.OPENAI_API_KEY) return {
-            provider: 'openai', model: 'gpt-3.5-turbo', apiKey: process.env.OPENAI_API_KEY
-        }
-        return undefined
     }
 
-    // Sort by cost (avg of input+output)
-    const sorted = creds.sort((a, b) => {
-        const costA = ((a.costPer1M?.input || 0) + (a.costPer1M?.output || 0))
-        const costB = ((b.costPer1M?.input || 0) + (b.costPer1M?.output || 0))
-        return costA - costB
-    })
+    // Cascade: Check providers in order of cost-effectiveness for background tasks
+    // 1. Google Gemini - Flash is extremely cheap ($0.075/1M input)
+    const google = findProvider('google', 'gemini-1.5-flash')
+    if (google) return google
 
-    const cheapest = sorted[0]
-    return {
-        provider: cheapest.provider,
-        model: cheapest.model,
-        apiKey: decrypt(cheapest.apiKeyEncrypted),
-        baseUrl: cheapest.baseUrl || undefined,
-        isLocal: cheapest.isLocal || false
+    // 2. Anthropic - Haiku is the cheap workhorse ($0.25/1M input)
+    const anthropic = findProvider('anthropic', 'claude-3-haiku-20240307')
+    if (anthropic) return anthropic
+
+    // 3. OpenAI - 4o-mini is the new cheap option ($0.15/1M input)
+    const openai = findProvider('openai', 'gpt-4o-mini')
+    if (openai) return openai
+
+    // 4. DeepSeek - Very cheap but may have latency ($0.14/1M input)
+    const deepseek = findProvider('deepseek', 'deepseek-chat')
+    if (deepseek) return deepseek
+
+    // 5. Fallback to env vars if no user credentials
+    if (process.env.GOOGLE_API_KEY) return {
+        provider: 'google', model: 'gemini-1.5-flash', apiKey: process.env.GOOGLE_API_KEY
     }
+    if (process.env.ANTHROPIC_API_KEY) return {
+        provider: 'anthropic', model: 'claude-3-haiku-20240307', apiKey: process.env.ANTHROPIC_API_KEY
+    }
+    if (process.env.OPENAI_API_KEY) return {
+        provider: 'openai', model: 'gpt-4o-mini', apiKey: process.env.OPENAI_API_KEY
+    }
+
+    return undefined
 }

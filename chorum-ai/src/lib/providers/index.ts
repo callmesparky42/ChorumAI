@@ -36,6 +36,30 @@ const DEFAULT_MODELS: Record<string, string> = {
 }
 
 /**
+ * Cheap models for background tasks (summarization, compilation, title generation)
+ * These are optimized for cost rather than capability
+ */
+export const CHEAP_MODELS: Record<string, string> = {
+    google: 'gemini-1.5-flash',          // $0.075/1M input - cheapest
+    openai: 'gpt-4o-mini',               // $0.15/1M input
+    deepseek: 'deepseek-chat',           // $0.14/1M input
+    anthropic: 'claude-3-haiku-20240307', // $0.25/1M input
+    mistral: 'mistral-small-latest'      // ~$0.20/1M input
+}
+
+/**
+ * Provider preference order for background tasks (most cost-effective first)
+ */
+export const BACKGROUND_PROVIDER_PREFERENCE = ['google', 'openai', 'deepseek', 'anthropic', 'mistral']
+
+/**
+ * Get the cheap model for a provider (for background tasks)
+ */
+export function getCheapModel(provider: string): string {
+    return CHEAP_MODELS[provider] || DEFAULT_MODELS[provider] || 'auto'
+}
+
+/**
  * Resolve 'auto' to the appropriate default model for a provider
  */
 export function resolveModelForProvider(provider: string, model: string): string {
