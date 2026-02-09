@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-02-08
+
+### Added
+- **Conductor's Podium**: User-facing control layer for the memory relevance engine.
+  - **Pin/Mute Controls**: Force-include or permanently exclude specific learning items from context injection.
+  - **Conductor Lens**: Adjustable budget multiplier (0.25x–2.0x) to control how much memory is injected per query.
+  - **Focus Domains**: Priority scoring for selected knowledge domains (+15% boost for matching items).
+  - **ConductorTrace Widget**: Collapsible per-message display showing which items were injected, with inline thumbs up/down feedback and pin/mute actions.
+  - **ConductorSettings Panel**: New settings component with lens slider and domain picker.
+  - New API routes: `/api/conductor/items`, `/api/conductor/feedback`, `/api/conductor/lens`, `/api/conductor/health`.
+  - Schema migration: `0025_conductor_podium.sql` adding `pinned_at`, `muted_at`, `conductor_lens`, `focus_domains`, `conductor_detailed_view` columns.
+
 ## [1.1.5] - 2026-02-08
 
 ### Added

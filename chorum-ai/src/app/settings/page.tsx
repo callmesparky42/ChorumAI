@@ -321,12 +321,10 @@ function SettingsContent() {
         { id: 'general', label: 'General', icon: User },
         { id: 'security', label: 'Security', icon: Lock },
         { id: 'memory', label: 'Memory & Learning', icon: Brain },
-        { id: 'search', label: 'Web Search', icon: ExternalLink },
         { id: 'mcp', label: 'MCP Integration', icon: Terminal },
         { id: 'mcp-servers', label: 'MCP Servers', icon: Server },
         { id: 'resilience', label: 'Resilience', icon: RefreshCw },
         { id: 'help', label: 'Help', icon: HelpCircle },
-        { id: 'legal', label: 'Legal & Privacy', icon: FileText },
         { id: 'about', label: 'About', icon: Info },
     ]
 
@@ -548,6 +546,10 @@ function SettingsContent() {
                                 </div>
                             </div>
                         </div>
+                        {/* Web Search Settings (Moved from top-level) */}
+                        <div className="mt-8">
+                            <SearchSettings />
+                        </div>
                     </>
                 )}
 
@@ -686,12 +688,7 @@ function SettingsContent() {
                 )}
 
 
-                {/* Search Tab */}
-                {activeTab === 'search' && (
-                    <div className="max-w-3xl">
-                        <SearchSettings />
-                    </div>
-                )}
+
 
                 {/* MCP Integration Tab */}
                 {activeTab === 'mcp' && (
@@ -1402,16 +1399,51 @@ function SettingsContent() {
                     </>
                 )}
 
-                {/* Legal Tab */}
-                {activeTab === 'legal' && (
+
+
+                {/* About Tab */}
+                {activeTab === 'about' && (
                     <>
-                        <div className="mb-8">
+                        {/* Centered About Content */}
+                        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center mb-16">
+                            <img src="/logo.png" alt="ChorumAI" className="w-48 h-48 object-contain mb-6" />
+
+                            <h1 className="text-4xl font-bold mb-2">ChorumAI</h1>
+                            <p className="text-gray-400 text-lg mb-8">Built with intelligence, not just tokens.</p>
+                            <p className="text-gray-400 text-lg mb-8">Wanna chat? <a href="mailto:youcancallmedaniel@proton.me">Send an email</a></p>
+
+                            <div className="flex items-center gap-6">
+                                <div className="text-center px-6 py-3 bg-gray-900 rounded-xl border border-gray-800">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Version</p>
+                                    <p className="text-xl font-mono text-white mt-1">v1.5.0</p>
+                                </div>
+                                <a
+                                    href="https://github.com/ChorumAI/chorum-ai"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 px-6 py-4 bg-gray-900 hover:bg-gray-800 rounded-xl border border-gray-800 hover:border-gray-700 transition-all group"
+                                >
+                                    <Github className="w-6 h-6 text-white" />
+                                    <div className="text-left">
+                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold group-hover:text-blue-400 transition-colors">Source Code</p>
+                                        <p className="font-medium text-white">GitHub Repository</p>
+                                    </div>
+                                </a>
+                            </div>
+
+                            <p className="mt-12 text-sm text-gray-600 max-w-sm">
+                                Sovereign data platform for your context.
+                            </p>
+                        </div>
+
+                        {/* Legal Section moved to About */}
+                        <div className="mb-8 pt-8 border-t border-gray-800">
                             <h2 className="text-2xl font-semibold">Legal & Privacy</h2>
                             <p className="text-gray-400 mt-1">Terms of use and privacy policy.</p>
                         </div>
 
-                        <div className="space-y-8 max-w-3xl">
-                            <section className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                        <div className="space-y-8 max-w-3xl mx-auto">
+                            <section className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
                                 <h3 className="text-lg font-medium text-white mb-2">Privacy Policy</h3>
                                 <div className="prose prose-invert prose-sm text-gray-300">
                                     <p className="mb-2"><strong>ChorumAI is a local-first application.</strong> We believe your data belongs to you.</p>
@@ -1424,7 +1456,7 @@ function SettingsContent() {
                                 </div>
                             </section>
 
-                            <section className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+                            <section className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
                                 <h3 className="text-lg font-medium text-white mb-2">License & Liability</h3>
                                 <div className="prose prose-invert prose-sm text-gray-300 font-mono bg-black/20 p-4 rounded-lg border border-gray-800">
                                     <p className="mb-4">MIT License</p>
@@ -1456,43 +1488,6 @@ function SettingsContent() {
                                     Users are responsible for their own API usage, costs, and content generated by AI models.
                                 </p>
                             </section>
-                        </div>
-                    </>
-                )}
-
-                {/* About Tab */}
-                {activeTab === 'about' && (
-                    <>
-                        {/* Centered About Content */}
-                        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-                            <img src="/logo.png" alt="ChorumAI" className="w-48 h-48 object-contain mb-6" />
-
-                            <h1 className="text-4xl font-bold mb-2">ChorumAI</h1>
-                            <p className="text-gray-400 text-lg mb-8">Built with intelligence, not just tokens.</p>
-                            <p className="text-gray-400 text-lg mb-8">Wanna chat? <a href="mailto:youcancallmedaniel@proton.me">Send an email</a></p>
-
-                            <div className="flex items-center gap-6">
-                                <div className="text-center px-6 py-3 bg-gray-900 rounded-xl border border-gray-800">
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Version</p>
-                                    <p className="text-xl font-mono text-white mt-1">v1.1.4</p>
-                                </div>
-                                <a
-                                    href="https://github.com/ChorumAI/chorum-ai"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-3 px-6 py-4 bg-gray-900 hover:bg-gray-800 rounded-xl border border-gray-800 hover:border-gray-700 transition-all group"
-                                >
-                                    <Github className="w-6 h-6 text-white" />
-                                    <div className="text-left">
-                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold group-hover:text-blue-400 transition-colors">Source Code</p>
-                                        <p className="font-medium text-white">GitHub Repository</p>
-                                    </div>
-                                </a>
-                            </div>
-
-                            <p className="mt-12 text-sm text-gray-600 max-w-sm">
-                                Sovereign data platform for your context.
-                            </p>
                         </div>
                     </>
                 )}

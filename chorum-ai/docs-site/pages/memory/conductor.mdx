@@ -1,0 +1,270 @@
+---
+title: The Conductor
+description: How to see, steer, and tune what Chorum remembers for each response.
+---
+
+# The Conductor
+
+The Conductor is the intelligence layer that decides what project knowledge reaches your AI for every response. It works silently by default — scoring, ranking, and selecting the most relevant memories — but it also gives you controls to steer it when you want to.
+
+## Why This Matters
+
+Most AI memory systems are black boxes. Knowledge goes in, and... something comes out. You can't see what the AI was told about your project. You can't say "always remember this" or "stop telling me that."
+
+The Conductor changes this. It's transparent when you want visibility, and invisible when you just want results.
+
+---
+
+## Two Modes: Magic and Manual
+
+The Conductor is designed for everyone — from writers in flow state to developers tuning a codebase.
+
+### Magic Mode (Default)
+
+For most users, the Conductor just works. You'll see a subtle line below each AI response:
+
+```
+Chorum remembered 3 things for this response
+```
+
+Tap to expand and see what it remembered, in plain language:
+
+```
+Chorum remembered 3 things for this response
+  - Your preference for window seats
+  - Budget cap of $3,000
+  - No early morning flights
+```
+
+That's it. No scores, no thresholds, no jargon. If something isn't relevant, tap **"I know this already"** and it won't appear again. If something is critical, tap **"Always remember this"** to pin it.
+
+### Detailed Mode (Opt-In)
+
+For power users who want to see the engine, toggle **Detailed View** in Settings. Now you see:
+
+```
+Conductor: 3 items injected (840 tokens) | Intent: generation | Threshold: 0.40
+  - [invariant]    "Always use window seats"        score: 0.82  pinned
+  - [pattern]      "Budget under $3,000"            score: 0.71  semantic match
+  - [antipattern]  "No early flights"               score: 0.64  co-occurrence
+```
+
+Same data, different lens. You choose your comfort level.
+
+---
+
+## Conductor Controls
+
+### Pin & Mute
+
+The two most important controls. They work in the web UI, in the Conductor Trace after each response, and via MCP tools.
+
+| Action | What It Does | When to Use |
+|--------|-------------|-------------|
+| **Pin** ("Always remember this") | Item is always injected regardless of relevance score | Critical rules, project-defining decisions |
+| **Mute** ("I know this already") | Item is never injected but stays in your memory | Lessons you've internalized, outdated procedures |
+
+Pin and mute are mutually exclusive — pinning an item unmutes it, and vice versa.
+
+**In the web UI:** Toggle icons appear on each item in the Conductor Trace and in the Knowledge dashboard.
+
+**Via MCP:**
+```
+chorum_pin_learning   { id: "item-id" }
+chorum_mute_learning  { id: "item-id" }
+```
+
+### Feedback
+
+After each response, you can give thumbs up or thumbs down on individual injected items. This feeds into the Conductor's co-occurrence scoring:
+
+- **Thumbs up** — "This was relevant." Strengthens future retrieval of this item and items that frequently appear alongside it.
+- **Thumbs down** — "This wasn't relevant." Weakens future co-occurrence signals.
+
+Over time, your feedback trains the Conductor to surface better combinations of knowledge.
+
+**Via MCP:**
+```
+chorum_feedback_learning  { id: "item-id", signal: "positive" }
+```
+
+---
+
+## Memory Depth
+
+Each project has a Memory Depth setting that controls how aggressively the Conductor injects knowledge.
+
+| Depth | Effect | Best For |
+|-------|--------|----------|
+| **Light** | Fewer items, higher relevance bar, faster responses | Established projects where the AI already "knows" you |
+| **Normal** | Balanced relevance and coverage | Most projects (default) |
+| **Rich** | More items, lower relevance bar, broader context | New projects, complex domains, learning phase |
+
+**How it works under the hood:**
+
+| Depth | Budget Multiplier | Threshold Shift |
+|-------|-------------------|-----------------|
+| Light | 0.7x (reduces token budget by 30%) | +0.10 (higher bar for inclusion) |
+| Normal | 1.0x (no change) | 0.00 |
+| Rich | 1.3x (increases token budget by 30%) | -0.10 (lower bar, more items pass) |
+
+**To change:** Go to **Settings > Memory & Learning** and select Light, Normal, or Rich at the top of the Conductor section.
+
+---
+
+## Focus Areas
+
+You can tell the Conductor what domains matter most for a project. This gives a small relevance boost to memories tagged with matching domains, even when the current query doesn't mention them explicitly.
+
+**Example:** If your project's focus areas are `database` and `security`, a security-related invariant will score slightly higher even when you're asking about a different topic — because security is always relevant in this project.
+
+**Available domains:** coding, testing, database, security, frontend, devops, architecture, writing, research, planning — plus any custom tags.
+
+**To set:** Go to **Settings > Memory & Learning** and add tags in the Focus Areas chip picker.
+
+The Conductor also detects domains automatically from your queries (e.g., mentioning "SQL" adds "database" to the query context). Focus areas supplement this automatic detection with project-level permanent signals.
+
+---
+
+## Conductor Health
+
+The Health dashboard gives you an at-a-glance view of your project's memory state:
+
+- **Total memories** — How many items the Conductor has to work with
+- **By type** — Distribution of rules, preferences, decisions, things to avoid, and how-tos
+- **Pinned / Muted** — How many items you've manually steered
+- **Promoted** — Items automatically promoted due to high usage (10+ retrievals)
+- **Decaying** — Items approaching irrelevance threshold (may need review)
+- **Most used** — Your top 5 most-frequently-injected items
+- **Last compiled** — When Tier 1/2 caches were last rebuilt
+
+**To view:** Go to **Settings > Memory & Learning > Learned Knowledge**. The Health card appears at the top.
+
+---
+
+## How the Conductor Scores
+
+For those in Detailed Mode, here's what happens under the hood for every query:
+
+### The Pipeline
+
+```
+Your Message
+     |
+     v
+Query Classification (intent, complexity, domains)
+     |
+     v
+Token Budget Assignment (based on complexity + Memory Depth)
+     |
+     v
+Candidate Scoring
+  - Semantic similarity (embedding match)
+  - Recency (per-type decay curves)
+  - Domain overlap (query domains + Focus Areas)
+  - Usage frequency (log curve, plateaus at ~20 uses)
+  - Co-occurrence bonus (items that succeed together)
+  - Type boost (adjusted by intent)
+  - Dynamic weight shifting (conversation depth, code context, history)
+     |
+     v
+Selection
+  - Filter muted items
+  - Include pinned items (bypass threshold)
+  - Apply intent-adaptive thresholds
+  - Greedy fill within budget
+     |
+     v
+Context Assembly + Injection
+```
+
+### Dynamic Weight Shifting
+
+The Conductor's scoring weights aren't static. They shift based on your conversation context:
+
+| Signal | What Shifts | Why |
+|--------|------------|-----|
+| Deep conversation (>10 turns) | Recency weight increases | Recent context matters more as conversation evolves |
+| Code present in query | Domain weight increases | Domain matching is critical when code is involved |
+| References history ("we discussed...") | Semantic weight increases | Finding past context needs strong meaning matching |
+
+### Intent-Adaptive Thresholds
+
+Different query intents use different minimum score thresholds:
+
+| Intent | Threshold | Behavior |
+|--------|-----------|----------|
+| Debugging | 0.25 | Casts a wider net to catch antipatterns and how-tos |
+| Generation | 0.40 | Higher precision — only inject highly relevant items |
+| Question / Analysis | 0.35 | Balanced |
+| Greeting | 0.50 | Rarely needs context |
+
+---
+
+## Promotion Pipeline
+
+When a memory item has been retrieved 10 or more times, the Conductor automatically **promotes** it. Promoted items:
+
+- Are guaranteed inclusion in Tier 1/2 compiled caches (even if their decay score is low)
+- Sort ahead of non-promoted items during compilation
+- Reflect proven, high-value knowledge
+
+You can also manually promote items by pinning them.
+
+---
+
+## MCP Integration
+
+All Conductor controls are available via MCP tools, so external agents (Claude Code, Cursor, etc.) can interact with the Conductor programmatically:
+
+| Tool | Description |
+|------|-------------|
+| `chorum_pin_learning` | Pin an item for guaranteed injection |
+| `chorum_mute_learning` | Mute an item to suppress injection |
+| `chorum_feedback_learning` | Send positive/negative signal on an item |
+| `chorum_conductor_health` | Get aggregate health stats for the project |
+| `chorum_query_memory` | Search memories by type/domain (existing) |
+| `chorum_get_invariants` | Retrieve all active invariants (existing) |
+| `chorum_propose_learning` | Propose a new learning item (existing) |
+
+---
+
+## FAQ
+
+### I just want results. Do I need to touch any of this?
+
+No. The Conductor works automatically with zero configuration. Everything described on this page is opt-in. Most users only interact with the Conductor when they see "Chorum remembered N things" and occasionally tap "Always remember this" or "I know this already."
+
+### How do I switch between casual and detailed view?
+
+Go to **Settings > Memory & Learning** and toggle **Show Detailed View**. This affects the Conductor Trace, Health dashboard labels, and action button text across the entire app.
+
+### Does pinning an item cost more tokens?
+
+Yes, slightly. Pinned items are always injected (budget permitting), so they consume part of the token budget that would otherwise go to scored items. If you pin too many items, lower-scoring relevant items may be crowded out.
+
+### Can I pin items from the CLI?
+
+Yes. Use the `chorum_pin_learning` MCP tool with the item ID. You can find item IDs via `chorum_query_memory`.
+
+### What happens to muted items?
+
+They stay in your memory corpus. They still participate in co-occurrence tracking and can be unmuted at any time. They're just filtered out before injection. Think of muting as "snoozing" a memory, not deleting it.
+
+### How does Memory Depth interact with model size?
+
+Memory Depth (Light/Normal/Rich) is a multiplier on top of the tier-based budget. A small model on Tier 1 with "Rich" depth gets `500 * 1.3 = 650 tokens` — still modest. A large model on Tier 3 with "Light" depth gets `5000 * 0.7 = 3500 tokens` for a complex query. The tier system prevents overflow regardless of depth setting.
+
+---
+
+## Related Documentation
+
+- **[Memory Overview](./overview.md)** — How the memory system works
+- **[Relevance Gating](./relevance-gating.md)** — Deep dive into scoring mechanics
+- **[Tiered Context](./tiered-context.md)** — How memory adapts to model sizes
+- **[Memory Management](./management.md)** — Viewing, editing, and organizing learnings
+- **[Learning Types](./learning-types.md)** — Understanding each memory type
+
+---
+
+*"The best memory system is one you forget is there — until you need to steer it."*

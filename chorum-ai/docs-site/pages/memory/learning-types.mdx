@@ -5,7 +5,7 @@ description: Understanding patterns, decisions, invariants, and antipatterns in 
 
 # Learning Types
 
-Chorum's memory system stores four distinct types of knowledge, each serving a different purpose. Understanding these types helps you curate your project's memory effectively.
+Chorum's memory system stores five distinct types of knowledge, each serving a different purpose. Understanding these types helps you curate your project's memory effectively.
 
 ## Why This Matters
 
@@ -13,7 +13,7 @@ Not all knowledge is the same. A coding convention ("use early returns") is diff
 
 ---
 
-## The Four Types
+## The Five Types
 
 ### 1. Patterns
 
@@ -87,7 +87,26 @@ A good decision includes rationale:
 
 ---
 
-### 4. Antipatterns
+### 4. Golden Paths
+
+**What they are:** Step-by-step procedures, recipes, and "how-to" guides for recurring tasks in your project.
+
+**How they're used:** Golden paths help the AI guide you through established workflows. When you ask "how do I deploy?" or "how do I add a new API route?", the AI follows your project's actual procedure.
+
+**Examples:**
+```
+"To add a new API route: create route.ts in app/api/, add auth middleware, validate input with Zod, write handler, add to OpenAPI spec"
+"Deploy flow: run tests locally, push to main, verify staging build, run smoke tests, promote to production"
+"New component checklist: create component file, add props interface, write unit test, add to Storybook, update barrel export"
+```
+
+**When to add manually:** When you find yourself explaining the same multi-step process repeatedly, capture it as a golden path.
+
+**Aging:** Golden paths have a 30-day half-life — procedures get stale as tooling and processes evolve. If a golden path keeps being retrieved (10+ times), it gets [automatically promoted](./conductor.md#promotion-pipeline) to resist decay.
+
+---
+
+### 5. Antipatterns
 
 **What they are:** Things to explicitly avoid. The inverse of patterns.
 
@@ -119,10 +138,11 @@ When Chorum scores memory for relevance, each type gets a priority boost:
 
 | Type | Priority Boost | Rationale |
 |------|----------------|-----------|
-| Invariant | +0.25 | Must not be violated—high priority |
+| Invariant | +0.25 | Must not be violated — highest priority |
+| Golden Path | +0.15 | Procedural guidance for recurring tasks |
 | Pattern | +0.10 | Style consistency matters |
 | Decision | +0.10 | Context prevents rehashing |
-| Antipattern | +0.10 | Mistake prevention |
+| Antipattern | +0.05 | Mistake prevention (boosted 2x during debugging) |
 
 This means an invariant with the same semantic similarity as a pattern will rank higher and be more likely to be injected.
 
@@ -331,6 +351,7 @@ Chorum treats invariants the same way: **zero decay, perpetual relevance**. An i
 ## Related Documentation
 
 - **[Memory Overview](./overview.md)** — How the memory system works
+- **[The Conductor](./conductor.md)** — See, steer, and tune memory injection
 - **[Relevance Gating](./relevance-gating.md)** — How learnings are scored and selected
 - **[Tiered Context](./tiered-context.md)** — How memory adapts to different model sizes
 - **[Memory Management](./management.md)** — Editing and organizing your learnings

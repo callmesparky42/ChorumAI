@@ -16,6 +16,39 @@ import clsx from 'clsx'
 
 export type { Attachment }
 
+/**
+ * Compress an image file using canvas.
+ * Resizes to max 1568px on longest side (Anthropic's recommended max)
+ * and re-encodes as JPEG at 80% quality.
+ * Returns a data URL string.
+ */
+function compressImage(file: File, maxDim = 1568, quality = 0.8): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const img = new window.Image()
+        img.onload = () => {
+            let { width, height } = img
+            if (width > maxDim || height > maxDim) {
+                const ratio = Math.min(maxDim / width, maxDim / height)
+                width = Math.round(width * ratio)
+                height = Math.round(height * ratio)
+            }
+            const canvas = document.createElement('canvas')
+            canvas.width = width
+            canvas.height = height
+            const ctx = canvas.getContext('2d')
+            if (!ctx) { reject(new Error('Canvas not supported')); return }
+            ctx.drawImage(img, 0, 0, width, height)
+            // Use JPEG for photos/screenshots (smaller), keep PNG for transparency
+            const isPng = file.type === 'image/png'
+            const outputType = isPng ? 'image/png' : 'image/jpeg'
+            const outputQuality = isPng ? undefined : quality
+            resolve(canvas.toDataURL(outputType, outputQuality))
+        }
+        img.onerror = () => reject(new Error('Failed to load image'))
+        img.src = URL.createObjectURL(file)
+    })
+}
+
 // Simple hash function for content deduplication
 async function hashContent(content: string): Promise<string> {
     const encoder = new TextEncoder()
@@ -119,73 +152,75 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                 file.name.endsWith('.js') ||
                 file.name.endsWith('.py')
 
-            // Size limits: 5MB for images/PDFs, 100KB for text
-            const limit = (isImage || isPdf) ? 5 * 1024 * 1024 : 100 * 1024
+            // Size limits: 20MB for images (compressed client-side), 5MB for PDFs, 100KB for text
+            const limit = isImage ? 20 * 1024 * 1024 : isPdf ? 5 * 1024 * 1024 : 100 * 1024
+            const limitLabel = isImage ? '20MB' : isPdf ? '5MB' : '100KB'
 
             if (file.size > limit) {
-                alert(`File ${file.name} too large (max ${isImage || isPdf ? '5MB' : '100KB'})`)
+                alert(`File ${file.name} too large (max ${limitLabel})`)
                 return
             }
 
-            const reader = new FileReader()
-            reader.onload = (e) => {
-                const result = e.target?.result as string
-                let type: Attachment['type'] = 'text'
-
-                if (isImage) {
-                    type = 'image'
-                    // Images skip consent - add directly
+            if (isImage) {
+                // Compress images client-side to avoid exceeding API body limits
+                compressImage(file).then(compressed => {
                     setAttachments(prev => {
-                        if (prev.some(a => a.name === file.name && a.content === result)) return prev
+                        if (prev.some(a => a.name === file.name)) return prev
                         return [...prev, {
-                            type,
+                            type: 'image' as const,
                             name: file.name,
-                            content: result,
+                            content: compressed,
                             mimeType: file.type
                         }].slice(-5)
                     })
-                } else if (isPdf) {
-                    type = 'pdf'
-                    // PDFs also skip consent for now (no learning extraction from PDFs)
-                    setAttachments(prev => {
-                        if (prev.some(a => a.name === file.name && a.content === result)) return prev
-                        return [...prev, {
-                            type,
-                            name: file.name,
-                            content: result,
-                            mimeType: file.type
-                        }].slice(-5)
-                    })
-                } else {
-                    // Text-based files need consent dialog
-                    if (file.name.endsWith('.md')) type = 'markdown'
-                    else if (file.name.endsWith('.json')) type = 'json'
-                    else if (['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs'].some(ext => file.name.endsWith(ext))) type = 'code'
-
-                    const attachment: Attachment = {
-                        type,
-                        name: file.name,
-                        content: result,
-                        mimeType: file.type || 'text/plain'
-                    }
-
-                    textFilesToConsent.push({ file, attachment })
-
-                    // After all files are read, show consent dialog if we have text files
-                    // Use a small timeout to batch all async reads
-                    setTimeout(() => {
-                        if (textFilesToConsent.length > 0) {
-                            setPendingFiles(prev => [...prev, ...textFilesToConsent])
-                            setShowConsentDialog(true)
-                        }
-                    }, 50)
-                }
-            }
-
-            if (isImage || isPdf) {
-                reader.readAsDataURL(file)
+                }).catch(() => {
+                    alert(`Failed to process image: ${file.name}`)
+                })
             } else {
-                reader.readAsText(file)
+                const reader = new FileReader()
+                reader.onload = (e) => {
+                    const result = e.target?.result as string
+
+                    if (isPdf) {
+                        setAttachments(prev => {
+                            if (prev.some(a => a.name === file.name && a.content === result)) return prev
+                            return [...prev, {
+                                type: 'pdf' as const,
+                                name: file.name,
+                                content: result,
+                                mimeType: file.type
+                            }].slice(-5)
+                        })
+                    } else {
+                        // Text-based files need consent dialog
+                        let type: Attachment['type'] = 'text'
+                        if (file.name.endsWith('.md')) type = 'markdown'
+                        else if (file.name.endsWith('.json')) type = 'json'
+                        else if (['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs'].some(ext => file.name.endsWith(ext))) type = 'code'
+
+                        const attachment: Attachment = {
+                            type,
+                            name: file.name,
+                            content: result,
+                            mimeType: file.type || 'text/plain'
+                        }
+
+                        textFilesToConsent.push({ file, attachment })
+
+                        setTimeout(() => {
+                            if (textFilesToConsent.length > 0) {
+                                setPendingFiles(prev => [...prev, ...textFilesToConsent])
+                                setShowConsentDialog(true)
+                            }
+                        }, 50)
+                    }
+                }
+
+                if (isPdf) {
+                    reader.readAsDataURL(file)
+                } else {
+                    reader.readAsText(file)
+                }
             }
         })
     }

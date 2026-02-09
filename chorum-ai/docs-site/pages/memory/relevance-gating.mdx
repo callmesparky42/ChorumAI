@@ -263,21 +263,38 @@ Simple queries stay fast. Complex queries get rich context.
 
 ## User Controls
 
-### Context Depth Toggle
+The [Conductor](./conductor.md) gives you several ways to influence relevance gating without touching the scoring math directly.
 
-You can override automatic gating:
+### Memory Depth (Conductor Lens)
 
-| Mode | Behavior |
-|------|----------|
-| **Auto** (default) | Chorum decides based on query complexity |
-| **Minimal** | Prioritize speed, inject less |
-| **Full** | Inject everything, ignore budget |
+A project-level setting that shifts the scoring thresholds and token budget:
 
-### Per-Query Override
+| Depth | Budget Effect | Threshold Effect | Best For |
+|-------|--------------|-----------------|----------|
+| **Light** | 0.7x budget | +0.10 (stricter) | Established projects, speed priority |
+| **Normal** (default) | No change | No change | Most projects |
+| **Rich** | 1.3x budget | -0.10 (looser) | New projects, complex domains |
 
-In conversation, you can hint at depth:
-- "Quick question: what's the port?" → Minimal context
-- "Help me understand the full auth flow" → Deep context
+Set this in **Settings > Memory & Learning**.
+
+### Pin & Mute
+
+Direct steering of individual items:
+
+- **Pinned items** bypass the relevance threshold entirely — they're always injected (budget permitting)
+- **Muted items** are filtered out before scoring — they never appear in context
+
+### Focus Areas
+
+Project-level domain tags that give a permanent +0.05 bonus to matching items, even when the current query doesn't mention that domain.
+
+### Per-Query Adaptation
+
+The Conductor adapts automatically based on your query:
+- "Quick question: what's the port?" → Lower complexity, smaller budget
+- "Help me understand the full auth flow" → Higher complexity, larger budget, lower thresholds
+
+> See **[The Conductor](./conductor.md)** for the complete guide to all controls.
 
 ---
 
@@ -291,13 +308,14 @@ Invariants are special because violating them causes real problems:
 
 A relevant invariant is like a senior engineer tapping you on the shoulder: "Hey, don't forget about this rule."
 
-Even if an invariant would push you over the token budget, if it scores > 0.70 relevance, it gets injected anyway.
+Invariants get the highest type boost (+0.25), the lowest score thresholds, and pinned invariants bypass scoring entirely.
 
 ---
 
 ## Related Documentation
 
 - **[Memory Overview](./overview.md)** — How the memory system works
+- **[The Conductor](./conductor.md)** — User-facing controls for steering injection
 - **[Tiered Context](./tiered-context.md)** — How memory adapts to different model sizes
 - **[Learning Types](./learning-types.md)** — What each memory type means
 - **[Confidence Scoring](./confidence-scoring.md)** — How project confidence affects injection

@@ -17,6 +17,14 @@ Chorum remembers. When you switch projects or start a new conversation, your AI 
 
 ## Core Concepts
 
+### The Conductor
+
+At the heart of Chorum's memory system is the **Conductor** — the intelligence layer that decides what knowledge reaches the AI for each response. It scores every memory by relevance, selects the best ones within a token budget, and injects them into the prompt.
+
+The Conductor works silently by default. After each response, you'll see a subtle line: *"Chorum remembered 3 things for this response."* Expand it to see what was injected, pin items you always want, or mute items you've internalized.
+
+> See **[The Conductor](./conductor.md)** for the full guide on visibility, controls, and tuning.
+
 ### Project Memory
 
 Each project in Chorum has its own isolated memory space. Patterns you establish in your "ChorumAI" project don't leak into your "Marketing Site" project.
@@ -25,13 +33,14 @@ Each project in Chorum has its own isolated memory space. Patterns you establish
 
 ### Learning Paths
 
-Chorum extracts and stores four types of knowledge:
+Chorum extracts and stores five types of knowledge:
 
 | Type | What It Captures | Example |
 |------|------------------|---------|
-| **Patterns** | Coding conventions, recurring approaches | "Use early returns to reduce nesting" |
-| **Decisions** | Technical choices with rationale | "Chose PostgreSQL over SQLite for multi-user support" |
+| **Patterns** | Conventions, recurring approaches | "Use early returns to reduce nesting" |
+| **Decisions** | Choices with rationale | "Chose PostgreSQL over SQLite for multi-user support" |
 | **Invariants** | Rules that must never be violated | "All API routes require auth middleware" |
+| **Golden Paths** | Step-by-step procedures and recipes | "To deploy: run tests, build, push to main, verify staging" |
 | **Antipatterns** | Things to avoid | "Don't use `any` type in TypeScript" |
 
 → See **[Learning Types](./learning-types.md)** for detailed explanations.
@@ -55,8 +64,8 @@ Under the hood, every learning is converted to a vector embedding—a numerical 
 
 1. **Learn** — Chorum analyzes conversations to extract patterns, decisions, and invariants
 2. **Store** — Each learning is embedded and stored with metadata (type, timestamp, source). Chorum checks for semantic near-duplicates (>85% similar) and merges them instead of creating bloat.
-3. **Retrieve** — When you ask a question, relevant memories are scored and ranked
-4. **Inject** — Memories are injected into the LLM's context, adapted to the model's size via [Tiered Context](./tiered-context.md)
+3. **Retrieve** — The [Conductor](./conductor.md) scores and ranks memories by relevance, respecting your pins, mutes, and Memory Depth setting
+4. **Inject** — Selected memories are injected into the LLM's context, adapted to the model's size via [Tiered Context](./tiered-context.md)
 
 ---
 
@@ -88,12 +97,15 @@ Manual learnings bypass the approval queue—they're added immediately.
 
 ## How Memory Affects Responses
 
-When you send a message, Chorum:
+When you send a message, the Conductor:
 
-1. **Classifies** your query (trivial? complex? code-related?)
+1. **Classifies** your query — intent (debugging? generation?), complexity, and domains
 2. **Selects** the right memory tier based on your model's context window (see [Tiered Context](./tiered-context.md))
-3. **Scores** relevant learnings (Tier 3) or uses pre-compiled summaries (Tier 1/2)
-4. **Injects** them into the system prompt
+3. **Scores** relevant learnings — using semantic similarity, recency, domain overlap, co-occurrence, and your project's [Memory Depth](./conductor.md#memory-depth) setting
+4. **Filters** — muted items are excluded; pinned items are always included
+5. **Injects** the highest-scoring items into the system prompt
+
+After the response, you'll see what was injected — and you can [pin, mute, or give feedback](./conductor.md#conductor-controls) on individual items.
 
 The AI sees something like:
 
@@ -132,8 +144,9 @@ Confidence increases with usage and diverse interactions. It decays slowly over 
 
 ## Related Documentation
 
+- **[The Conductor](./conductor.md)** — See, steer, and tune what Chorum remembers
 - **[Learning Types](./learning-types.md)** — Deep dive into patterns, decisions, invariants
-- **[Relevance Gating](./relevance-gating.md)** — How Chorum decides what to inject
+- **[Relevance Gating](./relevance-gating.md)** — How the scoring engine works under the hood
 - **[Tiered Context](./tiered-context.md)** — How memory adapts to different model sizes
 - **[Confidence Scoring](./confidence-scoring.md)** — How project confidence works
 - **[Memory Management](./management.md)** — Viewing, editing, and deleting learnings

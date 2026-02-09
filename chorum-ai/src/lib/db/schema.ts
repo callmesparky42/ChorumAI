@@ -37,6 +37,8 @@ export const users = pgTable('user', {
   }>(),
   // Third-party API keys (encrypted)
   serperApiKeyEncrypted: text('serper_api_key_encrypted'),
+  // Conductor's Podium settings
+  conductorDetailedView: boolean('conductor_detailed_view').default(false), // Show detailed scores in ConductorTrace
   // Onboarding tracking
   onboardingCompleted: boolean('onboarding_completed').default(false),
   onboardingStep: integer('onboarding_step').default(0), // 0=not started, 1-5=in progress, 6=complete
@@ -158,6 +160,9 @@ export const projects = pgTable('projects', {
   description: text('description'),
   techStack: jsonb('tech_stack').$type<string[]>(),
   customInstructions: text('custom_instructions'),
+  // Conductor's Podium settings
+  conductorLens: decimal('conductor_lens', { precision: 3, scale: 2 }).default('1.00'), // 0.25 to 2.00 budget multiplier
+  focusDomains: jsonb('focus_domains').$type<string[]>().default([]),
   createdAt: timestamp('created_at').defaultNow()
 })
 
@@ -239,6 +244,9 @@ export const projectLearningPaths = pgTable('project_learning_paths', {
   usageCount: integer('usage_count').default(0),
   lastUsedAt: timestamp('last_used_at'),
   promotedAt: timestamp('promoted_at'), // Set when usage exceeds promotion threshold
+  // Conductor's Podium: pin/mute controls
+  pinnedAt: timestamp('pinned_at'), // User pinned this item - always include in context
+  mutedAt: timestamp('muted_at'),   // User muted this item - never include in context
 
   createdAt: timestamp('created_at').defaultNow()
 })

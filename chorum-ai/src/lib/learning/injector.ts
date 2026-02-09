@@ -7,7 +7,7 @@
 import { getProjectLearning } from './manager'
 import { getLinksForProject } from './links'
 import { db } from '@/lib/db'
-import { projectFileMetadata, projectLearningPaths } from '@/lib/db/schema'
+import { projectFileMetadata, projectLearningPaths, projects } from '@/lib/db/schema'
 import { eq, or, sql } from 'drizzle-orm'
 import { classifier } from '@/lib/chorum/classifier'
 import { embeddings } from '@/lib/chorum/embeddings'
@@ -149,6 +149,9 @@ export async function injectLearningContext(
     let fileMeta: { filePath: string; isCritical: boolean | null; linkedInvariants: string[] | null; projectId: string }[] = []
     let queryEmbedding: number[] = []
     let allLinks: any[] = []
+    // Conductor's Podium settings
+    let conductorLens = 1.0
+    let focusDomains: string[] = []
 
     if (budget.maxTokens > 0) {
         // Parallel execution of all data requirements
@@ -156,20 +159,29 @@ export async function injectLearningContext(
             getProjectLearning(projectId),
             db.select().from(projectFileMetadata).where(eq(projectFileMetadata.projectId, projectId)),
             embeddings.embed(userQuery, userId),
-            getLinksForProject(projectId)
+            getLinksForProject(projectId),
+            db.select({
+                conductorLens: projects.conductorLens,
+                focusDomains: projects.focusDomains
+            }).from(projects).where(eq(projects.id, projectId)).limit(1)
         ])
 
         learningItems = results[0]
         fileMeta = results[1]
         queryEmbedding = results[2]
         allLinks = results[3]
+
+        // Conductor's Podium settings
+        const projectSettings = results[4][0]
+        conductorLens = projectSettings?.conductorLens ? Number(projectSettings.conductorLens) : 1.0
+        focusDomains = projectSettings?.focusDomains ?? []
     }
 
     const criticalFiles = fileMeta
         .filter(f => f.isCritical)
         .map(f => f.filePath)
 
-    // Map to MemoryCandidate
+    // Map to MemoryCandidate (include Conductor's Podium fields)
     const candidates: MemoryCandidate[] = learningItems.map(item => ({
         id: item.id,
         type: item.type,
@@ -179,7 +191,10 @@ export async function injectLearningContext(
         domains: item.domains || null,
         usageCount: item.usageCount || 0,
         lastUsedAt: item.lastUsedAt || null,
-        createdAt: item.createdAt
+        createdAt: item.createdAt,
+        // Conductor's Podium
+        pinnedAt: item.pinnedAt || null,
+        mutedAt: item.mutedAt || null
     }))
 
     // 4. Score & Select
@@ -262,7 +277,10 @@ export async function injectLearningContext(
             }
         }
 
-        selectedItems = relevance.selectMemory(scored, budget.maxTokens, classification.intent)
+        selectedItems = relevance.selectMemory(scored, budget.maxTokens, classification.intent, {
+            conductorLens,
+            focusDomains
+        })
     } else {
         // Even if budget is 0, we might want to enforce invariants?
         // Let's assume budget 0 means strictly no overhead.

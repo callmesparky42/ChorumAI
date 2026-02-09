@@ -1,0 +1,209 @@
+<!-- Conductor's Podium Section -->
+<!-- Add after capability cards, before architecture section -->
+
+<section class="py-24 px-6 bg-gradient-to-b from-gray-950 to-gray-900">
+  <div class="max-w-6xl mx-auto">
+    
+    <!-- Section Header -->
+    <div class="text-center mb-16">
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full mb-6">
+        <span class="text-2xl">🎵</span>
+        <span class="text-blue-400 text-sm font-medium tracking-wide uppercase">The Conductor</span>
+      </div>
+      <h2 class="text-4xl md:text-5xl font-bold text-white mb-6">
+        Sovereign Context with Learning You Can See
+      </h2>
+      <p class="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
+        Chorum is a cognitive scaffold for AI — it learns from your conversations, 
+        shows you exactly what it learned, and lets you steer what gets used. 
+        Your context, your providers, your rules.
+      </p>
+    </div>
+
+    <!-- Two Column Layout: Explanation + Visual -->
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+      
+      <!-- Left: Explanation -->
+      <div class="space-y-6">
+        <div class="prose prose-invert max-w-none">
+          <p class="text-lg text-gray-300 leading-relaxed">
+            Every AI tool claims to learn from you. None of them show you what they 
+            learned or let you correct it when they're wrong.
+          </p>
+          <p class="text-lg text-gray-300 leading-relaxed">
+            Chorum's Conductor is different. After every response, you see exactly 
+            which memories shaped it — not a vague "context applied," but the actual 
+            items, with controls to pin what matters and mute what doesn't. It's a 
+            learning system with a dashboard, not a black box with a prayer.
+          </p>
+        </div>
+        
+        <!-- Feature Pills -->
+        <div class="flex flex-wrap gap-3 pt-4">
+          <span class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-300">
+            📌 Pin what matters
+          </span>
+          <span class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-300">
+            🔇 Mute what doesn't
+          </span>
+          <span class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-300">
+            🎚️ Tune memory depth
+          </span>
+          <span class="px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm text-gray-300">
+            👍 Feedback that learns
+          </span>
+        </div>
+
+        <!-- Audience Toggle Hint -->
+        <div class="pt-6 border-t border-gray-800">
+          <p class="text-sm text-gray-500">
+            <span class="text-gray-400 font-medium">For developers:</span> 
+            Full observability — scores, retrieval reasons, decay curves, co-occurrence bonuses.
+          </p>
+          <p class="text-sm text-gray-500 mt-2">
+            <span class="text-gray-400 font-medium">For everyone else:</span> 
+            "Chorum remembered 3 things" with a tap to see them and a tap to fix them.
+          </p>
+        </div>
+      </div>
+
+      <!-- Right: Interactive Visual -->
+      <div class="relative">
+        <!-- Glow Effect -->
+        <div class="absolute -inset-4 bg-blue-500/5 rounded-3xl blur-xl"></div>
+        
+        <!-- Mock UI Card -->
+        <div class="relative bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
+          
+          <!-- Header Bar -->
+          <div class="px-4 py-3 bg-gray-950 border-b border-gray-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-blue-400">🎵</span>
+              <span class="text-sm text-gray-400">Conductor Trace</span>
+            </div>
+            <span class="text-xs text-gray-600">3 items • 847 tokens</span>
+          </div>
+          
+          <!-- Collapsed State -->
+          <div class="px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer transition-colors">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-300">Chorum remembered 3 things</span>
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Expanded Items -->
+          <div class="divide-y divide-gray-800/50">
+            
+            <!-- Item 1: Pinned -->
+            <div class="px-4 py-3 bg-blue-500/5 border-l-2 border-blue-500">
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded font-medium">Rule</span>
+                    <span class="text-xs text-blue-400">📌 Pinned</span>
+                  </div>
+                  <p class="text-sm text-gray-300 truncate">Always authenticate API routes before processing</p>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button class="p-1.5 text-blue-400 hover:bg-blue-500/20 rounded transition-colors" title="Pinned">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M16 4l4 4-1 1-2-2v6l3 3v2h-6v6l-2 2-2-2v-6H4v-2l3-3V6L5 8 4 7l4-4 4 4v8h4V7l-4-4z"/>
+                    </svg>
+                  </button>
+                  <button class="p-1.5 text-gray-600 hover:bg-gray-800 rounded transition-colors" title="Mute">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Item 2: Normal -->
+            <div class="px-4 py-3 hover:bg-gray-800/30 transition-colors">
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded font-medium">Preference</span>
+                  </div>
+                  <p class="text-sm text-gray-300 truncate">Use Result&lt;T,E&gt; pattern for error handling</p>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button class="p-1.5 text-gray-600 hover:bg-gray-800 rounded transition-colors" title="Pin">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                    </svg>
+                  </button>
+                  <button class="p-1.5 text-gray-600 hover:bg-gray-800 rounded transition-colors" title="Mute">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Item 3: Normal -->
+            <div class="px-4 py-3 hover:bg-gray-800/30 transition-colors">
+              <div class="flex items-start justify-between gap-4">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded font-medium">Decision</span>
+                  </div>
+                  <p class="text-sm text-gray-300 truncate">Drizzle ORM for all database operations</p>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button class="p-1.5 text-gray-600 hover:bg-gray-800 rounded transition-colors" title="Pin">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                    </svg>
+                  </button>
+                  <button class="p-1.5 text-gray-600 hover:bg-gray-800 rounded transition-colors" title="Mute">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Footer: Memory Depth Control -->
+          <div class="px-4 py-3 bg-gray-950 border-t border-gray-800">
+            <div class="flex items-center justify-between">
+              <span class="text-xs text-gray-500">Memory Depth</span>
+              <div class="flex items-center gap-1">
+                <button class="px-3 py-1 text-xs text-gray-500 hover:text-gray-300 rounded transition-colors">
+                  Precise
+                </button>
+                <button class="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 rounded font-medium">
+                  Balanced
+                </button>
+                <button class="px-3 py-1 text-xs text-gray-500 hover:text-gray-300 rounded transition-colors">
+                  Thorough
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom CTA -->
+    <div class="text-center mt-16">
+      <p class="text-gray-500 mb-6">
+        Own your context. See your learning. Conduct your AI.
+      </p>
+      <a href="/app" class="inline-flex items-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl transition-colors">
+        Try the Conductor
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+        </svg>
+      </a>
+    </div>
+
+  </div>
+</section>

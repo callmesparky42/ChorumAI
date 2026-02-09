@@ -42,6 +42,9 @@ export interface LearningItem {
     usageCount?: number
     lastUsedAt?: Date | null
     promotedAt?: Date | null
+    // Conductor's Podium
+    pinnedAt?: Date | null  // User pinned - always include in context
+    mutedAt?: Date | null   // User muted - never include in context
     createdAt: Date | null
 }
 

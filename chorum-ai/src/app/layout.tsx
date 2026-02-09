@@ -18,6 +18,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ChorumAI - Sovereign AI",
   description: "The Sovereign Context Layer for AI",
+  verification: {
+    other: {
+      "msvalidate.01": "B832459C72E6E9F807A5BEE7C09099F0",
+    },
+  },
 };
 
 export default function RootLayout({

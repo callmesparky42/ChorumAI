@@ -297,7 +297,7 @@ export default function LandingPage() {
           <div className="architecture-header">
             <span className="section-label">Under the Hood</span>
             <h2>The Sovereign Stack</h2>
-            <p>Three layers working together: your memory stays sovereign, the router optimizes every request, and the providers become interchangeable performers.</p>
+            <p>Four layers working together: your memory stays sovereign, the Conductor lets you see and steer it, the router optimizes every request, and the providers become interchangeable performers.</p>
           </div>
 
           <div className="arch-stack">
@@ -336,7 +336,97 @@ export default function LandingPage() {
               </svg>
             </div>
 
-            {/* Layer 2: Router */}
+            {/* Layer 2: The Conductor */}
+            <div className="arch-layer-expanded conductor-layer">
+              <div className="arch-layer-header">
+                <div className="arch-layer-icon conductor">♫</div>
+                <div className="arch-layer-title">
+                  <h3>The Conductor</h3>
+                  <span>Sovereign context with learning you can see</span>
+                </div>
+              </div>
+              <div className="conductor-split">
+                <div className="conductor-explanation">
+                  <p>
+                    Every AI tool claims to learn from you. None of them show you what they
+                    learned or let you correct it when they{'\''}re wrong.
+                  </p>
+                  <p>
+                    The Conductor is different. After every response, you see exactly
+                    which memories shaped it — not a vague &quot;context applied,&quot; but the actual
+                    items, with controls to pin what matters and mute what doesn{'\''}t.
+                  </p>
+                  <div className="conductor-pills">
+                    <span className="conductor-pill">📌 Pin what matters</span>
+                    <span className="conductor-pill">🔇 Mute what doesn{'\''}t</span>
+                    <span className="conductor-pill">🎚️ Tune memory depth</span>
+                    <span className="conductor-pill">👍 Feedback that learns</span>
+                  </div>
+                  <div className="conductor-audiences">
+                    <p><strong>For developers:</strong> Full observability — scores, retrieval reasons, decay curves, co-occurrence bonuses.</p>
+                    <p><strong>For everyone else:</strong> &quot;Chorum remembered 3 things&quot; with a tap to see them and a tap to fix them.</p>
+                  </div>
+                </div>
+                <div className="conductor-mock">
+                  <div className="mock-header">
+                    <div className="mock-header-left">
+                      <span className="mock-icon">♫</span>
+                      <span>Conductor Trace</span>
+                    </div>
+                    <span className="mock-meta">3 items • 847 tokens</span>
+                  </div>
+                  <div className="mock-collapsed">
+                    <span>Chorum remembered 3 things</span>
+                    <svg className="mock-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <div className="mock-items">
+                    <div className="mock-item pinned">
+                      <div className="mock-item-content">
+                        <div className="mock-item-tags">
+                          <span className="mock-tag rule">Rule</span>
+                          <span className="mock-pinned-label">📌 Pinned</span>
+                        </div>
+                        <p>Always authenticate API routes before processing</p>
+                      </div>
+                    </div>
+                    <div className="mock-item">
+                      <div className="mock-item-content">
+                        <div className="mock-item-tags">
+                          <span className="mock-tag preference">Preference</span>
+                        </div>
+                        <p>Use Result&lt;T,E&gt; pattern for error handling</p>
+                      </div>
+                    </div>
+                    <div className="mock-item">
+                      <div className="mock-item-content">
+                        <div className="mock-item-tags">
+                          <span className="mock-tag decision">Decision</span>
+                        </div>
+                        <p>Drizzle ORM for all database operations</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mock-footer">
+                    <span>Memory Depth</span>
+                    <div className="mock-lens-buttons">
+                      <button className="mock-lens">Precise</button>
+                      <button className="mock-lens active">Balanced</button>
+                      <button className="mock-lens">Thorough</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="arch-connector">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12l7 7 7-7" />
+              </svg>
+            </div>
+
+            {/* Layer 3: Router (was Layer 2) */}
             <div className="arch-layer-expanded">
               <div className="arch-layer-header">
                 <div className="arch-layer-icon router">⊕</div>
@@ -371,7 +461,7 @@ export default function LandingPage() {
               </svg>
             </div>
 
-            {/* Layer 3: Providers */}
+            {/* Layer 4: Providers */}
             <div className="arch-layer-expanded">
               <div className="arch-layer-header">
                 <div className="arch-layer-icon providers">⋮</div>
@@ -408,7 +498,7 @@ export default function LandingPage() {
               <span className="arrow">→</span>
               <span>Query classification</span>
               <span className="arrow">→</span>
-              <span>Relevance gating</span>
+              <span>Conductor scoring</span>
               <span className="arrow">→</span>
               <span>Context injection</span>
               <span className="arrow">→</span>

@@ -31,6 +31,9 @@ import { getExperimentVariant } from '@/lib/experiments'
 import { ensureUserExists } from '@/lib/user-init'
 import { WEB_SEARCH_TOOL_DEFINITION, executeWebSearch, isSearchEnabled } from '@/lib/search'
 
+// Allow large request bodies (base64-encoded images can exceed default 1MB/10MB)
+export const maxDuration = 60 // seconds
+
 export async function POST(req: NextRequest) {
     try {
         let session = await auth()

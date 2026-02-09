@@ -42,13 +42,22 @@ Quick stats for your current project:
 | Critical Files | Key files identified |
 | Confidence | Current confidence score |
 
+### Conductor Health Card
+
+At the top of the knowledge tab, the Conductor Health card shows aggregate memory state: item counts by type, pinned/muted/promoted counts, your most-used items, and items approaching decay threshold.
+
+> See **[Conductor Health](./conductor.md#conductor-health)** for details.
+
 ### Learning Lists
 
 Expandable sections for each learning type:
 - **Invariants** — Rules that must not be broken
 - **Patterns** — Coding conventions and approaches
 - **Decisions** — Technical choices with rationale
+- **Golden Paths** — Step-by-step procedures and recipes
 - **Antipatterns** — Things to avoid
+
+Each item shows edit, delete, pin, and mute actions.
 
 ---
 
@@ -63,7 +72,8 @@ Each learning shows:
 - **Context** — Why this was learned (if provided)
 - **Source** — Where it came from (analyzer, claude-code, manual, etc.)
 - **Date** — When it was added
-- **Actions** — Edit and delete buttons
+- **Status badges** — Pinned (blue), Muted (dimmed), Promoted (star)
+- **Actions** — Pin, Mute, Edit, and Delete buttons
 
 ---
 
@@ -120,6 +130,51 @@ Common reasons to edit:
 
 ---
 
+## Pinning & Muting Learnings
+
+Beyond editing and deleting, you can **pin** and **mute** individual learnings to steer what the [Conductor](./conductor.md) injects.
+
+### Pinning ("Always Remember This")
+
+Pinned items are **always injected** into context regardless of their relevance score. Use this for knowledge that's critical to every conversation in your project.
+
+1. Find the learning you want to pin
+2. Click the **Pin** icon (or "Always remember this" in casual mode)
+3. The item gets a blue accent and pin badge
+
+**When to pin:**
+- Project-defining rules ("All API routes require auth")
+- Foundational decisions you never want the AI to forget
+- Safety-critical invariants
+
+**Note:** Pinned items consume token budget. Pinning too many items may crowd out dynamically scored items.
+
+### Muting ("I Know This Already")
+
+Muted items are **never injected** but remain stored in your memory. They still participate in co-occurrence tracking and can be unmuted at any time.
+
+1. Find the learning you want to mute
+2. Click the **Mute** icon (or "I know this already" in casual mode)
+3. The item appears dimmed with reduced opacity
+
+**When to mute:**
+- Lessons you've internalized and no longer need reminders about
+- Temporarily irrelevant items (e.g., patterns for a feature branch you're not working on)
+- Items that keep appearing but aren't useful for your current work
+
+**Muting vs. Deleting:** Muting is reversible — unmute anytime to restore injection. Deleting is permanent. When in doubt, mute.
+
+### Giving Feedback
+
+After each response, the Conductor Trace shows what was injected. You can give thumbs up or thumbs down on individual items:
+
+- **Thumbs up** — Strengthens the item's co-occurrence signals, improving future retrieval
+- **Thumbs down** — Weakens co-occurrence signals for this item in this context
+
+Over time, feedback trains the Conductor to surface better knowledge combinations.
+
+---
+
 ## Deleting Learnings
 
 1. Find the learning to delete
@@ -132,7 +187,7 @@ Common reasons to edit:
 - Learning is duplicate of another
 - Project direction has changed
 
-**Note:** Deleted learnings can't be recovered. If you're unsure, consider editing instead.
+**Note:** Deleted learnings can't be recovered. If you're unsure, consider [muting](#muting-i-know-this-already) instead.
 
 ---
 
@@ -196,7 +251,9 @@ Watch for these signs your memory needs attention:
 | Confidence dropping | Inactive or stale data | Use project more, add fresh learnings |
 | Many pending learnings | Review queue backed up | Review and approve/deny |
 | Conflicting patterns | Contradictory learnings | Edit or delete one |
-| Very old learnings | May be outdated | Review and update or delete |
+| Items approaching decay | May be outdated | Review — pin if still valuable, or let them decay |
+| Many muted items | Might be over-muting | Review muted items — unmute or delete |
+| No pinned items | Missing guaranteed context | Pin your most critical rules and decisions |
 
 ---
 
@@ -231,6 +288,7 @@ Future versions may support cross-project learning sharing.
 ## Related Documentation
 
 - **[Memory Overview](./overview.md)** — How the memory system works
+- **[The Conductor](./conductor.md)** — See, steer, and tune memory injection
 - **[Learning Types](./learning-types.md)** — Understanding each type
 - **[Confidence Scoring](./confidence-scoring.md)** — How confidence works
 - **[Export/Import](../sovereignty/export-import.md)** — Backing up and restoring memory

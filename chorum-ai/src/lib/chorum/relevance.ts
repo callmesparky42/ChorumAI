@@ -17,6 +17,9 @@ export interface MemoryCandidate {
     usageCount: number
     lastUsedAt: Date | null
     createdAt: Date | null
+    // Conductor's Podium
+    pinnedAt?: Date | null  // User pinned - always include in context
+    mutedAt?: Date | null   // User muted - never include in context
     // Calculated fields
     score?: number
     retrievalReason?: string
@@ -294,13 +297,13 @@ export function calculateUsageScore(usageCount: number): number {
 // ============================================================================
 
 const INTENT_THRESHOLDS: Record<QueryIntent, { general: number; invariant: number }> = {
-    debugging:     { general: 0.25, invariant: 0.15 },  // Wide net — surface antipatterns & golden paths
-    question:      { general: 0.35, invariant: 0.20 },
-    analysis:      { general: 0.35, invariant: 0.20 },
-    generation:    { general: 0.40, invariant: 0.20 },  // Precision — only inject highly relevant
-    discussion:    { general: 0.35, invariant: 0.20 },
-    continuation:  { general: 0.30, invariant: 0.18 },
-    greeting:      { general: 0.50, invariant: 0.30 },  // High bar — greetings rarely need context
+    debugging: { general: 0.25, invariant: 0.15 },  // Wide net — surface antipatterns & golden paths
+    question: { general: 0.35, invariant: 0.20 },
+    analysis: { general: 0.35, invariant: 0.20 },
+    generation: { general: 0.40, invariant: 0.20 },  // Precision — only inject highly relevant
+    discussion: { general: 0.35, invariant: 0.20 },
+    continuation: { general: 0.30, invariant: 0.18 },
+    greeting: { general: 0.50, invariant: 0.30 },  // High bar — greetings rarely need context
 }
 
 export class RelevanceEngine {
@@ -394,33 +397,95 @@ export class RelevanceEngine {
 
     /**
      * Greedily selects items until budget is full.
+     * 
+     * Conductor's Podium enhancements:
+     * - Muted items are always excluded
+     * - Pinned items are always included first (counted against budget)
+     * - conductorLens multiplies the token budget (0.25-2.0)
+     * - focusDomains boost matching items by +0.15
      */
-    public selectMemory(candidates: MemoryCandidate[], maxTokens: number, intent?: QueryIntent): MemoryCandidate[] {
-        // Sort by score descending (copy array to avoid mutation)
-        const sorted = [...candidates].sort((a, b) => (b.score || 0) - (a.score || 0))
+    public selectMemory(
+        candidates: MemoryCandidate[],
+        maxTokens: number,
+        intent?: QueryIntent,
+        options?: {
+            conductorLens?: number     // Budget multiplier (0.25-2.0)
+            focusDomains?: string[]    // Domains to boost
+        }
+    ): MemoryCandidate[] {
+        // Apply conductor lens to budget (clamp 0.25-2.0)
+        const lens = Math.max(0.25, Math.min(2.0, options?.conductorLens ?? 1.0))
+        const effectiveBudget = Math.floor(maxTokens * lens)
 
+        // Debug logging
+        if (process.env.CHORUM_DEBUG_CONDUCTOR === 'true') {
+            console.log(`[Conductor] Lens: ${lens}x | Budget: ${maxTokens} → ${effectiveBudget}`)
+        }
+
+        // Step 1: Filter out muted items
+        const nonMuted = candidates.filter(item => !item.mutedAt)
+
+        // Step 2: Separate pinned items (always include first)
+        const pinned = nonMuted.filter(item => item.pinnedAt)
+        const unpinned = nonMuted.filter(item => !item.pinnedAt)
+
+        // Step 3: Apply focus domain boost to unpinned items
+        const focusDomains = options?.focusDomains || []
+        const boostedUnpinned = unpinned.map(item => {
+            if (focusDomains.length > 0 && item.domains?.length) {
+                const hasMatchingDomain = item.domains.some(d => focusDomains.includes(d))
+                if (hasMatchingDomain) {
+                    return { ...item, score: (item.score || 0) + 0.15 }
+                }
+            }
+            return item
+        })
+
+        // Step 4: Sort by score descending
+        const sortedUnpinned = [...boostedUnpinned].sort((a, b) => (b.score || 0) - (a.score || 0))
+
+        // Step 5: Build selection starting with pinned items
         const selected: MemoryCandidate[] = []
         let currentTokens = 0
+
+        // Helper to calculate token cost
+        const calcCost = (item: MemoryCandidate) => {
+            const contentLen = item.content.length + (item.context?.length || 0)
+            return Math.ceil(contentLen / 4) + 10 // +10 overhead
+        }
+
+        // Include all pinned items first (even if over budget—they're user-mandated)
+        for (const item of pinned) {
+            const cost = calcCost(item)
+            selected.push({ ...item, retrievalReason: 'pinned' })
+            currentTokens += cost
+
+            if (process.env.CHORUM_DEBUG_CONDUCTOR === 'true') {
+                console.log(`[Conductor] 📌 Pinned: "${item.content.slice(0, 50)}..." (${cost} tokens)`)
+            }
+        }
 
         // Use intent-adaptive thresholds (fall back to 'question' defaults)
         const thresholds = INTENT_THRESHOLDS[intent || 'question'] || INTENT_THRESHOLDS.question
 
-        for (const item of sorted) {
+        // Fill remaining budget with scored items
+        for (const item of sortedUnpinned) {
             const score = item.score || 0
 
             // Confidence gate: skip items below intent-specific threshold
             const threshold = item.type === 'invariant' ? thresholds.invariant : thresholds.general
             if (score < threshold) continue
 
-            // Estimate tokens (approx 4 chars per token)
-            // Include context in cost
-            const contentLen = item.content.length + (item.context?.length || 0)
-            const cost = Math.ceil(contentLen / 4) + 10 // +10 overhead
+            const cost = calcCost(item)
 
-            if (currentTokens + cost <= maxTokens) {
+            if (currentTokens + cost <= effectiveBudget) {
                 selected.push(item)
                 currentTokens += cost
             }
+        }
+
+        if (process.env.CHORUM_DEBUG_CONDUCTOR === 'true') {
+            console.log(`[Conductor] Selected: ${selected.length} items (${currentTokens}/${effectiveBudget} tokens)`)
         }
 
         return selected
