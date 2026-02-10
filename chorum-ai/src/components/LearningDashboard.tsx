@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import {
     Shield, FileCode, Zap, TrendingUp, TrendingDown, Plus, Trash2,
     Pencil, X, Check, AlertTriangle, CheckCircle2, Loader2, RefreshCw,
-    ChevronDown, ChevronRight
+    ChevronDown, ChevronRight, Sparkles
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -117,6 +117,10 @@ export function LearningDashboard({ projectId, projectName }: LearningDashboardP
     const [addContent, setAddContent] = useState('')
     const [addContext, setAddContext] = useState('')
     const [saving, setSaving] = useState(false)
+
+    // Analysis State
+    const [analyzingLinks, setAnalyzingLinks] = useState(false)
+    const [linkAnalysisResult, setLinkAnalysisResult] = useState<{ success: boolean; message: string } | null>(null)
 
     useEffect(() => {
         if (projectId) {
@@ -281,7 +285,7 @@ export function LearningDashboard({ projectId, projectName }: LearningDashboardP
                         <p className={clsx(
                             "text-2xl font-bold",
                             (confidence?.score || 0) >= 80 ? "text-green-400" :
-                            (confidence?.score || 0) >= 50 ? "text-yellow-400" : "text-red-400"
+                                (confidence?.score || 0) >= 50 ? "text-yellow-400" : "text-red-400"
                         )}>
                             {confidence?.score?.toFixed(1) || '—'}%
                         </p>
@@ -312,7 +316,7 @@ export function LearningDashboard({ projectId, projectName }: LearningDashboardP
                                     className={clsx(
                                         "h-full rounded-full transition-all",
                                         (confidence.score || 0) >= 80 ? "bg-green-500" :
-                                        (confidence.score || 0) >= 50 ? "bg-yellow-500" : "bg-red-500"
+                                            (confidence.score || 0) >= 50 ? "bg-yellow-500" : "bg-red-500"
                                     )}
                                     style={{ width: `${confidence.score || 0}%` }}
                                 />
@@ -325,11 +329,71 @@ export function LearningDashboard({ projectId, projectName }: LearningDashboardP
                 </div>
             )}
 
+            {/* Knowledge Graph Analysis Tool */}
+            <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h3 className="font-medium text-white flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-purple-400" />
+                            Knowledge Graph Analysis
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                            Analyze co-occurrence data to infer logical relationships and clean up the graph.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {linkAnalysisResult && (
+                            <span className={clsx("text-sm", linkAnalysisResult.success ? "text-green-400" : "text-yellow-400")}>
+                                {linkAnalysisResult.message}
+                            </span>
+                        )}
+                        <button
+                            onClick={async () => {
+                                if (!projectId) return
+                                setAnalyzingLinks(true)
+                                setLinkAnalysisResult(null)
+                                try {
+                                    const res = await fetch('/api/learning/analyze-links', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ projectId })
+                                    })
+                                    const data = await res.json()
+                                    if (data.success) {
+                                        setLinkAnalysisResult({ success: true, message: data.message })
+                                    } else {
+                                        setLinkAnalysisResult({ success: false, message: data.message || data.error })
+                                    }
+                                } catch (e: any) {
+                                    setLinkAnalysisResult({ success: false, message: e.message })
+                                } finally {
+                                    setAnalyzingLinks(false)
+                                }
+                            }}
+                            disabled={analyzingLinks || !projectId}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2 shadow-sm"
+                        >
+                            {analyzingLinks ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Analyzing...
+                                </>
+                            ) : (
+                                <>
+                                    <Sparkles className="w-4 h-4" />
+                                    Analyze
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             {/* Add Item Button */}
             <div className="flex justify-end">
                 <button
                     onClick={() => setShowAddModal(true)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium flex items-center gap-2"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium flex items-center gap-2 text-white shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     Add Learning Item
@@ -393,14 +457,14 @@ export function LearningDashboard({ projectId, projectName }: LearningDashboardP
                                                         <div className="flex justify-end gap-2">
                                                             <button
                                                                 onClick={() => setEditingItem(null)}
-                                                                className="p-2 text-gray-500 hover:text-white"
+                                                                className="p-2 text-gray-500 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
                                                             >
                                                                 <X className="w-4 h-4" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleEdit(item.id)}
                                                                 disabled={saving}
-                                                                className="p-2 text-green-500 hover:text-green-400"
+                                                                className="p-2 text-green-500 hover:bg-green-900/20 hover:text-green-400 rounded-lg transition-colors"
                                                             >
                                                                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                                                             </button>
@@ -432,13 +496,13 @@ export function LearningDashboard({ projectId, projectName }: LearningDashboardP
                                                         <div className="flex items-center gap-1">
                                                             <button
                                                                 onClick={() => startEdit(item)}
-                                                                className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded transition-colors"
+                                                                className="p-1.5 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
                                                             >
                                                                 <Pencil className="w-3.5 h-3.5" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDelete(item.id)}
-                                                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
+                                                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                                                             >
                                                                 <Trash2 className="w-3.5 h-3.5" />
                                                             </button>
@@ -531,10 +595,10 @@ export function LearningDashboard({ projectId, projectName }: LearningDashboardP
                                     rows={3}
                                     placeholder={
                                         addType === 'invariant' ? "Always use TypeScript strict mode" :
-                                        addType === 'antipattern' ? "Never expose API keys in client code" :
-                                        addType === 'decision' ? "Using PostgreSQL for persistence" :
-                                        addType === 'golden_path' ? "Error handling uses try-catch with specific messages" :
-                                        "Pattern description..."
+                                            addType === 'antipattern' ? "Never expose API keys in client code" :
+                                                addType === 'decision' ? "Using PostgreSQL for persistence" :
+                                                    addType === 'golden_path' ? "Error handling uses try-catch with specific messages" :
+                                                        "Pattern description..."
                                     }
                                 />
                             </div>
@@ -551,14 +615,14 @@ export function LearningDashboard({ projectId, projectName }: LearningDashboardP
                             <div className="flex justify-end gap-3 pt-4">
                                 <button
                                     onClick={() => { setShowAddModal(false); setAddContent(''); setAddContext('') }}
-                                    className="px-4 py-2 text-sm text-gray-400 hover:text-white"
+                                    className="px-4 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleAdd}
                                     disabled={saving || !addContent.trim()}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 rounded-lg text-sm font-medium flex items-center gap-2"
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm"
                                 >
                                     {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                                     Add Item

@@ -26,6 +26,7 @@ interface ReviewStore {
     originalTask: string
     response: string
     responseProvider: ReviewProvider
+    projectId?: string
     projectContext?: string
     agentName?: string
     agentRole?: string
@@ -92,6 +93,7 @@ export const useReviewStore = create<ReviewStore>()(
               originalTask: params.originalTask,
               response: params.response,
               responseProvider: params.responseProvider,
+              projectId: params.projectId,
               projectContext: params.projectContext,
               agentName: params.agentName,
               agentRole: params.agentRole,

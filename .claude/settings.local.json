@@ -27,7 +27,8 @@
       "Bash(findstr:*)",
       "Bash(npm run build:*)",
       "mcp__claude_ai_Hugging_Face__hf_doc_search",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(unzip:*)"
     ]
   }
 }

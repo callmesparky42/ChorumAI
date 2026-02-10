@@ -40,7 +40,7 @@ const DEFAULT_MODELS: Record<string, string> = {
  * These are optimized for cost rather than capability
  */
 export const CHEAP_MODELS: Record<string, string> = {
-    google: 'gemini-1.5-flash',          // $0.075/1M input - cheapest
+    google: 'gemini-2.0-flash',          // $0.075/1M input - cheapest
     openai: 'gpt-4o-mini',               // $0.15/1M input
     deepseek: 'deepseek-chat',           // $0.14/1M input
     anthropic: 'claude-3-haiku-20240307', // $0.25/1M input

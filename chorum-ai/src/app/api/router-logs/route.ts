@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
         // Ideally check for admin role here, but for now we restrict to own logs
         // or just allow all if user is "admin" (which we don't have distinct role for yet)
-        // Let's return logs for the current user.
+        // Return logs for the current user.
 
         const logs = await db
             .select({

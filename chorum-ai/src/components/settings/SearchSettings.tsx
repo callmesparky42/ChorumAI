@@ -141,7 +141,7 @@ export function SearchSettings() {
                         <button
                             onClick={handleTestKey}
                             disabled={!apiKey || saving}
-                            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                            className="px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors whitespace-nowrap text-white"
                         >
                             {saving ? 'Testing...' : 'Test & Save'}
                         </button>
@@ -187,7 +187,7 @@ export function SearchSettings() {
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                     >
                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                         Save Configuration

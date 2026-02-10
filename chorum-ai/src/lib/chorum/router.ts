@@ -187,9 +187,9 @@ export class ChorumRouter {
         // For strict cost control, we might want to be conservative
         return inputTokens + 500 // Assume 500 output tokens on average? Or just inputs. 
         // usage in calculateCost assumes tokens is TOTAL (input+output) split 50/50 in original code
-        // let's stick to original returning a total, but make it more realistic.
+        // original returning a total, but more realistic.
         // Original: input * 2.
-        // Let's do input + estimated_output.
+        // Input + estimated_output.
         return inputTokens * 1.5
     }
 

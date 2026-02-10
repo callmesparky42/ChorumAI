@@ -13,6 +13,7 @@ import {
   ReviewResult,
   ReviewProvider
 } from '@/lib/review/types'
+import { injectLearningContext } from '@/lib/learning'
 
 // Simple peer review: resend the original prompt to a different provider
 export async function POST(req: NextRequest) {
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
       originalTask,
       response: originalResponse,
       responseProvider,
+      projectId,
       focus
     } = body
 
@@ -99,8 +101,23 @@ export async function POST(req: NextRequest) {
 
     const reviewProvider = reviewConfig.provider as ReviewProvider
 
-    // Simple prompt: just ask the same question
-    const systemPrompt = `You are providing a second opinion. The user asked another AI this question and got an answer. Now they want YOUR perspective. Answer the question directly - don't just comment on the other response.`
+    // Fetch project learning context if projectId is provided
+    let projectContext = ''
+    if (projectId) {
+      try {
+        // Use injectLearningContext with an empty base prompt - we just want the learning context
+        const learningContext = await injectLearningContext('', projectId, originalTask, userId)
+        // Extract the systemPrompt which contains the formatted learning context
+        if (learningContext && learningContext.systemPrompt) {
+          projectContext = `\n\n[Project Context]\n${learningContext.systemPrompt}`
+        }
+      } catch (e) {
+        console.warn('[PeerReview] Failed to fetch project context:', e)
+      }
+    }
+
+    // Build system prompt with project context
+    const systemPrompt = `You are providing a second opinion. The user asked another AI this question and got an answer. Now they want YOUR perspective. Answer the question directly - don't just comment on the other response.${projectContext}`
 
     const userPrompt = `Original question: ${originalTask}
 

@@ -134,10 +134,10 @@ export async function injectLearningContext(
     // Early exit for trivial queries (e.g. "hi") - just return invariants if any, or nothing
     if (budget.maxTokens === 0) {
         // Ideally we might still want critical invariants?
-        // Let's allow minimal invariant injection even for trivial if they are critical?
+        // Allow minimal invariant injection even for trivial if they are critical.
         // Use a small budget instead of 0 for trivial if safety checks needed?
         // The spec says "Skip for trivial... Inject nothing" but also says "Invariants are high-priority".
-        // Let's stick to budget. If budget is 0, inject nothing.
+        // Stick to budget. If budget is 0, inject nothing.
         // However, to keep validation working, we still need to return the items structure.
         // We'll fetch items but select none for prompt.
 
@@ -283,7 +283,7 @@ export async function injectLearningContext(
         })
     } else {
         // Even if budget is 0, we might want to enforce invariants?
-        // Let's assume budget 0 means strictly no overhead.
+        // Budget 0 means strictly no overhead.
         selectedItems = []
     }
 
@@ -307,7 +307,7 @@ export async function injectLearningContext(
     // We append specific critical file section if not part of Relevance Engine (spec put files separate?)
     // Spec Context Assembly included "Active Invariants", "Relevant Patterns".
     // Critical Files are usually separate safety context.
-    // Let's append Critical Files manually if they exist, as they are "Tier A" metadata, not vector memory.
+    // Append Critical Files manually if they exist.
 
     let mixedContext = learningContextStr
     if (criticalFiles.length > 0) {

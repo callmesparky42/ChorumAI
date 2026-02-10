@@ -77,6 +77,10 @@ export async function GET() {
                 autoSummarize: true,
                 validateResponses: true,
                 smartAgentRouting: true
+            },
+            backgroundOperationsSettings: (user.memorySettings as any)?.backgroundOperationsSettings || {
+                summarizationProvider: 'auto',
+                embeddingProvider: 'auto'
             }
         })
     } catch (error) {
@@ -112,6 +116,16 @@ export async function PATCH(req: Request) {
         if (body.securitySettings !== undefined) updateData.securitySettings = body.securitySettings
         if (body.fallbackSettings !== undefined) updateData.fallbackSettings = body.fallbackSettings
         if (body.memorySettings !== undefined) updateData.memorySettings = body.memorySettings
+
+
+        if (body.backgroundOperationsSettings !== undefined) {
+            // Merge backgroundOperationsSettings into the memorySettings JSONB column for storage.
+
+            // Check if memorySettings is already being updated
+            const currentMemorySettings = (body.memorySettings || {}) as Record<string, any>;
+            currentMemorySettings.backgroundOperationsSettings = body.backgroundOperationsSettings;
+            updateData.memorySettings = currentMemorySettings;
+        }
         // Note: email changes should require verification, skipping for now
 
         await db.update(users).set(updateData).where(eq(users.id, session.user.id))

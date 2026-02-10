@@ -76,7 +76,7 @@ function getFastModel(provider: string, defaultModel: string): string {
   const fastModels: Record<string, string> = {
     anthropic: 'claude-3-haiku-20240307',
     openai: 'gpt-4o-mini',
-    google: 'gemini-1.5-flash',
+    google: 'gemini-2.0-flash',
     mistral: 'mistral-small-latest',
     deepseek: 'deepseek-chat',
     xai: 'grok-2-mini'

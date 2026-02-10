@@ -167,7 +167,7 @@ async function testOpenAI(apiKey: string, model?: string): Promise<ProviderTestR
 }
 
 async function testGoogle(apiKey: string, model?: string): Promise<ProviderTestResult> {
-  const modelName = model || 'gemini-1.5-flash'
+  const modelName = model || 'gemini-2.0-flash'
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,

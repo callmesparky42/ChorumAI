@@ -1,7 +1,20 @@
 import { createClient } from '@/lib/supabase-server'
+import { validateToken } from '@/lib/mcp/auth'
+import { NextRequest } from 'next/server'
+
+// Session shape returned by auth functions
+export interface AuthSession {
+    user: {
+        id: string
+        email?: string
+        name?: string
+        image?: string
+    }
+    expires: null
+}
 
 // Shim for NextAuth's auth() function using Supabase
-export async function auth() {
+export async function auth(): Promise<AuthSession | null> {
     try {
         const supabase = await createClient()
 
@@ -28,6 +41,48 @@ export async function auth() {
         console.error("Auth Shim Error:", error)
         return null
     }
+}
+
+/**
+ * Authenticate from a NextRequest - supports both:
+ * 1. Bearer token auth (for mobile apps like MidnightMusings)
+ * 2. Session cookie auth (for web UI)
+ * 
+ * Usage in API routes:
+ *   const session = await authFromRequest(req)
+ *   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+ */
+export async function authFromRequest(req: NextRequest): Promise<AuthSession | null> {
+    // Check for Bearer token first (mobile/API clients)
+    const authHeader = req.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.slice(7) // Remove 'Bearer ' prefix
+
+        try {
+            const result = await validateToken(token)
+
+            if (result.valid && result.userId) {
+                console.log('[Auth] Bearer token validated for user:', result.userId)
+                return {
+                    user: {
+                        id: result.userId,
+                        // Token auth doesn't provide email/name, but that's okay
+                        // The userId is sufficient for authorization
+                    },
+                    expires: null
+                }
+            } else {
+                console.log('[Auth] Bearer token invalid:', result.error)
+                return null
+            }
+        } catch (error) {
+            console.error('[Auth] Bearer token validation error:', error)
+            return null
+        }
+    }
+
+    // Fall back to session cookie auth (web UI)
+    return auth()
 }
 
 // Dummy exports to prevent import errors during transition

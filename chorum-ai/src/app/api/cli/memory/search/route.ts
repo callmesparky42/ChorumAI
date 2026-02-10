@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
             // Since Drizzle vector syntax can be tricky without exact version check:
             // We'll simplisticly fetch recent and filter in memory if SQL vector match is complex to type here blindly.
             // OR, better: just use relevance engine logic but that's in lib.
-            // Let's rely on basic keyword search if vector syntax is risky, or just fetch all and sort in JS for small datasets.
+            // Basic keyword search for small datasets.
         } else {
             // Fallback to basic text search
             results = await db.query.projectLearningPaths.findMany({

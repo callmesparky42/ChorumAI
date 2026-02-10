@@ -219,7 +219,7 @@ export async function recalculateProjectConfidence(projectId: string): Promise<n
         ? positiveInteractions / totalInteractions
         : 1.0 // Default to trust if no interactions yet? Or 0.5? User said 0-1. Let's start with 1.0 (optimistic) or 0.5. 
     // Given "positiveInteractions / totalInteractions", if total is 0, it's undefined. 
-    // Let's assume start high until proven wrong.
+    // Start high.
 
     // B. Verification & Consistency Rates
     // We need aggregation queries on projectLearningPaths
@@ -269,8 +269,8 @@ export async function recalculateProjectConfidence(projectId: string): Promise<n
             score: finalScore.toFixed(2),
             updatedAt: now // Update timestamp? "daysSinceLastInteraction" depends on it. 
             // But if we just recalculate without interaction, we shouldn't bump updatedAt?
-            // Actually updateConfidence bumps it. addLearningItem doesn't necessarily interaction. 
-            // Let's leave updatedAt alone here unless it's stale? 
+            // updateConfidence bumps it. addLearningItem doesn't necessarily interaction. 
+            // Leave updatedAt alone here unless it's stale. 
             // For now, only update score.
         })
         .where(eq(projectConfidence.projectId, projectId))

@@ -130,6 +130,7 @@ export async function callOpenAI(
         tokensInput: result.usage?.prompt_tokens || 0,
         tokensOutput: result.usage?.completion_tokens || 0,
         stopReason,
+        toolCalls: toolCalls && toolCalls.length > 0 ? toolCalls : undefined
     }
 }
 

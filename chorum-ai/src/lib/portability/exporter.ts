@@ -32,17 +32,17 @@ import {
 interface ExportOptions {
     includeConversations?: boolean
     includeAgents?: boolean // Not currently used as agents are user-level, but schema has custom_agents table which isn't linked to project directly?
-    // Wait, custom_agents in schema is user-level.
+    // Custom agents in schema are user-level.
     // "customAgents" table has "userId", not "projectId".
     // So we can't easily export "project-specific agents" unless we export ALL user agents?
     // The spec says "Only project-specific agents".
     // Chorum's "AgentDefinition" actually allows agents to be tied to a project via implementation logic,
     // but the `custom_agents` table only has `userId`.
-    // Let's assume for now we export ALL custom agents for the user, OR we skip them if they aren't explicitly linked.
+    // Export custom agents for the user.
     // Looking at the schema: `customAgents` has `userId`.
     // The spec said "Only project-specific agents".
     // If agents are global to the user, we should arguably export them if the user asks, or export none.
-    // I will export ALL custom agents for the user for now if the flag is true.
+    // Export ALL custom agents for the user if the flag is true.
 }
 
 export async function exportProject(userId: string, projectId: string, options: ExportOptions = {}): Promise<ExportPayload> {

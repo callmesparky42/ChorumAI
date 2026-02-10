@@ -75,6 +75,12 @@ export async function middleware(req: NextRequest) {
     if (!user && !isAuthPage) {
         // Return 401 for API routes so the client can handle it gracefully
         if (req.nextUrl.pathname.startsWith('/api/')) {
+            // EXCEPTION: Allow Bearer token auth via Authorization header for mobile/API clients
+            // The API route itself (via authFromRequest) will validate the token
+            if (req.headers.has('authorization')) {
+                return res
+            }
+
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
         return NextResponse.redirect(new URL('/login', req.url))

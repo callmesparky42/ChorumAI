@@ -58,8 +58,8 @@ export default function LandingPage() {
           <span className="hero-label">The Sovereign Context Layer for AI</span>
           <h1>Your Context.<br /><span className="highlight">Their Chorus.</span></h1>
           <p className="hero-subtitle">
-            One interface. Every AI model. Your memory stays with you—encrypted, portable, sovereign.
-            Self-hosted. Your rules.
+            One interface, every AI model. Your memory stays with you: encrypted, portable, sovereign.
+            Self-hosted, your rules.
           </p>
           <div className="hero-ctas">
             <Link href="/app" className="btn-primary">
@@ -107,7 +107,7 @@ export default function LandingPage() {
                     <h3>You have Claude, you have GPT, and maybe Perplexity. What happens when Downdetector notifies you one of them is down?</h3>
                     <p>
                       You're mid-flow, deep in a debugging session. Then Claude goes down.
-                      You switch to GPT—but now you're starting from scratch.
+                      You switch to GPT, but now you're starting from scratch.
                       All that context? Gone. Your momentum? Dead.
                     </p>
                     <div className="scenario-solution">
@@ -234,7 +234,7 @@ export default function LandingPage() {
               </tr>
               <tr>
                 <td>They decide what you can access</td>
-                <td>You decide—cloud, local, or both</td>
+                <td>You decide: cloud, local, or both</td>
               </tr>
               <tr>
                 <td>Export? What export?</td>
@@ -262,13 +262,13 @@ export default function LandingPage() {
             <div className="feature-card">
               <div className="feature-number">02</div>
               <h3>Multi-Voice Chorus</h3>
-              <p>Claude for reasoning. GPT for code. Gemini for speed. Local Llama for privacy. Same conversation, different voices as needed. The router picks the right model for the task.</p>
+              <p>Claude for reasoning, GPT for code, Gemini for speed, local Llama for privacy. Same conversation, different voices as needed. The router picks the right model for the task.</p>
             </div>
 
             <div className="feature-card">
               <div className="feature-number">03</div>
               <h3>Automatic Continuity</h3>
-              <p>Hit Claude's rate limit? Chorum fails over to GPT with full context. Provider down? Automatic reroute. Your work never stops. The GitHub issue with 79+ upvotes—solved.</p>
+              <p>Hit Claude's rate limit? Chorum fails over to GPT with full context. Provider down? Automatic reroute. Your work never stops. The GitHub issue with 79+ upvotes? Solved.</p>
             </div>
 
             <div className="feature-card">
@@ -286,7 +286,7 @@ export default function LandingPage() {
             <div className="feature-card">
               <div className="feature-number">06</div>
               <h3>Local Model Integration</h3>
-              <p>First-class Ollama and LM Studio support. Seamless cloud-to-local switching. When you need privacy, offline access, or zero-cost inference—same interface, same memory.</p>
+              <p>First-class Ollama and LM Studio support. Seamless cloud-to-local switching. When you need privacy, offline access, or zero-cost inference: same interface, same memory.</p>
             </div>
           </div>
         </div>
@@ -363,7 +363,7 @@ export default function LandingPage() {
                     <span className="conductor-pill">👍 Feedback that learns</span>
                   </div>
                   <div className="conductor-audiences">
-                    <p><strong>For developers:</strong> Full observability — scores, retrieval reasons, decay curves, co-occurrence bonuses.</p>
+                    <p><strong>For developers:</strong> Full observability: scores, retrieval reasons, decay curves, co-occurrence bonuses.</p>
                     <p><strong>For everyone else:</strong> &quot;Chorum remembered 3 things&quot; with a tap to see them and a tap to fix them.</p>
                   </div>
                 </div>

@@ -141,7 +141,7 @@ export function McpSettings() {
             </code>
             <button
               onClick={() => copyToClipboard(newToken)}
-              className="p-2 hover:bg-emerald-800/50 rounded transition-colors"
+              className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-gray-200"
               title="Copy token"
             >
               <Copy className={`w-4 h-4 ${copied ? 'text-emerald-300' : 'text-emerald-400'}`} />
@@ -163,7 +163,7 @@ export function McpSettings() {
           <button
             onClick={createToken}
             disabled={creating}
-            className="flex items-center gap-1 text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             {creating ? 'Creating...' : 'New Token'}
@@ -199,14 +199,14 @@ export function McpSettings() {
                       />
                       <button
                         onClick={() => renameToken(token.id, editName)}
-                        className="p-1 hover:bg-emerald-900/30 rounded text-emerald-400 transition-colors"
+                        className="p-1 hover:bg-emerald-900/30 rounded-lg text-emerald-400 transition-colors"
                         title="Save"
                       >
                         <Check className="w-4 h-4" />
                       </button>
                       <button
                         onClick={cancelEditing}
-                        className="p-1 hover:bg-gray-700 rounded text-gray-400 transition-colors"
+                        className="p-1 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
                         title="Cancel"
                       >
                         <X className="w-4 h-4" />
@@ -229,14 +229,14 @@ export function McpSettings() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => startEditing(token)}
-                      className="p-2 hover:bg-gray-700 rounded text-gray-400 hover:text-white transition-colors"
+                      className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
                       title="Rename token"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => revokeToken(token.id)}
-                      className="p-2 hover:bg-red-900/30 rounded text-gray-400 hover:text-red-400 transition-colors"
+                      className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-red-400 transition-colors"
                       title="Revoke token"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -259,7 +259,7 @@ export function McpSettings() {
           </pre>
           <button
             onClick={() => copyToClipboard(mcpConfig)}
-            className="absolute top-2 right-2 p-2 hover:bg-gray-700 rounded transition-colors"
+            className="absolute top-2 right-2 p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-gray-200"
             title="Copy configuration"
           >
             <Copy className="w-4 h-4 text-gray-400" />

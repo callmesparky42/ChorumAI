@@ -24,6 +24,7 @@ export interface ReviewRequest {
   responseProvider: ReviewProvider
 
   // Context
+  projectId?: string  // For fetching project-specific learning context
   projectContext?: string
   agentName?: string
   agentRole?: string

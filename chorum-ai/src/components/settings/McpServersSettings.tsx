@@ -186,7 +186,7 @@ export function McpServersSettings() {
         </div>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition-colors shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Add Server
@@ -216,22 +216,20 @@ export function McpServersSettings() {
             <div className="flex gap-2">
               <button
                 onClick={() => setFormTransport('http')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
-                  formTransport === 'http'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${formTransport === 'http'
+                    ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                  }`}
               >
                 <Globe className="w-4 h-4" />
                 HTTP/SSE
               </button>
               <button
                 onClick={() => setFormTransport('stdio')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
-                  formTransport === 'stdio'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${formTransport === 'stdio'
+                    ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                  }`}
               >
                 <Terminal className="w-4 h-4" />
                 Stdio (Local)
@@ -299,7 +297,7 @@ export function McpServersSettings() {
                   />
                   <button
                     onClick={addEnvVar}
-                    className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg"
+                    className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white rounded-lg transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -309,7 +307,7 @@ export function McpServersSettings() {
                     {Object.entries(formEnvVars).map(([key, value]) => (
                       <div key={key} className="flex items-center justify-between bg-gray-900 rounded px-3 py-1.5 text-sm">
                         <span className="text-gray-300">{key}=***</span>
-                        <button onClick={() => removeEnvVar(key)} className="text-gray-500 hover:text-red-400">
+                        <button onClick={() => removeEnvVar(key)} className="p-1 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-red-400 transition-colors">
                           <X className="w-4 h-4" />
                         </button>
                       </div>
@@ -325,13 +323,13 @@ export function McpServersSettings() {
             <button
               onClick={addServer}
               disabled={creating || !formName || (formTransport === 'http' && !formUrl) || (formTransport === 'stdio' && !formCommand)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors shadow-sm"
             >
               {creating ? 'Adding...' : 'Add Server'}
             </button>
             <button
               onClick={resetForm}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors"
+              className="px-4 py-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors"
             >
               Cancel
             </button>
@@ -355,14 +353,12 @@ export function McpServersSettings() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => toggleServer(server.id, !server.isEnabled)}
-                    className={`w-10 h-6 rounded-full transition-colors relative ${
-                      server.isEnabled ? 'bg-green-600' : 'bg-gray-600'
-                    }`}
+                    className={`w-10 h-6 rounded-full transition-colors relative ${server.isEnabled ? 'bg-green-600' : 'bg-gray-600'
+                      }`}
                   >
                     <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                        server.isEnabled ? 'translate-x-5' : 'translate-x-1'
-                      }`}
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${server.isEnabled ? 'translate-x-5' : 'translate-x-1'
+                        }`}
                     />
                   </button>
                   <div>
@@ -391,14 +387,14 @@ export function McpServersSettings() {
                   <button
                     onClick={() => refreshTools(server.id)}
                     disabled={refreshingId === server.id}
-                    className="p-2 text-gray-400 hover:text-white transition-colors"
+                    className="p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors"
                     title="Refresh tools"
                   >
                     <RefreshCw className={`w-4 h-4 ${refreshingId === server.id ? 'animate-spin' : ''}`} />
                   </button>
                   <button
                     onClick={() => setExpandedServer(expandedServer === server.id ? null : server.id)}
-                    className="p-2 text-gray-400 hover:text-white transition-colors"
+                    className="p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors"
                   >
                     {expandedServer === server.id ? (
                       <ChevronUp className="w-4 h-4" />
@@ -408,7 +404,7 @@ export function McpServersSettings() {
                   </button>
                   <button
                     onClick={() => deleteServer(server.id)}
-                    className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                    className="p-2 text-gray-400 hover:bg-gray-800 hover:text-red-400 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

@@ -103,6 +103,7 @@ export function Message({ message, previousUserMessage, projectId }: MessageProp
             originalTask: previousUserMessage,
             response: message.content,
             responseProvider: message.provider as ReviewProvider,
+            projectId,
             agentName: message.agentName,
             agentRole: message.agentRole
         })

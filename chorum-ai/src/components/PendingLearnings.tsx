@@ -158,14 +158,14 @@ export function PendingLearnings() {
                     <>
                       <button
                         onClick={() => handleAction(item.id, 'approve', editContent)}
-                        className="p-1.5 bg-emerald-900/50 hover:bg-emerald-800/50 rounded text-emerald-400 transition-colors"
+                        className="p-1.5 bg-emerald-900/50 hover:bg-emerald-800/50 rounded-lg text-emerald-400 transition-colors"
                         title="Save & Approve"
                       >
                         <Check className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setEditing(null)}
-                        className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-gray-400 transition-colors"
+                        className="p-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
                         title="Cancel"
                       >
                         <X className="w-4 h-4" />
@@ -178,21 +178,21 @@ export function PendingLearnings() {
                           setEditing(item.id)
                           setEditContent(item.content)
                         }}
-                        className="p-1.5 hover:bg-gray-700 rounded text-gray-400 transition-colors"
+                        className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-gray-200 transition-colors"
                         title="Edit before approving"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleAction(item.id, 'approve')}
-                        className="p-1.5 hover:bg-emerald-900/50 rounded text-emerald-400 transition-colors"
+                        className="p-1.5 hover:bg-emerald-900/50 rounded-lg text-emerald-400 hover:text-emerald-300 transition-colors"
                         title="Approve"
                       >
                         <Check className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleAction(item.id, 'deny')}
-                        className="p-1.5 hover:bg-red-900/50 rounded text-red-400 transition-colors"
+                        className="p-1.5 hover:bg-red-900/50 rounded-lg text-red-400 hover:text-red-300 transition-colors"
                         title="Deny"
                       >
                         <X className="w-4 h-4" />

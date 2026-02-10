@@ -1,5 +1,5 @@
 import { decrypt } from '@/lib/crypto'
-import { auth } from '@/lib/auth'
+import { auth, authFromRequest } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { waitUntil } from '@vercel/functions'
 import { ChorumRouter, BudgetExhaustedError } from '@/lib/chorum/router'
@@ -36,7 +36,8 @@ export const maxDuration = 60 // seconds
 
 export async function POST(req: NextRequest) {
     try {
-        let session = await auth()
+        // Support both Bearer token (mobile) and session (web) auth
+        let session = await authFromRequest(req)
 
         // [AUDIT BYPASS] Allow audit script to run without real login in dev mode
         if (!session?.user?.id && process.env.NODE_ENV !== 'production' && req.headers.get('x-audit-bypass-secret') === 'chorum-audit') {
@@ -501,15 +502,9 @@ export async function POST(req: NextRequest) {
 
                 const fallbackConfig = buildFallbackChain(
                     providerConfigs as FullProviderConfig[],
-                    // If budget exhausted, pick first avail cloud as "primary" just to satisfy type, 
-                    // knowing it will fail/skip or we just rely on localFallbacks finding it.
-                    // Better: If budget exhausted, use a dummy primary that fails instantly or correct logic?
-                    // Actually buildFallbackChain expects a valid primary. 
-                    // If budget exhausted, we shouldn't use a cloud primary.
-                    // We need to construct a custom fallback chain where primary IS local?
-                    // Or just use the first provider Config but we know it will fail if we tried to use it? 
-                    // Actually if we pass 'budget_exhausted' it won't be found.
-                    // Let's use the first provider config as dummy primary if needed.
+                    // If budget exhausted, use a dummy primary and rely on local fallbacks.
+                    // buildFallbackChain requires a primary provider.
+                    // If budget exhausted, we'll pick the first available provider as a placeholder.
                     decision.provider === 'budget_exhausted' ? providerConfigs[0]?.provider : decision.provider,
                     localProviders
                 )

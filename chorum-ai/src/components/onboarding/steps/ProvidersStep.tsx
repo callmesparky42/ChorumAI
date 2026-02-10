@@ -21,7 +21,7 @@ const LOCAL_PROVIDERS = ['ollama', 'lmstudio']
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: 'claude-sonnet-4-20250514',
   openai: 'gpt-4o',
-  google: 'gemini-1.5-flash',
+  google: 'gemini-2.0-flash',
   perplexity: 'llama-3.1-sonar-large-128k-online',
   deepseek: 'deepseek-chat',
   ollama: 'llama3',

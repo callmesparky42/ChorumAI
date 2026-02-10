@@ -33,7 +33,7 @@ export async function getCachedContext(
     // Spec: "Invalidate cache... This is a lightweight operation... recompile happens lazily".
     // So if invalidatedAt is set, it's stale.
     // If we missed an invalidation hook, we might serve stale data.
-    // Let's trust the invalidation mechanism for now as per spec "invalidated_at IS NULL".
+    // Trust the invalidation mechanism for now as per spec "invalidated_at IS NULL".
 
     return cache.compiledContext
 }
@@ -157,7 +157,7 @@ async function getCheapestProvider(userId: string): Promise<CompilerProviderConf
 
     // Cascade: Check providers in order of cost-effectiveness for background tasks
     // 1. Google Gemini - Flash is extremely cheap ($0.075/1M input)
-    const google = findProvider('google', 'gemini-1.5-flash')
+    const google = findProvider('google', 'gemini-2.0-flash')
     if (google) return google
 
     // 2. Anthropic - Haiku is the cheap workhorse ($0.25/1M input)
@@ -174,7 +174,7 @@ async function getCheapestProvider(userId: string): Promise<CompilerProviderConf
 
     // 5. Fallback to env vars if no user credentials
     if (process.env.GOOGLE_API_KEY) return {
-        provider: 'google', model: 'gemini-1.5-flash', apiKey: process.env.GOOGLE_API_KEY
+        provider: 'google', model: 'gemini-2.0-flash', apiKey: process.env.GOOGLE_API_KEY
     }
     if (process.env.ANTHROPIC_API_KEY) return {
         provider: 'anthropic', model: 'claude-3-haiku-20240307', apiKey: process.env.ANTHROPIC_API_KEY

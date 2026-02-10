@@ -63,6 +63,10 @@ interface UserSettings {
         validateResponses: boolean
         smartAgentRouting: boolean
     }
+    backgroundOperationsSettings: {
+        summarizationProvider: 'auto' | 'gemini-flash' | 'local'
+        embeddingProvider: 'auto' | 'local'
+    }
 }
 
 function SettingsContent() {
@@ -81,7 +85,7 @@ function SettingsContent() {
     const [showModal, setShowModal] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
     const [editingProvider, setEditingProvider] = useState<Provider | null>(null)
-    const [memorySubTab, setMemorySubTab] = useState<'settings' | 'knowledge'>('settings')
+
 
     // Global Store Settings
     const { settings, updateSettings } = useChorumStore()
@@ -95,6 +99,12 @@ function SettingsContent() {
     const [analyzingLinks, setAnalyzingLinks] = useState(false)
     const [linkAnalysisResult, setLinkAnalysisResult] = useState<{ success: boolean; message: string } | null>(null)
     const [linkAnalysisProjectId, setLinkAnalysisProjectId] = useState<string | null>(null)
+
+    // Background Operations state (local optimistic update until saved)
+    const [bgOps, setBgOps] = useState<{
+        summarizationProvider: 'auto' | 'gemini-flash' | 'local'
+        embeddingProvider: 'auto' | 'local'
+    }>({ summarizationProvider: 'auto', embeddingProvider: 'auto' })
 
     // Form - Provider (for add)
     const [formProvider, setFormProvider] = useState('anthropic')
@@ -134,6 +144,10 @@ function SettingsContent() {
             setFetchingLocalModels(false)
         }
     }
+
+
+    // Sub-tabs for Memory & Learning
+    const [activeMemoryTab, setActiveMemoryTab] = useState<'settings' | 'knowledge'>('settings')
 
     useEffect(() => {
         fetchData()
@@ -321,7 +335,8 @@ function SettingsContent() {
         { id: 'general', label: 'General', icon: User },
         { id: 'security', label: 'Security', icon: Lock },
         { id: 'memory', label: 'Memory & Learning', icon: Brain },
-        { id: 'mcp', label: 'MCP Integration', icon: Terminal },
+
+        { id: 'mcp', label: 'API Tokens', icon: Terminal },
         { id: 'mcp-servers', label: 'MCP Servers', icon: Server },
         { id: 'resilience', label: 'Resilience', icon: RefreshCw },
         { id: 'help', label: 'Help', icon: HelpCircle },
@@ -376,7 +391,7 @@ function SettingsContent() {
                             </div>
                             <button
                                 onClick={() => setShowModal(true)}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                             >
                                 <Plus className="w-4 h-4" /> Add Provider
                             </button>
@@ -445,14 +460,14 @@ function SettingsContent() {
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => openEditModal(p)}
-                                                className="p-2 text-gray-500 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
+                                                className="p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors"
                                                 title="Edit provider"
                                             >
                                                 <Pencil className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteProvider(p.id)}
-                                                className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                                className="p-2 text-gray-400 hover:bg-gray-800 hover:text-red-400 rounded-lg transition-colors"
                                                 title="Delete provider"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -462,6 +477,98 @@ function SettingsContent() {
                                 ))}
                             </div>
                         )}
+
+                        {/* Background Operations Section */}
+                        <div className="mt-8 bg-gray-900 border border-gray-800 rounded-xl p-6">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="p-2 bg-purple-500/10 rounded-lg">
+                                    <Activity className="w-5 h-5 text-purple-400" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-medium text-white">Background Operations</h3>
+                                    <p className="text-sm text-gray-400">Configure models used for summarization and embedding tasks.</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6 max-w-2xl">
+                                {/* Summarization Provider */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Summarization Provider</label>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        <button
+                                            onClick={() => {
+                                                const newSettings = {
+                                                    ...userSettings,
+                                                    backgroundOperationsSettings: { ...userSettings?.backgroundOperationsSettings, summarizationProvider: 'auto' }
+                                                }
+                                                // @ts-ignore
+                                                setUserSettings(newSettings)
+                                            }}
+                                            className={clsx(
+                                                "p-3 rounded-lg border text-left transition-all",
+                                                userSettings?.backgroundOperationsSettings?.summarizationProvider === 'auto' || !userSettings?.backgroundOperationsSettings?.summarizationProvider
+                                                    ? "bg-blue-600/10 border-blue-500/50 text-blue-400"
+                                                    : "bg-gray-950 border-gray-800 text-gray-400 hover:border-gray-700"
+                                            )}
+                                        >
+                                            <div className="font-medium mb-1">Auto</div>
+                                            <div className="text-xs opacity-70">Cheapest available (Default)</div>
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                const newSettings = {
+                                                    ...userSettings,
+                                                    backgroundOperationsSettings: { ...userSettings?.backgroundOperationsSettings, summarizationProvider: 'gemini-flash' }
+                                                }
+                                                // @ts-ignore
+                                                setUserSettings(newSettings)
+                                            }}
+                                            className={clsx(
+                                                "p-3 rounded-lg border text-left transition-all",
+                                                userSettings?.backgroundOperationsSettings?.summarizationProvider === 'gemini-flash'
+                                                    ? "bg-blue-600/10 border-blue-500/50 text-blue-400"
+                                                    : "bg-gray-950 border-gray-800 text-gray-400 hover:border-gray-700"
+                                            )}
+                                        >
+                                            <div className="font-medium mb-1">Gemini Flash</div>
+                                            <div className="text-xs opacity-70">Coming soon</div>
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                const newSettings = {
+                                                    ...userSettings,
+                                                    backgroundOperationsSettings: { ...userSettings?.backgroundOperationsSettings, summarizationProvider: 'local' }
+                                                }
+                                                // @ts-ignore
+                                                setUserSettings(newSettings)
+                                            }}
+                                            className={clsx(
+                                                "p-3 rounded-lg border text-left transition-all",
+                                                userSettings?.backgroundOperationsSettings?.summarizationProvider === 'local'
+                                                    ? "bg-blue-600/10 border-blue-500/50 text-blue-400"
+                                                    : "bg-gray-950 border-gray-800 text-gray-400 hover:border-gray-700"
+                                            )}
+                                        >
+                                            <div className="font-medium mb-1">Local Only</div>
+                                            <div className="text-xs opacity-70">Ollama / LM Studio</div>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 flex justify-end">
+                                    <button
+                                        onClick={(e) => handleUpdateSettings(e)}
+                                        disabled={saving}
+                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+                                    >
+                                        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </>
                 )}
 
@@ -516,7 +623,7 @@ function SettingsContent() {
                                     <button
                                         type="submit"
                                         disabled={saving}
-                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                                     >
                                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                         Save Changes
@@ -579,7 +686,7 @@ function SettingsContent() {
                                                 setUserSettings(newSettings)
                                                 // Auto-save toggle? Or wait for explicit save?
                                                 // For settings toggles, explicit save is safer or auto-save debounce.
-                                                // Let's rely on explicit save for uniformity or add a useEffect saver.
+                                                // Explicit save is safer.
                                                 // For now, let's add a save button at bottom.
                                             }}
                                             className={clsx(
@@ -668,7 +775,7 @@ function SettingsContent() {
                                                 console.error('Failed to download audit logs:', e)
                                             }
                                         }}
-                                        className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                        className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                                     >
                                         <Download className="w-4 h-4" />
                                         Download Audit Logs
@@ -676,7 +783,7 @@ function SettingsContent() {
                                     <button
                                         onClick={(e) => handleUpdateSettings(e)}
                                         disabled={saving}
-                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                                     >
                                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                         Save Changes
@@ -846,7 +953,7 @@ function SettingsContent() {
                                     <button
                                         onClick={(e) => handleUpdateSettings(e)}
                                         disabled={saving}
-                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                                     >
                                         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                         Save Changes
@@ -859,59 +966,46 @@ function SettingsContent() {
                 {/* Memory Tab */}
                 {activeTab === 'memory' && (
                     <>
-                        <div className="mb-8">
+                        <div className="mb-0">
                             <h2 className="text-2xl font-semibold">Memory & Learning</h2>
                             <p className="text-gray-400 mt-1">Control how ChorumAI learns from conversations and manages context.</p>
+                        </div>
 
-                            {/* Sub-tabs */}
-                            <div className="flex gap-1 mt-4 border-b border-gray-800">
-                                <button
-                                    onClick={() => setMemorySubTab('settings')}
-                                    className={clsx(
-                                        "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px",
-                                        memorySubTab === 'settings'
-                                            ? "border-blue-500 text-blue-400"
-                                            : "border-transparent text-gray-500 hover:text-gray-300"
-                                    )}
-                                >
-                                    Settings
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setMemorySubTab('knowledge')
-                                        // Fetch projects when switching to knowledge tab
-                                        if (projects.length === 0) {
-                                            fetch('/api/projects').then(res => {
-                                                if (res.ok) {
-                                                    res.json().then(data => {
-                                                        setProjects(data)
-                                                        if (data.length > 0 && !selectedProjectId) setSelectedProjectId(data[0].id)
-                                                    })
-                                                }
-                                            })
-                                        }
-                                    }}
-                                    className={clsx(
-                                        "px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-2",
-                                        memorySubTab === 'knowledge'
-                                            ? "border-purple-500 text-purple-400"
-                                            : "border-transparent text-gray-500 hover:text-gray-300"
-                                    )}
-                                >
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    Learned Knowledge
-                                </button>
-                            </div>
+                        {/* Memory Sub-tabs */}
+                        <div className="flex border-b border-gray-800 mb-6 mt-4">
+                            <button
+                                onClick={() => setActiveMemoryTab('settings')}
+                                className={clsx(
+                                    "px-4 py-2 text-sm font-medium transition-colors border-b-2",
+                                    activeMemoryTab === 'settings'
+                                        ? "border-blue-500 text-blue-400"
+                                        : "border-transparent text-gray-400 hover:text-gray-200"
+                                )}
+                            >
+                                Settings
+                            </button>
+                            <button
+                                onClick={() => setActiveMemoryTab('knowledge')}
+                                className={clsx(
+                                    "px-4 py-2 text-sm font-medium transition-colors border-b-2",
+                                    activeMemoryTab === 'knowledge'
+                                        ? "border-blue-500 text-blue-400"
+                                        : "border-transparent text-gray-400 hover:text-gray-200"
+                                )}
+                            >
+                                <Sparkles className="w-3 h-3 inline-block mr-2" />
+                                Learned Knowledge
+                            </button>
                         </div>
 
                         {loading ? (
                             <div className="flex justify-center p-12"><Loader2 className="animate-spin text-gray-500" /></div>
-                        ) : memorySubTab === 'settings' ? (
-                            /* Settings Sub-Tab */
-                            !userSettings ? (
-                                <div className="text-red-400">Failed to load settings.</div>
-                            ) : (
+                        ) : !userSettings ? (
+                            <div className="text-red-400">Failed to load settings.</div>
+                        ) : (<>
+                            {activeMemoryTab === 'settings' ? (
                                 <div className="max-w-2xl space-y-6">
+
                                     {/* Learning & Context Section */}
                                     <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
                                         <h3 className="text-lg font-medium flex items-center gap-2">
@@ -977,77 +1071,8 @@ function SettingsContent() {
                                                 <span className={clsx("absolute top-1 w-4 h-4 rounded-full bg-white transition-all", userSettings.memorySettings?.injectContext !== false ? "left-7" : "left-1")} />
                                             </button>
                                         </div>
-                                        {/* Link Analysis */}
-                                        <div className="p-4 bg-gray-950 rounded-lg border border-gray-800 space-y-3">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <h4 className="font-medium text-white mb-1">Knowledge Graph Analysis</h4>
-                                                    <p className="text-sm text-gray-500">
-                                                        Analyze co-occurrence data to infer logical relationships (supports, contradicts, supersedes) between memory items.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <select
-                                                    value={linkAnalysisProjectId || ''}
-                                                    onChange={(e) => {
-                                                        setLinkAnalysisProjectId(e.target.value)
-                                                        setLinkAnalysisResult(null)
-                                                    }}
-                                                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
-                                                >
-                                                    {projects.length === 0 && (
-                                                        <option value="">No projects available</option>
-                                                    )}
-                                                    {projects.map(p => (
-                                                        <option key={p.id} value={p.id}>{p.name}</option>
-                                                    ))}
-                                                </select>
-                                                <button
-                                                    onClick={async () => {
-                                                        if (!linkAnalysisProjectId) return
-                                                        setAnalyzingLinks(true)
-                                                        setLinkAnalysisResult(null)
-                                                        try {
-                                                            const res = await fetch('/api/learning/analyze-links', {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ projectId: linkAnalysisProjectId })
-                                                            })
-                                                            const data = await res.json()
-                                                            if (data.success) {
-                                                                setLinkAnalysisResult({ success: true, message: data.message })
-                                                            } else {
-                                                                setLinkAnalysisResult({ success: false, message: data.message || data.error })
-                                                            }
-                                                        } catch (e: any) {
-                                                            setLinkAnalysisResult({ success: false, message: e.message })
-                                                        } finally {
-                                                            setAnalyzingLinks(false)
-                                                        }
-                                                    }}
-                                                    disabled={analyzingLinks || !linkAnalysisProjectId || projects.length === 0}
-                                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2"
-                                                >
-                                                    {analyzingLinks ? (
-                                                        <>
-                                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                                            Analyzing...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Sparkles className="w-4 h-4" />
-                                                            Analyze Links
-                                                        </>
-                                                    )}
-                                                </button>
-                                            </div>
-                                            {linkAnalysisResult && (
-                                                <p className={clsx("text-sm", linkAnalysisResult.success ? "text-green-400" : "text-yellow-400")}>
-                                                    {linkAnalysisResult.message}
-                                                </p>
-                                            )}
-                                        </div>
+
+                                        {/* Knowledge Graph link — hidden until redesign */}
                                     </div>
 
                                     {/* Response Processing Section */}
@@ -1123,7 +1148,7 @@ function SettingsContent() {
                                                             }
                                                         }}
                                                         disabled={summarizing || !summarizeProjectId || projects.length === 0}
-                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2"
+                                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2 shadow-sm"
                                                     >
                                                         {summarizing ? (
                                                             <>
@@ -1213,7 +1238,7 @@ function SettingsContent() {
                                                     }
                                                     setUserSettings(newSettings)
                                                 }}
-                                                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                                className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                                             >
                                                 <Zap className="w-4 h-4" />
                                                 Enable Minimal Mode
@@ -1226,272 +1251,286 @@ function SettingsContent() {
                                         <button
                                             onClick={(e) => handleUpdateSettings(e)}
                                             disabled={saving}
-                                            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                                            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
                                         >
                                             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                             Save Changes
                                         </button>
                                     </div>
                                 </div>
-                            )
-                        ) : (
-                            /* Knowledge Sub-Tab */
-                            projects.length === 0 ? (
-                                <div className="text-center p-12 border border-dashed border-gray-800 rounded-xl">
-                                    <FolderOpen className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                                    <p className="text-gray-500 mb-2">No projects found</p>
-                                    <p className="text-sm text-gray-600">Create a project to start learning patterns from your conversations.</p>
-                                </div>
-                            ) : (
-                                <div className="max-w-4xl">
-                                    {/* Project Selector */}
-                                    <div className="mb-6 flex items-center gap-4">
-                                        <label className="text-sm text-gray-400">Project:</label>
-                                        <select
-                                            value={selectedProjectId || ''}
-                                            onChange={(e) => setSelectedProjectId(e.target.value)}
-                                            className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white min-w-[200px]"
-                                        >
-                                            {projects.map(p => (
-                                                <option key={p.id} value={p.id}>{p.name}</option>
-                                            ))}
-                                        </select>
+                            ) : null}
+
+                            {/* Learned Knowledge Section - Sub-tab */}
+                            {activeMemoryTab === 'knowledge' && (
+                                <div className="mt-0 pt-0">
+                                    <div className="mb-6">
+                                        <h3 className="text-xl font-semibold text-white mb-2">Learned Knowledge</h3>
+                                        <p className="text-gray-400">Explore and manage the knowledge graph and learned patterns.</p>
                                     </div>
 
-                                    {/* Learning Dashboard */}
-                                    {selectedProjectId && (
-                                        <LearningDashboard
-                                            projectId={selectedProjectId}
-                                            projectName={projects.find(p => p.id === selectedProjectId)?.name}
-                                        />
+                                    {projects.length === 0 ? (
+                                        <div className="text-center p-8 border border-dashed border-gray-800 rounded-xl">
+                                            <FolderOpen className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                                            <p className="text-gray-500 mb-1">No projects found</p>
+                                            <p className="text-sm text-gray-600">Create a project to start learning patterns.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="max-w-6xl">
+                                            {/* Project Selector */}
+                                            <div className="mb-6 flex items-center gap-4">
+                                                <label className="text-sm text-gray-400">Select Project:</label>
+                                                <select
+                                                    value={selectedProjectId || ''}
+                                                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                                                    className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white min-w-[200px] focus:ring-1 focus:ring-blue-500 outline-none"
+                                                >
+                                                    <option value="">Select a project...</option>
+                                                    {projects.map(p => (
+                                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {/* Learning Dashboard */}
+                                            {selectedProjectId && (
+                                                <LearningDashboard
+                                                    projectId={selectedProjectId}
+                                                    projectName={projects.find(p => p.id === selectedProjectId)?.name}
+                                                />
+                                            )}
+                                        </div>
                                     )}
                                 </div>
-                            )
-                        )}
+                            )}
+                        </>)}
                     </>
                 )}
 
 
                 {/* Help Tab */}
-                {activeTab === 'help' && (
-                    <>
-                        <div className="mb-8">
-                            <h2 className="text-2xl font-semibold">Resources & Support</h2>
-                            <p className="text-gray-400 mt-1">Everything you need to master ChorumAI.</p>
-                        </div>
+                {
+                    activeTab === 'help' && (
+                        <>
+                            <div className="mb-8">
+                                <h2 className="text-2xl font-semibold">Resources & Support</h2>
+                                <p className="text-gray-400 mt-1">Everything you need to master ChorumAI.</p>
+                            </div>
 
-                        <div className="space-y-6 max-w-4xl">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {/* Documentation Card */}
-                                <a
-                                    href="https://docs.chorumai.com"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors group"
-                                >
-                                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                                        <FileText className="w-5 h-5 text-blue-400" />
-                                        Documentation
-                                    </h3>
-                                    <p className="text-sm text-gray-400 mb-3">
-                                        Comprehensive guides, API references, tutorials, and best practices.
-                                    </p>
-                                    <div className="inline-flex items-center gap-2 text-sm text-blue-400 group-hover:text-blue-300 transition-colors">
-                                        Visit docs.chorumai.com
-                                        <ExternalLink className="w-3 h-3" />
-                                    </div>
-                                </a>
+                            <div className="space-y-6 max-w-4xl">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Documentation Card */}
+                                    <a
+                                        href="https://docs.chorumai.com"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors group"
+                                    >
+                                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                                            <FileText className="w-5 h-5 text-blue-400" />
+                                            Documentation
+                                        </h3>
+                                        <p className="text-sm text-gray-400 mb-3">
+                                            Comprehensive guides, API references, tutorials, and best practices.
+                                        </p>
+                                        <div className="inline-flex items-center gap-2 text-sm text-blue-400 group-hover:text-blue-300 transition-colors">
+                                            Visit docs.chorumai.com
+                                            <ExternalLink className="w-3 h-3" />
+                                        </div>
+                                    </a>
 
-                                {/* Quick Reference Card */}
-                                <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
-                                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                                        <Zap className="w-5 h-5 text-yellow-400" />
-                                        Quick Reference
-                                    </h3>
-                                    <div className="space-y-3 text-sm text-gray-300">
-                                        <a href="https://docs.chorumai.com/projects/overview" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
-                                            <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Projects</p>
-                                            <p className="text-gray-400">Organize conversations by project. Switch using the sidebar.</p>
-                                        </a>
-                                        <a href="https://docs.chorumai.com/settings/api-keys" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
-                                            <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Intelligent Routing</p>
-                                            <p className="text-gray-400">ChorumAI auto-selects the best model for your task.</p>
-                                        </a>
-                                        <a href="https://docs.chorumai.com/settings/budgets" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
-                                            <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Cost Tracking</p>
-                                            <p className="text-gray-400">Monitor usage in real-time via the top bar.</p>
-                                        </a>
-                                    </div>
-                                </section>
+                                    {/* Quick Reference Card */}
+                                    <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+                                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                                            <Zap className="w-5 h-5 text-yellow-400" />
+                                            Quick Reference
+                                        </h3>
+                                        <div className="space-y-3 text-sm text-gray-300">
+                                            <a href="https://docs.chorumai.com/projects/overview" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
+                                                <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Projects</p>
+                                                <p className="text-gray-400">Organize conversations by project. Switch using the sidebar.</p>
+                                            </a>
+                                            <a href="https://docs.chorumai.com/settings/api-keys" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
+                                                <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Intelligent Routing</p>
+                                                <p className="text-gray-400">ChorumAI auto-selects the best model for your task.</p>
+                                            </a>
+                                            <a href="https://docs.chorumai.com/settings/budgets" target="_blank" rel="noopener noreferrer" className="block hover:bg-gray-800/50 rounded-lg p-2 -m-2 transition-colors group">
+                                                <p className="font-medium text-white mb-1 group-hover:text-blue-400 transition-colors">Cost Tracking</p>
+                                                <p className="text-gray-400">Monitor usage in real-time via the top bar.</p>
+                                            </a>
+                                        </div>
+                                    </section>
 
-                                {/* H4X0R Terminal Easter Egg */}
-                                <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
-                                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                                        <Terminal className="w-5 h-5 text-green-400" />
-                                        H4X0R Terminal
-                                    </h3>
-                                    <div className="bg-black/40 rounded-lg p-4 font-mono text-[10px] leading-tight text-green-400 mb-3 overflow-x-auto">
-                                        <pre>{`██   ██ ██   ██ ██   ██  ██████  ██████  
+                                    {/* H4X0R Terminal Easter Egg */}
+                                    <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors">
+                                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                                            <Terminal className="w-5 h-5 text-green-400" />
+                                            H4X0R Terminal
+                                        </h3>
+                                        <div className="bg-black/40 rounded-lg p-4 font-mono text-[10px] leading-tight text-green-400 mb-3 overflow-x-auto">
+                                            <pre>{`██   ██ ██   ██ ██   ██  ██████  ██████  
 ██   ██ ██   ██  ██ ██  ██  ████ ██   ██ 
 ███████ ███████   ███   ██ ██ ██ ██████  
 ██   ██     ██   ██ ██  ████  ██ ██   ██ 
 ██   ██     ██  ██   ██  ██████  ██   ██`}</pre>
-                                    </div>
-                                    <a
-                                        href="https://github.com/ChorumAI/chorum-ai/tree/main/h4x0r"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition-colors"
-                                    >
-                                        Installation & Usage
-                                        <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                </section>
-
-                                {/* Community & Support */}
-                                <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors md:col-span-2">
-                                    <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-                                        <HelpCircle className="w-5 h-5 text-blue-400" />
-                                        Community & Support
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        </div>
                                         <a
-                                            href="https://github.com/ChorumAI/chorum-ai"
+                                            href="https://github.com/ChorumAI/chorum-ai/tree/main/h4x0r"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="flex items-center gap-3 p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group"
+                                            className="inline-flex items-center gap-2 text-sm text-green-400 hover:text-green-300 transition-colors"
                                         >
-                                            <Github className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-white">GitHub</p>
-                                                <p className="text-xs text-gray-500">Source & Issues</p>
-                                            </div>
-                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                            Installation & Usage
+                                            <ExternalLink className="w-3 h-3" />
                                         </a>
+                                    </section>
 
-                                        <a
-                                            href="mailto:youcancallmedaniel@proton.me"
-                                            className="flex items-center gap-3 p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group"
-                                        >
-                                            <User className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-white">Contact Us</p>
-                                                <p className="text-xs text-gray-500">Get in touch</p>
-                                            </div>
-                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
-                                        </a>
+                                    {/* Community & Support */}
+                                    <section className="bg-gray-900 border border-gray-800 rounded-xl p-6 hover:border-gray-700 transition-colors md:col-span-2">
+                                        <h3 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                                            <HelpCircle className="w-5 h-5 text-blue-400" />
+                                            Community & Support
+                                        </h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <a
+                                                href="https://github.com/ChorumAI/chorum-ai"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-3 p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group"
+                                            >
+                                                <Github className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-white">GitHub</p>
+                                                    <p className="text-xs text-gray-500">Source & Issues</p>
+                                                </div>
+                                                <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                            </a>
 
-                                        <Link
-                                            href="/changelog"
-                                            className="flex items-center gap-3 p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group"
-                                        >
-                                            <Activity className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-                                            <div className="flex-1">
-                                                <p className="text-sm font-medium text-white">What's New</p>
-                                                <p className="text-xs text-gray-500">Changelog</p>
-                                            </div>
-                                            <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
-                                        </Link>
-                                    </div>
-                                </section>
+                                            <a
+                                                href="mailto:youcancallmedaniel@proton.me"
+                                                className="flex items-center gap-3 p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group"
+                                            >
+                                                <User className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-white">Contact Us</p>
+                                                    <p className="text-xs text-gray-500">Get in touch</p>
+                                                </div>
+                                                <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                            </a>
+
+                                            <Link
+                                                href="/changelog"
+                                                className="flex items-center gap-3 p-3 bg-gray-950 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors group"
+                                            >
+                                                <Activity className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-medium text-white">What's New</p>
+                                                    <p className="text-xs text-gray-500">Changelog</p>
+                                                </div>
+                                                <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                                            </Link>
+                                        </div>
+                                    </section>
+                                </div>
                             </div>
-                        </div>
-                    </>
-                )}
+                        </>
+                    )
+                }
 
 
 
                 {/* About Tab */}
-                {activeTab === 'about' && (
-                    <>
-                        {/* Centered About Content */}
-                        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center mb-16">
-                            <img src="/logo.png" alt="ChorumAI" className="w-48 h-48 object-contain mb-6" />
+                {
+                    activeTab === 'about' && (
+                        <>
+                            {/* Centered About Content */}
+                            <div className="flex flex-col items-center justify-center min-h-[50vh] text-center mb-16">
+                                <img src="/logo.png" alt="ChorumAI" className="w-48 h-48 object-contain mb-6" />
 
-                            <h1 className="text-4xl font-bold mb-2">ChorumAI</h1>
-                            <p className="text-gray-400 text-lg mb-8">Built with intelligence, not just tokens.</p>
-                            <p className="text-gray-400 text-lg mb-8">Wanna chat? <a href="mailto:youcancallmedaniel@proton.me">Send an email</a></p>
+                                <h1 className="text-4xl font-bold mb-2">ChorumAI</h1>
+                                <p className="text-gray-400 text-lg mb-8">Built with intelligence, not just tokens.</p>
+                                <p className="text-gray-400 text-lg mb-8">Wanna chat? <a href="mailto:youcancallmedaniel@proton.me">Send an email</a></p>
 
-                            <div className="flex items-center gap-6">
-                                <div className="text-center px-6 py-3 bg-gray-900 rounded-xl border border-gray-800">
-                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Version</p>
-                                    <p className="text-xl font-mono text-white mt-1">v1.5.0</p>
-                                </div>
-                                <a
-                                    href="https://github.com/ChorumAI/chorum-ai"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-3 px-6 py-4 bg-gray-900 hover:bg-gray-800 rounded-xl border border-gray-800 hover:border-gray-700 transition-all group"
-                                >
-                                    <Github className="w-6 h-6 text-white" />
-                                    <div className="text-left">
-                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold group-hover:text-blue-400 transition-colors">Source Code</p>
-                                        <p className="font-medium text-white">GitHub Repository</p>
+                                <div className="flex items-center gap-6">
+                                    <div className="text-center px-6 py-3 bg-gray-900 rounded-xl border border-gray-800">
+                                        <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Version</p>
+                                        <p className="text-xl font-mono text-white mt-1">v1.5.0</p>
                                     </div>
-                                </a>
+                                    <a
+                                        href="https://github.com/ChorumAI/chorum-ai"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-3 px-6 py-4 bg-gray-900 hover:bg-gray-800 rounded-xl border border-gray-800 hover:border-gray-700 transition-all group"
+                                    >
+                                        <Github className="w-6 h-6 text-white" />
+                                        <div className="text-left">
+                                            <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold group-hover:text-blue-400 transition-colors">Source Code</p>
+                                            <p className="font-medium text-white">GitHub Repository</p>
+                                        </div>
+                                    </a>
+                                </div>
+
+                                <p className="mt-12 text-sm text-gray-600 max-w-sm">
+                                    Sovereign data platform for your context.
+                                </p>
                             </div>
 
-                            <p className="mt-12 text-sm text-gray-600 max-w-sm">
-                                Sovereign data platform for your context.
-                            </p>
-                        </div>
+                            {/* Legal Section moved to About */}
+                            <div className="mb-8 pt-8 border-t border-gray-800">
+                                <h2 className="text-2xl font-semibold">Legal & Privacy</h2>
+                                <p className="text-gray-400 mt-1">Terms of use and privacy policy.</p>
+                            </div>
 
-                        {/* Legal Section moved to About */}
-                        <div className="mb-8 pt-8 border-t border-gray-800">
-                            <h2 className="text-2xl font-semibold">Legal & Privacy</h2>
-                            <p className="text-gray-400 mt-1">Terms of use and privacy policy.</p>
-                        </div>
+                            <div className="space-y-8 max-w-3xl mx-auto">
+                                <section className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+                                    <h3 className="text-lg font-medium text-white mb-2">Privacy Policy</h3>
+                                    <div className="prose prose-invert prose-sm text-gray-300">
+                                        <p className="mb-2"><strong>ChorumAI is a local-first application.</strong> We believe your data belongs to you.</p>
+                                        <ul className="list-disc pl-5 space-y-1 text-gray-400">
+                                            <li>Your API keys and messages are stored in your own database (PostgreSQL/Supabase).</li>
+                                            <li>We do not have access to your keys, your data, or your conversations.</li>
+                                            <li>When you send a message, it is transmitted directly from your server to the LLM provider (Anthropic, OpenAI, etc.).</li>
+                                            <li>We do not track your usage or sell your data.</li>
+                                        </ul>
+                                    </div>
+                                </section>
 
-                        <div className="space-y-8 max-w-3xl mx-auto">
-                            <section className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-                                <h3 className="text-lg font-medium text-white mb-2">Privacy Policy</h3>
-                                <div className="prose prose-invert prose-sm text-gray-300">
-                                    <p className="mb-2"><strong>ChorumAI is a local-first application.</strong> We believe your data belongs to you.</p>
-                                    <ul className="list-disc pl-5 space-y-1 text-gray-400">
-                                        <li>Your API keys and messages are stored in your own database (PostgreSQL/Supabase).</li>
-                                        <li>We do not have access to your keys, your data, or your conversations.</li>
-                                        <li>When you send a message, it is transmitted directly from your server to the LLM provider (Anthropic, OpenAI, etc.).</li>
-                                        <li>We do not track your usage or sell your data.</li>
-                                    </ul>
-                                </div>
-                            </section>
-
-                            <section className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
-                                <h3 className="text-lg font-medium text-white mb-2">License & Liability</h3>
-                                <div className="prose prose-invert prose-sm text-gray-300 font-mono bg-black/20 p-4 rounded-lg border border-gray-800">
-                                    <p className="mb-4">MIT License</p>
-                                    <p className="mb-4">Copyright (c) 2024-2026 ChorumAI Contributors</p>
-                                    <p className="mb-4">
-                                        Permission is hereby granted, free of charge, to any person obtaining a copy
-                                        of this software and associated documentation files (the "Software"), to deal
-                                        in the Software without restriction, including without limitation the rights
-                                        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-                                        copies of the Software, and to permit persons to whom the Software is
-                                        furnished to do so, subject to the following conditions:
+                                <section className="bg-gray-900/50 border border-gray-800 rounded-xl p-6">
+                                    <h3 className="text-lg font-medium text-white mb-2">License & Liability</h3>
+                                    <div className="prose prose-invert prose-sm text-gray-300 font-mono bg-black/20 p-4 rounded-lg border border-gray-800">
+                                        <p className="mb-4">MIT License</p>
+                                        <p className="mb-4">Copyright (c) 2024-2026 ChorumAI Contributors</p>
+                                        <p className="mb-4">
+                                            Permission is hereby granted, free of charge, to any person obtaining a copy
+                                            of this software and associated documentation files (the "Software"), to deal
+                                            in the Software without restriction, including without limitation the rights
+                                            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+                                            copies of the Software, and to permit persons to whom the Software is
+                                            furnished to do so, subject to the following conditions:
+                                        </p>
+                                        <p className="mb-4">
+                                            The above copyright notice and this permission notice shall be included in all
+                                            copies or substantial portions of the Software.
+                                        </p>
+                                        <p>
+                                            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+                                            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+                                            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+                                            AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+                                            LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+                                            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+                                            SOFTWARE.
+                                        </p>
+                                    </div>
+                                    <p className="mt-4 text-xs text-gray-500">
+                                        Disclaimer: ChorumAI is an open-source project hosted on GitHub. It is not a registered business entity.
+                                        Users are responsible for their own API usage, costs, and content generated by AI models.
                                     </p>
-                                    <p className="mb-4">
-                                        The above copyright notice and this permission notice shall be included in all
-                                        copies or substantial portions of the Software.
-                                    </p>
-                                    <p>
-                                        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-                                        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-                                        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-                                        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-                                        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-                                        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-                                        SOFTWARE.
-                                    </p>
-                                </div>
-                                <p className="mt-4 text-xs text-gray-500">
-                                    Disclaimer: ChorumAI is an open-source project hosted on GitHub. It is not a registered business entity.
-                                    Users are responsible for their own API usage, costs, and content generated by AI models.
-                                </p>
-                            </section>
-                        </div>
-                    </>
-                )}
-            </div>
+                                </section>
+                            </div>
+                        </>
+                    )
+                }
+            </div >
 
             {/* Add Provider Modal */}
             {
@@ -1662,8 +1701,8 @@ function SettingsContent() {
                                 </div>
 
                                 <div className="flex justify-end gap-3 mt-6">
-                                    <button type="button" onClick={() => { setShowModal(false); resetForm() }} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
-                                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white">Add Provider</button>
+                                    <button type="button" onClick={() => { setShowModal(false); resetForm() }} className="px-4 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors">Cancel</button>
+                                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white shadow-sm">Add Provider</button>
                                 </div>
                             </form>
                         </div>
@@ -1743,8 +1782,8 @@ function SettingsContent() {
                                 </div>
 
                                 <div className="flex justify-end gap-3 mt-6">
-                                    <button type="button" onClick={() => { setShowEditModal(false); setEditingProvider(null); resetForm() }} className="px-4 py-2 text-sm text-gray-400 hover:text-white">Cancel</button>
-                                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white">Save Changes</button>
+                                    <button type="button" onClick={() => { setShowEditModal(false); setEditingProvider(null); resetForm() }} className="px-4 py-2 text-sm text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors">Cancel</button>
+                                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium text-white shadow-sm">Save Changes</button>
                                 </div>
                             </form>
                         </div>
