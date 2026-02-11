@@ -50,11 +50,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (!session?.user?.id) {
-                })().catch(err => console.error('[DomainSignal] Recomputation failed:', err))
-            )
-        }
-
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
         const userId = session.user.id
 
@@ -293,8 +289,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (providerConfigs.length === 0) {
-                })().catch(err => console.error('[DomainSignal] Recomputation failed:', err))
-            )
+)
         }
 
         return NextResponse.json({ error: 'No providers configured. Add API keys in Settings.' }, { status: 400 })
@@ -448,8 +443,7 @@ export async function POST(req: NextRequest) {
                     securitySettings as SecuritySettings | null
                 )
                 if (!httpsValidation.valid) {
-                })().catch(err => console.error('[DomainSignal] Recomputation failed:', err))
-            )
+)
         }
 
         return NextResponse.json({
@@ -713,8 +707,7 @@ export async function POST(req: NextRequest) {
             tokensOutput += result.tokensOutput
         } catch (err: any) {
             console.error('Provider error:', err)
-                })().catch(err => console.error('[DomainSignal] Recomputation failed:', err))
-            )
+)
         }
 
         return NextResponse.json({
@@ -940,16 +933,15 @@ export async function POST(req: NextRequest) {
                 console.warn('[Learning] Failed to queue learning:', e)
             }
         }
-                })().catch(err => console.error('[DomainSignal] Recomputation failed:', err))
-            )
+)
+        })
         }
-
-                // [Domain Signal] Recompute periodically (fire-and-forget)
+        // [Domain Signal] Recompute periodically (fire-and-forget)
         if (projectId) {
             waitUntil(
                 (async () => {
                     const [{ count }] = await db
-                        .select({ count: sql<number>`count(*)` })
+                        .select({ count: sql<number>count(*) })
                         .from(messages)
                         .where(eq(messages.projectId, projectId))
 
@@ -1012,19 +1004,19 @@ return NextResponse.json({
         const errorMessage = error instanceof Error ? error.message : String(error)
         // If Postgres invalid input syntax for type uuid
         if (errorMessage.includes('invalid input syntax for type uuid')) {
-                })().catch(err => console.error('[DomainSignal] Recomputation failed:', err))
-            )
+)
         }
 
         return NextResponse.json({ error: 'Invalid Project ID format' }, { status: 400 })
         }
-                })().catch(err => console.error('[DomainSignal] Recomputation failed:', err))
-            )
+)
         }
 
         return NextResponse.json({ error: `Failed to process message: ${errorMessage}` }, { status: 500 })
     }
 }
+
+
 
 
 
