@@ -701,10 +701,7 @@ export async function POST(req: NextRequest) {
             tokensOutput += result.tokensOutput
         } catch (err: any) {
             console.error('Provider error:', err)
-)
-        }
-
-        return NextResponse.json({
+            return NextResponse.json({
                 error: `All providers failed: ${err.message}`,
                 failedProviders
             }, { status: 500 })
@@ -927,15 +924,13 @@ export async function POST(req: NextRequest) {
                 console.warn('[Learning] Failed to queue learning:', e)
             }
         }
-)
-        })
-        }
+
         // [Domain Signal] Recompute periodically (fire-and-forget)
         if (projectId) {
             waitUntil(
                 (async () => {
                     const [{ count }] = await db
-                        .select({ count: sql<number>count(*) })
+                        .select({ count: sql<number>`count(*)` })
                         .from(messages)
                         .where(eq(messages.projectId, projectId))
 
@@ -998,12 +993,7 @@ return NextResponse.json({
         const errorMessage = error instanceof Error ? error.message : String(error)
         // If Postgres invalid input syntax for type uuid
         if (errorMessage.includes('invalid input syntax for type uuid')) {
-)
-        }
-
-        return NextResponse.json({ error: 'Invalid Project ID format' }, { status: 400 })
-        }
-)
+            return NextResponse.json({ error: 'Invalid Project ID format' }, { status: 400 })
         }
 
         return NextResponse.json({ error: `Failed to process message: ${errorMessage}` }, { status: 500 })
