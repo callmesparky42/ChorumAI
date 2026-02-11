@@ -163,6 +163,12 @@ export const projects = pgTable('projects', {
   // Conductor's Podium settings
   conductorLens: decimal('conductor_lens', { precision: 3, scale: 2 }).default('1.00'), // 0.25 to 2.00 budget multiplier
   focusDomains: jsonb('focus_domains').$type<string[]>().default([]),
+  domainSignal: jsonb('domain_signal').$type<{
+    primary: string
+    domains: { domain: string; confidence: number; evidence: number }[]
+    conversationsAnalyzed: number
+    computedAt: string  // ISO timestamp
+  }>(),
   createdAt: timestamp('created_at').defaultNow()
 })
 
@@ -463,3 +469,5 @@ export const mcpServerConfigs = pgTable('mcp_server_configs', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
 })
+
+

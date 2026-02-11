@@ -11,6 +11,7 @@ import { eq, and, sql } from 'drizzle-orm'
 import { callProvider, type FullProviderConfig } from '@/lib/providers'
 import { embeddings } from '@/lib/chorum/embeddings'
 import { invalidateCache } from './cache'
+import { type DomainSignal, type StoredDomainSignal } from '@/lib/chorum/domainSignal'
 import crypto from 'crypto'
 
 export interface ExtractedLearning {
@@ -27,19 +28,62 @@ export interface AnalysisResult {
     goldenPaths: ExtractedLearning[]
 }
 
-const EXTRACTION_PROMPT = `You are analyzing a conversation turn to extract project-specific learnings.
+type DomainSignalLike = DomainSignal | StoredDomainSignal | null | undefined
+
+function formatDomainFocus(domainSignal: DomainSignalLike, focusDomains?: string[]): {
+    primary: string
+    secondary: string[]
+} {
+    const explicit = (focusDomains || []).filter(Boolean)
+    if (explicit.length > 0) {
+        return {
+            primary: explicit[0],
+            secondary: explicit.slice(1, 4)
+        }
+    }
+
+    if (domainSignal?.primary && domainSignal.primary !== 'general') {
+        const ranked = (domainSignal.domains || [])
+            .map(d => d.domain)
+            .filter(Boolean)
+        return {
+            primary: domainSignal.primary,
+            secondary: ranked.filter(d => d !== domainSignal.primary).slice(0, 3)
+        }
+    }
+
+    return { primary: 'general', secondary: [] }
+}
+
+function buildExtractionPrompt(options?: {
+    domainSignal?: DomainSignalLike
+    focusDomains?: string[]
+}): string {
+    const focus = formatDomainFocus(options?.domainSignal, options?.focusDomains)
+    const domainLine = focus.secondary.length > 0
+        ? `Domain focus: ${focus.primary} (secondary: ${focus.secondary.join(', ')})`
+        : `Domain focus: ${focus.primary}`
+
+    const domainGuidance = focus.primary === 'coding' || focus.primary === 'devops' || focus.primary === 'data'
+        ? 'Interpret the categories in a software/technical context.'
+        : `Interpret the categories in the context of ${focus.primary} work. Avoid coding or implementation details unless explicitly discussed.`
+
+    return `You are analyzing a conversation turn to extract project-specific learnings.
+
+${domainLine}
+${domainGuidance}
 
 ONLY extract items that are:
-1. Specific to this project (not generic programming advice)
+1. Specific to this project (not generic advice)
 2. Worth remembering for future conversations
 3. Explicitly stated or clearly implied
 
-Categories to extract:
-- PATTERNS: Coding conventions, architectural choices, recurring approaches
-- DECISIONS: Explicit technical decisions with rationale (e.g., "We chose X because Y")
-- INVARIANTS: Rules that must NEVER be violated (e.g., "Always validate input before...")
-- ANTIPATTERNS: Things to avoid (e.g., "Don't use X because...")
-- GOLDEN_PATHS: Step-by-step procedures that worked well (e.g., "To deploy: run X, then Y, then Z")
+Categories to extract (domain-adaptive):
+- PATTERNS: Recurring approaches or conventions in this domain
+- DECISIONS: Explicit decisions with rationale (e.g., "We chose X because Y")
+- INVARIANTS: Rules that must NEVER be violated
+- ANTIPATTERNS: Things to avoid
+- GOLDEN_PATHS: Step-by-step procedures that worked well
 
 Return a JSON object with this structure:
 {
@@ -52,6 +96,7 @@ Return a JSON object with this structure:
 
 If nothing worth extracting, return empty arrays for all categories.
 Be selective - only extract truly valuable learnings.`
+}
 
 /**
  * Analyze a conversation turn and extract learnings
@@ -60,7 +105,9 @@ export async function analyzeConversation(
     userMessage: string,
     assistantResponse: string,
     projectContext?: string,
-    providerConfig?: FullProviderConfig
+    providerConfig?: FullProviderConfig,
+    domainSignal?: DomainSignalLike,
+    focusDomains?: string[]
 ): Promise<AnalysisResult> {
     const emptyResult: AnalysisResult = {
         patterns: [],
@@ -93,7 +140,7 @@ Analyze this conversation and extract any learnings.`
                 model: providerConfig.model // Use the same model
             },
             [{ role: 'user', content: analysisPrompt }],
-            EXTRACTION_PROMPT
+            buildExtractionPrompt({ domainSignal, focusDomains })
         )
 
         // Parse JSON response
@@ -331,13 +378,17 @@ export async function extractAndStoreLearnings(
     providerConfig: FullProviderConfig,
     projectContext?: string,
     sourceMessageId?: string,
-    userId?: string
+    userId?: string,
+    domainSignal?: DomainSignalLike,
+    focusDomains?: string[]
 ): Promise<{ stored: number; duplicates: number; merged: number }> {
     const result = await analyzeConversation(
         userMessage,
         assistantResponse,
         projectContext,
-        providerConfig
+        providerConfig,
+        domainSignal,
+        focusDomains
     )
 
     // Flatten all learnings

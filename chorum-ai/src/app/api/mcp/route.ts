@@ -241,6 +241,40 @@ async function getServerTools() {
             }
         },
         {
+            name: 'chorum_get_domain_signal',
+            description: 'Get the inferred project domain signal (optionally recompute).',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    projectId: { type: 'string', description: 'The project ID' },
+                    recompute: { type: 'boolean', description: 'Force recompute domain signal (default: false)' }
+                },
+                required: ['projectId']
+            }
+        },
+        {
+            name: 'chorum_import_analyze',
+            description: 'Import conversations from external sources (ChatGPT, Claude Desktop, Perplexity) and extract learnings from them. Supports auto-format detection. The Conductor will infer the project domain and extract domain-appropriate learnings.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    data: {
+                        type: 'object',
+                        description: 'The raw conversation export JSON (ChatGPT, Claude Desktop, or generic format)'
+                    },
+                    storeConversations: {
+                        type: 'boolean',
+                        description: 'Also store the raw conversations in the project (default: false, only extract learnings)'
+                    },
+                    maxConversations: {
+                        type: 'number',
+                        description: 'Maximum conversations to analyze (default: all)'
+                    }
+                },
+                required: ['data']
+            }
+        },
+        {
             name: 'chorum_list_projects',
             description: 'List all projects the authenticated user has access to.',
             inputSchema: {
@@ -290,6 +324,8 @@ async function executeToolCall(
     const { queryMemory } = await import('@/lib/mcp/tools/query-memory')
     const { getInvariants } = await import('@/lib/mcp/tools/get-invariants')
     const { getProjectContext } = await import('@/lib/mcp/tools/get-project-context')
+    const { getDomainSignal } = await import('@/lib/mcp/tools/get-domain-signal')
+    const { importAnalyze } = await import('@/lib/mcp/tools/import-analyze')
     const { listProjects } = await import('@/lib/mcp/tools/list-projects')
     const { proposeLearning } = await import('@/lib/mcp/tools/propose-learning')
     const { logInteraction } = await import('@/lib/mcp/tools/log-interaction')
@@ -312,6 +348,12 @@ async function executeToolCall(
                 break
             case 'chorum_get_project_context':
                 result = await getProjectContext(args as never, mcpContext)
+                break
+            case 'chorum_get_domain_signal':
+                result = await getDomainSignal(args as never, mcpContext)
+                break
+            case 'chorum_import_analyze':
+                result = await importAnalyze(args as never, mcpContext)
                 break
             case 'chorum_list_projects':
                 result = await listProjects({}, mcpContext)

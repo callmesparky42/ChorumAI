@@ -4,6 +4,8 @@
  * Runs locally (rule-based) for <5ms latency.
  */
 
+import { detectDomainsFromText } from './domainSignal'
+
 export type QueryComplexity = 'trivial' | 'simple' | 'moderate' | 'complex' | 'deep'
 export type QueryIntent = 'question' | 'generation' | 'analysis' | 'debugging' | 'discussion' | 'continuation' | 'greeting'
 
@@ -110,17 +112,25 @@ export class RelevanceClassifier {
 
         // 5. Extract Domains (Simple keyword matching for now)
         // Ideally this matches against a known list of tags in DB
-        const domains: string[] = []
-        if (hasCodeContext) domains.push('coding')
-        if (lower.includes('test')) domains.push('testing')
-        if (lower.includes('db') || lower.includes('database') || lower.includes('sql')) domains.push('database')
-        if (lower.includes('auth') || lower.includes('login') || lower.includes('security')) domains.push('security')
-        if (lower.includes('ui') || lower.includes('css') || lower.includes('component')) domains.push('frontend')
+        const domains = new Set<string>()
+
+        const detected = detectDomainsFromText(text)
+        for (const score of detected) {
+            if (score.confidence >= 0.2) {
+                domains.add(score.domain)
+            }
+        }
+
+        if (hasCodeContext) domains.add('coding')
+        if (lower.includes('test')) domains.add('testing')
+        if (lower.includes('db') || lower.includes('database') || lower.includes('sql')) domains.add('database')
+        if (lower.includes('auth') || lower.includes('login') || lower.includes('security')) domains.add('security')
+        if (lower.includes('ui') || lower.includes('css') || lower.includes('component')) domains.add('frontend')
 
         return {
             complexity,
             intent,
-            domains,
+            domains: Array.from(domains),
             conversationDepth,
             hasCodeContext,
             referencesHistory

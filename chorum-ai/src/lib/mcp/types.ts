@@ -53,6 +53,18 @@ export interface GetProjectContextOutput {
   criticalFiles: string[]
 }
 
+export interface GetDomainSignalInput {
+  projectId: string
+  recompute?: boolean
+}
+
+export interface GetDomainSignalOutput {
+  primary: string
+  domains: { domain: string; confidence: number; evidence: number }[]
+  conversationsAnalyzed: number
+  computedAt: string
+}
+
 export interface ListProjectsInput {}
 
 export interface ListProjectsOutput {
@@ -86,6 +98,33 @@ export interface LogInteractionInput {
 export interface LogInteractionOutput {
   success: boolean
   newConfidenceScore: number
+}
+
+export interface ImportAnalyzeInput {
+  data: Record<string, unknown>
+  storeConversations?: boolean
+  maxConversations?: number
+  projectId?: string
+}
+
+export interface ImportAnalyzeOutput {
+  success: boolean
+  format: string
+  domainSignal: {
+    primary: string
+    domains: { domain: string; confidence: number; evidence: number }[]
+    conversationsAnalyzed: number
+    computedAt: string
+  }
+  stats: {
+    conversationsProcessed: number
+    conversationsSkipped: number
+    learningsStored: number
+    duplicatesFound: number
+    learningsMerged: number
+    errors: string[]
+  }
+  parseWarnings: string[]
 }
 
 // MCP Server context passed to all tool handlers

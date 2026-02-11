@@ -6,11 +6,12 @@
  */
 
 import { db } from '@/lib/db'
-import { learningQueue, providerCredentials, users } from '@/lib/db/schema'
+import { learningQueue, providerCredentials, projects, users } from '@/lib/db/schema'
 import { eq, and, or, lt, sql } from 'drizzle-orm'
 import { extractAndStoreLearnings } from './analyzer'
 import { decrypt } from '@/lib/crypto'
 import type { FullProviderConfig } from '@/lib/providers'
+import { getOrComputeDomainSignal } from '@/lib/chorum/domainSignal'
 
 const MAX_ATTEMPTS = 3
 const PROCESSING_DELAY_MS = 1000 // 1 second between processing attempts
@@ -81,6 +82,14 @@ export async function processQueue(userId?: string): Promise<{ processed: number
                     throw new Error('No provider configured for learning extraction')
                 }
 
+                const [project] = await db
+                    .select({ focusDomains: projects.focusDomains })
+                    .from(projects)
+                    .where(eq(projects.id, item.projectId))
+                    .limit(1)
+
+                const domainSignal = await getOrComputeDomainSignal(item.projectId)
+
                 // Extract and store learnings
                 const result = await extractAndStoreLearnings(
                     item.projectId,
@@ -89,7 +98,9 @@ export async function processQueue(userId?: string): Promise<{ processed: number
                     providerConfig,
                     undefined, // projectContext
                     undefined, // sourceMessageId
-                    item.userId
+                    item.userId,
+                    domainSignal,
+                    project?.focusDomains ?? []
                 )
 
                 // Mark as completed

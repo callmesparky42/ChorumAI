@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Domain Signal Engine (Phase 1)**: Introduced keyword-based domain inference with project-level aggregation, caching, and storage (`src/lib/chorum/domainSignal.ts`).
+- **Project Domain Signal Storage**: Added `domain_signal` JSONB field to projects, with migration `drizzle/0026_domain_signal.sql`.
+- **Domain Signal Recompute Hook**: Chat route now periodically recomputes the project domain signal (every ~20 messages) without blocking responses (`src/app/api/chat/route.ts`).
+- **Domain Signal API + MCP Tool**: New `/api/conductor/domain` endpoint and MCP tool to fetch or recompute inferred project domains (`src/app/api/conductor/domain/route.ts`, `src/app/api/mcp/route.ts`, `src/lib/mcp/tools/get-domain-signal.ts`).
+- **Import-and-Analyze Pipeline (Phase 3)**: Added foreign export parsers, bulk analysis pipeline with rate limiting, and storage helpers (`src/lib/portability/parsers.ts`, `src/lib/portability/analyzeImport.ts`, `src/lib/portability/store.ts`).
+- **Import-and-Analyze API + MCP Tool**: New `/api/import/analyze` endpoint and MCP tool for importing external conversation history and extracting learnings (`src/app/api/import/analyze/route.ts`, `src/app/api/mcp/route.ts`, `src/lib/mcp/tools/import-analyze.ts`).
+- **Cheapest Provider Resolver**: Shared helper for selecting the cheapest active provider for bulk analysis (`src/lib/providers/cheapest.ts`).
+- **Migration UI (Phase 4)**: Replaced the placeholder migration page with a functional import interface (`src/app/helpmemigrate/page.tsx`).
+- **Domain Signal Settings UI**: Added project domain indicator with recompute support to Memory & Learning settings (`src/app/settings/page.tsx`).
+- **Domain Context in Conductor Trace**: Injected domain context into the Conductor trace header (`src/components/ConductorTrace.tsx`).
+
+### Changed
+- **Domain-Adaptive Extraction**: Learning extraction prompt now adapts to inferred or user-focused domains, avoiding code-centric bias (`src/lib/learning/analyzer.ts`).
+- **Classifier Domain Detection**: Query classifier now leverages domain keywords to expand domain detection beyond code (`src/lib/chorum/classifier.ts`).
+- **Domain-Aware Injection**: Memory injection scoring now uses inferred project domains when explicit focus domains are unset (`src/lib/learning/injector.ts`).
+
 ## [1.5.0] - 2026-02-08
 
 ### Added

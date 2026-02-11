@@ -78,6 +78,15 @@ function SettingsContent() {
     const [providers, setProviders] = useState<Provider[]>([])
     const [projects, setProjects] = useState<{ id: string; name: string }[]>([])
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+    const [domainProjectId, setDomainProjectId] = useState<string | null>(null)
+    const [domainSignal, setDomainSignal] = useState<{
+        primary: string
+        domains: { domain: string; confidence: number }[]
+        conversationsAnalyzed: number
+        computedAt: string
+    } | null>(null)
+    const [domainLoading, setDomainLoading] = useState(false)
+    const [domainError, setDomainError] = useState<string | null>(null)
 
     const [userSettings, setUserSettings] = useState<UserSettings | null>(null)
     const [loading, setLoading] = useState(true)
@@ -180,6 +189,7 @@ function SettingsContent() {
                     if (data.length > 0) {
                         if (!summarizeProjectId) setSummarizeProjectId(data[0].id)
                         if (!linkAnalysisProjectId) setLinkAnalysisProjectId(data[0].id)
+                        if (!domainProjectId) setDomainProjectId(data[0].id)
                     }
                 }
             } else if (activeTab === 'knowledge') {
@@ -204,6 +214,37 @@ function SettingsContent() {
             setLoading(false)
         }
     }
+
+    const fetchDomainSignal = async (projectId: string, recompute: boolean = false) => {
+        if (!projectId) return
+        setDomainLoading(true)
+        setDomainError(null)
+        try {
+            const url = recompute ? '/api/conductor/domain' : `/api/conductor/domain?projectId=${projectId}`
+            const res = await fetch(url, {
+                method: recompute ? 'POST' : 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                body: recompute ? JSON.stringify({ projectId }) : undefined
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Failed to load domain signal')
+            }
+            const data = await res.json()
+            setDomainSignal(data)
+        } catch (e) {
+            setDomainError(e instanceof Error ? e.message : 'Failed to load domain signal')
+        } finally {
+            setDomainLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        if (activeTab !== 'memory') return
+        if (domainProjectId) {
+            fetchDomainSignal(domainProjectId)
+        }
+    }, [activeTab, domainProjectId])
 
     const handleTabChange = (tab: string) => {
         const url = new URL(window.location.href)
@@ -1005,6 +1046,79 @@ function SettingsContent() {
                         ) : (<>
                             {activeMemoryTab === 'settings' ? (
                                 <div className="max-w-2xl space-y-6">
+                                    {/* Project Domain Signal */}
+                                    <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="text-lg font-medium flex items-center gap-2">
+                                                    <Sparkles className="w-5 h-5 text-indigo-400" />
+                                                    Project Domain
+                                                </h3>
+                                                <p className="text-sm text-gray-500 mt-1">
+                                                    What Chorum thinks this project is about.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => domainProjectId && fetchDomainSignal(domainProjectId, true)}
+                                                disabled={domainLoading || !domainProjectId}
+                                                className="text-xs px-3 py-1.5 rounded-lg border border-gray-700 text-gray-300 hover:text-white hover:border-gray-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                            >
+                                                <RefreshCw className={clsx("w-3.5 h-3.5", domainLoading && "animate-spin")} />
+                                                Recompute
+                                            </button>
+                                        </div>
+
+                                        {projects.length > 0 && (
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs uppercase tracking-wide text-gray-500">Project</span>
+                                                <select
+                                                    value={domainProjectId || ''}
+                                                    onChange={(e) => setDomainProjectId(e.target.value)}
+                                                    className="bg-gray-950 border border-gray-800 text-gray-200 text-sm rounded-lg px-3 py-2 flex-1"
+                                                >
+                                                    {projects.map(project => (
+                                                        <option key={project.id} value={project.id}>{project.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        {domainError && (
+                                            <div className="text-sm text-red-400">{domainError}</div>
+                                        )}
+
+                                        {!domainError && (
+                                            <div className="bg-gray-950 border border-gray-800 rounded-lg p-4">
+                                                {domainLoading ? (
+                                                    <div className="text-sm text-gray-500 flex items-center gap-2">
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                        Analyzing domain signal...
+                                                    </div>
+                                                ) : domainSignal ? (
+                                                    <>
+                                                        <div className="text-sm text-gray-400">
+                                                            Primary: <span className="text-white font-medium">{domainSignal.primary}</span>
+                                                            {domainSignal.domains?.[0]?.confidence !== undefined && (
+                                                                <span className="text-gray-500"> ({domainSignal.domains[0].confidence.toFixed(2)})</span>
+                                                            )}
+                                                        </div>
+                                                        {domainSignal.domains?.length > 1 && (
+                                                            <div className="text-xs text-gray-500 mt-2">
+                                                                Also: {domainSignal.domains.slice(1, 4).map(d => `${d.domain} (${d.confidence.toFixed(2)})`).join(', ')}
+                                                            </div>
+                                                        )}
+                                                        <div className="text-xs text-gray-600 mt-3">
+                                                            Based on {domainSignal.conversationsAnalyzed} messages • Updated {new Date(domainSignal.computedAt).toLocaleString()}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="text-sm text-gray-500">
+                                                        Chorum hasn't determined what this project is about yet. Start a conversation and it'll figure it out.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {/* Learning & Context Section */}
                                     <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-800 space-y-4">

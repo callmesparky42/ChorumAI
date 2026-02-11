@@ -12,6 +12,7 @@ import { eq, or, sql } from 'drizzle-orm'
 import { classifier } from '@/lib/chorum/classifier'
 import { embeddings } from '@/lib/chorum/embeddings'
 import { relevance, type MemoryCandidate } from '@/lib/chorum/relevance'
+import { type StoredDomainSignal } from '@/lib/chorum/domainSignal'
 import type { LearningItem } from './types'
 import { upsertCooccurrence, getCohorts } from './cooccurrence'
 import { learningLinks } from '@/lib/db/schema'
@@ -152,6 +153,7 @@ export async function injectLearningContext(
     // Conductor's Podium settings
     let conductorLens = 1.0
     let focusDomains: string[] = []
+    let inferredDomains: string[] = []
 
     if (budget.maxTokens > 0) {
         // Parallel execution of all data requirements
@@ -162,7 +164,8 @@ export async function injectLearningContext(
             getLinksForProject(projectId),
             db.select({
                 conductorLens: projects.conductorLens,
-                focusDomains: projects.focusDomains
+                focusDomains: projects.focusDomains,
+                domainSignal: projects.domainSignal
             }).from(projects).where(eq(projects.id, projectId)).limit(1)
         ])
 
@@ -175,6 +178,19 @@ export async function injectLearningContext(
         const projectSettings = results[4][0]
         conductorLens = projectSettings?.conductorLens ? Number(projectSettings.conductorLens) : 1.0
         focusDomains = projectSettings?.focusDomains ?? []
+
+        const domainSignal = projectSettings?.domainSignal as StoredDomainSignal | null
+        if (focusDomains.length === 0 && domainSignal?.domains?.length) {
+            inferredDomains = domainSignal.domains
+                .filter(d => d.confidence >= 0.3)
+                .map(d => d.domain)
+        }
+        if (focusDomains.length === 0 && inferredDomains.length === 0 && domainSignal?.primary && domainSignal.primary !== 'general') {
+            inferredDomains = [domainSignal.primary]
+        }
+        if (focusDomains.length === 0 && inferredDomains.length > 0) {
+            focusDomains = inferredDomains
+        }
     }
 
     const criticalFiles = fileMeta
@@ -201,6 +217,11 @@ export async function injectLearningContext(
     let selectedItems: MemoryCandidate[] = []
 
     if (budget.maxTokens > 0) {
+        const domainHints = focusDomains.length > 0 ? focusDomains : inferredDomains
+        if (domainHints.length > 0) {
+            classification.domains = Array.from(new Set([...classification.domains, ...domainHints]))
+        }
+
         let scored = relevance.scoreCandidates(candidates, queryEmbedding, classification)
 
         // [Graph Expansion] Activation Spreading

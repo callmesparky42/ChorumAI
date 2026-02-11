@@ -28,6 +28,10 @@ interface ConductorTraceProps {
     items: InjectedItem[]
     relevance?: RelevanceInfo
     detailedView?: boolean
+    domainInfo?: {
+        primary: string
+        domains?: { domain: string; confidence: number }[]
+    } | null
     projectId: string
     className?: string
 }
@@ -44,6 +48,7 @@ export function ConductorTrace({
     items,
     relevance,
     detailedView = false,
+    domainInfo,
     projectId,
     className
 }: ConductorTraceProps) {
@@ -53,6 +58,10 @@ export function ConductorTrace({
     if (items.length === 0) return null
 
     const tokenEstimate = relevance?.budget || 0
+    const domainLabel = domainInfo?.primary && domainInfo.primary !== 'general'
+        ? domainInfo.primary
+        : null
+    const domainConfidence = domainInfo?.domains?.find(d => d.domain === domainInfo.primary)?.confidence
 
     const handleAction = async (itemId: string, action: 'pin' | 'unpin' | 'mute' | 'unmute') => {
         setActionLoading(`${itemId}-${action}`)
@@ -103,9 +112,19 @@ export function ConductorTrace({
                 <span className="text-sm text-gray-400">
                     {items.length} item{items.length !== 1 ? 's' : ''} injected
                 </span>
+                {domainLabel && !detailedView && (
+                    <span className="text-xs text-gray-500 ml-1">
+                        ({domainLabel} context)
+                    </span>
+                )}
                 {detailedView && relevance && (
                     <span className="text-xs text-gray-600 ml-2">
                         ({relevance.latencyMs}ms • {tokenEstimate} tokens)
+                    </span>
+                )}
+                {detailedView && domainLabel && (
+                    <span className="text-xs text-gray-600 ml-2">
+                        Domain: {domainLabel}{domainConfidence !== undefined ? ` (${domainConfidence.toFixed(2)})` : ''}
                     </span>
                 )}
             </button>
