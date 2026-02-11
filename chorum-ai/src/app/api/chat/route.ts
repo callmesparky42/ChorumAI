@@ -289,10 +289,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (providerConfigs.length === 0) {
-)
-        }
-
-        return NextResponse.json({ error: 'No providers configured. Add API keys in Settings.' }, { status: 400 })
+            return NextResponse.json({ error: 'No providers configured. Add API keys in Settings.' }, { status: 400 })
         }
 
         const router = new ChorumRouter(providerConfigs)
