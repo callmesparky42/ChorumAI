@@ -440,10 +440,7 @@ export async function POST(req: NextRequest) {
                     securitySettings as SecuritySettings | null
                 )
                 if (!httpsValidation.valid) {
-)
-        }
-
-        return NextResponse.json({
+                    return NextResponse.json({
                         error: `Security violation: ${httpsValidation.error}`,
                         securityError: true
                     }, { status: 403 })
