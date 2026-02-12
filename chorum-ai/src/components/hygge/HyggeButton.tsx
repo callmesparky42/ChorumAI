@@ -2,7 +2,7 @@
 import clsx from 'clsx'
 
 interface HyggeButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'default' | 'accent' | 'destructive'
+  variant?: 'default' | 'accent' | 'destructive' | 'ghost'
   loading?: boolean
 }
 
@@ -13,6 +13,7 @@ export function HyggeButton({ variant = 'default', loading, children, className,
         'hg-btn',
         variant === 'accent' && 'hg-btn-accent',
         variant === 'destructive' && 'hg-btn-destructive',
+        variant === 'ghost' && 'bg-transparent border-transparent text-[var(--hg-text-secondary)] hover:bg-[var(--hg-surface-hover)] hover:text-[var(--hg-text-primary)] shadow-none',
         className
       )}
       disabled={disabled || loading}
