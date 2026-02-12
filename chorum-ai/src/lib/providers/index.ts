@@ -11,6 +11,7 @@ import { callMistral } from './mistral'
 import { callDeepSeek } from './deepseek'
 import { callOllama } from './ollama'
 import { callOpenAICompatible } from './openai-compatible'
+import { anonymizePii } from '@/lib/pii'
 
 export type { ChatMessage, ChatResult, ProviderCallConfig, SecuritySettings, ToolDefinition, ToolCall, ToolResult }
 
@@ -91,59 +92,76 @@ export async function callProvider(
         toolChoice: config.toolChoice
     }
 
+    // Apply PII anonymization if enabled
+    let safeMessages = messages
+    let safeSystemPrompt = systemPrompt
+
+    if (config.securitySettings?.anonymizePii) {
+        safeSystemPrompt = anonymizePii(systemPrompt).text
+
+        safeMessages = messages.map(m => ({
+            ...m,
+            content: anonymizePii(m.content).text,
+            toolResults: m.toolResults?.map(tr => ({
+                ...tr,
+                content: anonymizePii(tr.content).text
+            }))
+        }))
+    }
+
     switch (config.provider) {
         case 'anthropic':
-            return callAnthropic(callConfig, messages, systemPrompt)
+            return callAnthropic(callConfig, safeMessages, safeSystemPrompt)
 
         case 'openai':
-            return callOpenAI(callConfig, messages, systemPrompt)
+            return callOpenAI(callConfig, safeMessages, safeSystemPrompt)
 
         case 'google':
-            return callGoogle(callConfig, messages, systemPrompt)
+            return callGoogle(callConfig, safeMessages, safeSystemPrompt)
 
         case 'mistral':
-            return callMistral(callConfig, messages, systemPrompt)
+            return callMistral(callConfig, safeMessages, safeSystemPrompt)
 
         case 'deepseek':
-            return callDeepSeek(callConfig, messages, systemPrompt)
+            return callDeepSeek(callConfig, safeMessages, safeSystemPrompt)
 
         case 'perplexity':
             // Perplexity uses OpenAI-compatible API
             return callOpenAICompatible({
                 ...callConfig,
                 baseUrl: callConfig.baseUrl || 'https://api.perplexity.ai'
-            }, messages, systemPrompt)
+            }, safeMessages, safeSystemPrompt)
 
         case 'xai':
             // xAI (Grok) uses OpenAI-compatible API
             return callOpenAICompatible({
                 ...callConfig,
                 baseUrl: callConfig.baseUrl || 'https://api.x.ai/v1'
-            }, messages, systemPrompt)
+            }, safeMessages, safeSystemPrompt)
 
         case 'glm':
             // GLM-4 (Zhipu AI) uses OpenAI-compatible API
             return callOpenAICompatible({
                 ...callConfig,
                 baseUrl: callConfig.baseUrl || 'https://open.bigmodel.cn/api/paas/v4'
-            }, messages, systemPrompt)
+            }, safeMessages, safeSystemPrompt)
 
         case 'ollama':
-            return callOllama(callConfig, messages, systemPrompt)
+            return callOllama(callConfig, safeMessages, safeSystemPrompt)
 
         case 'lmstudio':
             // LM Studio exposes OpenAI-compatible API
-            return callOpenAICompatible(callConfig, messages, systemPrompt)
+            return callOpenAICompatible(callConfig, safeMessages, safeSystemPrompt)
 
         case 'openai-compatible':
-            return callOpenAICompatible(callConfig, messages, systemPrompt)
+            return callOpenAICompatible(callConfig, safeMessages, safeSystemPrompt)
 
         default:
             // For any unknown provider, try OpenAI-compatible as fallback
             // This allows users to add custom providers that follow the OpenAI spec
             if (config.baseUrl) {
                 console.log(`[Provider] Unknown provider "${config.provider}", trying OpenAI-compatible API`)
-                return callOpenAICompatible(callConfig, messages, systemPrompt)
+                return callOpenAICompatible(callConfig, safeMessages, safeSystemPrompt)
             }
             throw new Error(`Unsupported provider: ${config.provider}. Please provide a baseUrl for custom providers.`)
     }

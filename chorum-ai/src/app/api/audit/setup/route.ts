@@ -7,10 +7,18 @@ import { eq } from 'drizzle-orm'
 export async function POST(req: NextRequest) {
     try {
         const secret = req.headers.get('x-audit-bypass-secret');
-        console.log('[Audit Setup] Request received. Secret:', secret);
+        console.log('[Audit Setup] Request received.');
 
-        if (secret !== 'chorum-audit') {
-            return NextResponse.json({ error: 'Unauthorized - Invalid Secret', received: secret }, { status: 401 })
+        const envSecret = process.env.AUDIT_BYPASS_SECRET;
+
+        // Fail closed if env var is not set
+        if (!envSecret) {
+            console.error('[Audit Setup] AUDIT_BYPASS_SECRET not configured');
+            return NextResponse.json({ error: 'Configuration Error - Audit setup disabled' }, { status: 403 })
+        }
+
+        if (secret !== envSecret) {
+            return NextResponse.json({ error: 'Unauthorized - Invalid Secret' }, { status: 403 })
         }
 
         const devUser = await db.query.users.findFirst()

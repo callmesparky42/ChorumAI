@@ -4,14 +4,11 @@ import { useState, useEffect } from 'react'
 import { X, Plus, Trash2, AlertTriangle, Brain, Gauge, Zap, Shield, Lightbulb } from 'lucide-react'
 import clsx from 'clsx'
 import { useAgentStore, AGENT_TEMPLATE } from '@/lib/agents/store'
+import { HyggeButton } from './hygge/HyggeButton'
 import { AgentDefinition, AgentTier, TIER_INFO } from '@/lib/agents/types'
 
 // Common emoji options for agents
-const EMOJI_OPTIONS = [
-  '🤖', '🧠', '💡', '🔍', '📊', '🏗️', '🔎', '🐛', '✍️', '✂️',
-  '📣', '✓', '📅', '🌐', '🎓', '📋', '🎯', '⚡', '🛡️', '🔮',
-  '📈', '🎨', '🔧', '💬', '📝', '🎭', '🔬', '🎪', '🚀', '💎'
-]
+
 
 // Enforced guardrails that all custom agents must have
 const ENFORCED_GUARDRAILS = [
@@ -142,28 +139,28 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-800 rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="bg-[var(--hg-surface)] border border-[var(--hg-border)] rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
-          <h2 className="text-lg font-medium text-white">
+        <div className="px-6 py-4 border-b border-[var(--hg-border)] flex items-center justify-between">
+          <h2 className="text-lg font-medium text-[var(--hg-text-primary)]">
             {isEditing ? 'Edit Agent' : 'Create Custom Agent'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition-colors"
+            className="p-2 hover:bg-[var(--hg-surface-hover)] rounded-lg text-[var(--hg-text-secondary)] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="px-6 border-b border-gray-800">
+        <div className="px-6 border-b border-[var(--hg-border)]">
           <div className="flex gap-1">
             {[
-              { id: 'identity', label: 'Identity', icon: '🤖' },
-              { id: 'memory', label: 'Memory', icon: '🧠' },
-              { id: 'capabilities', label: 'Capabilities', icon: '⚡' },
-              { id: 'guardrails', label: 'Guardrails', icon: '🛡️' }
+              { id: 'identity', label: 'Identity' },
+              { id: 'memory', label: 'Memory' },
+              { id: 'capabilities', label: 'Capabilities' },
+              { id: 'guardrails', label: 'Guardrails' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -171,11 +168,10 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
                 className={clsx(
                   'px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px',
                   activeTab === tab.id
-                    ? 'text-blue-400 border-blue-400'
-                    : 'text-gray-500 border-transparent hover:text-gray-300'
+                    ? 'text-[var(--hg-accent)] border-[var(--hg-accent)]'
+                    : 'text-[var(--hg-text-secondary)] border-transparent hover:text-[var(--hg-text-primary)]'
                 )}
               >
-                <span className="mr-1.5">{tab.icon}</span>
                 {tab.label}
               </button>
             ))}
@@ -187,57 +183,33 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
           {/* Identity Tab */}
           {activeTab === 'identity' && (
             <div className="space-y-6">
-              {/* Name & Icon */}
-              <div className="flex gap-4">
-                <div className="relative">
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Icon</label>
-                  <button
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="w-16 h-16 bg-gray-950 border border-gray-800 rounded-lg text-3xl hover:border-gray-700 transition-colors"
-                  >
-                    {icon}
-                  </button>
-                  {showEmojiPicker && (
-                    <div className="absolute top-full left-0 mt-2 p-2 bg-gray-800 border border-gray-700 rounded-lg grid grid-cols-6 gap-1 z-10 w-72 sm:w-80 shadow-xl">
-                      {EMOJI_OPTIONS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          onClick={() => { setIcon(emoji); setShowEmojiPicker(false) }}
-                          className="w-10 h-10 hover:bg-gray-700 rounded text-xl flex items-center justify-center transition-colors"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-400 mb-1.5">Name *</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-blue-500"
-                    placeholder="e.g., Security Analyst"
-                  />
-                </div>
+              {/* Name (Icon removed) */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--hg-text-secondary)] mb-1.5">Name *</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-[var(--hg-bg)] border border-[var(--hg-border)] rounded-lg px-3 py-2.5 text-[var(--hg-text-primary)] focus:outline-none focus:border-[var(--hg-accent)]"
+                  placeholder="e.g., Security Analyst"
+                />
               </div>
 
               {/* Role */}
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Role *</label>
+                <label className="block text-xs font-medium text-[var(--hg-text-secondary)] mb-1.5">Role *</label>
                 <input
                   type="text"
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-[var(--hg-bg)] border border-[var(--hg-border)] rounded-lg px-3 py-2.5 text-[var(--hg-text-primary)] focus:outline-none focus:border-[var(--hg-accent)]"
                   placeholder="e.g., Analyzes code for security vulnerabilities"
                 />
               </div>
 
               {/* Tier Selection */}
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-2">Tier *</label>
+                <label className="block text-xs font-medium text-[var(--hg-text-secondary)] mb-2">Tier *</label>
                 <div className="grid grid-cols-3 gap-3">
                   {(['reasoning', 'balanced', 'fast'] as AgentTier[]).map((t) => (
                     <button
@@ -246,8 +218,8 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
                       className={clsx(
                         'p-3 rounded-lg border text-left transition-all',
                         tier === t
-                          ? `${TIER_INFO[t].bgColor} border-current ${TIER_INFO[t].color}`
-                          : 'border-gray-800 text-gray-400 hover:border-gray-700'
+                          ? `bg-[var(--hg-surface-hover)] border-[var(--hg-accent)] text-[var(--hg-text-primary)]`
+                          : 'border-[var(--hg-border)] text-[var(--hg-text-secondary)] hover:border-[var(--hg-border-subtle)] bg-[var(--hg-bg)]'
                       )}
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -264,41 +236,41 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
 
               {/* Persona */}
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Persona Description</label>
+                <label className="block text-xs font-medium text-[var(--hg-text-secondary)] mb-1.5">Persona Description</label>
                 <textarea
                   value={personaDescription}
                   onChange={(e) => setPersonaDescription(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-blue-500 min-h-[80px]"
+                  className="w-full bg-[var(--hg-bg)] border border-[var(--hg-border)] rounded-lg px-3 py-2.5 text-[var(--hg-text-primary)] focus:outline-none focus:border-[var(--hg-accent)] min-h-[80px]"
                   placeholder="e.g., Methodical, security-focused. Questions everything..."
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Tone</label>
+                <label className="block text-xs font-medium text-[var(--hg-text-secondary)] mb-1.5">Tone</label>
                 <input
                   type="text"
                   value={personaTone}
                   onChange={(e) => setPersonaTone(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-blue-500"
+                  className="w-full bg-[var(--hg-bg)] border border-[var(--hg-border)] rounded-lg px-3 py-2.5 text-[var(--hg-text-primary)] focus:outline-none focus:border-[var(--hg-accent)]"
                   placeholder="e.g., Direct, technical, cautious"
                 />
               </div>
 
               {/* Principles */}
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Core Principles</label>
+                <label className="block text-xs font-medium text-[var(--hg-text-secondary)] mb-1.5">Core Principles</label>
                 {principles.map((principle, index) => (
                   <div key={index} className="flex gap-2 mb-2">
                     <input
                       type="text"
                       value={principle}
                       onChange={(e) => updateItem(setPrinciples, index, e.target.value)}
-                      className="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+                      className="flex-1 bg-[var(--hg-bg)] border border-[var(--hg-border)] rounded-lg px-3 py-2 text-[var(--hg-text-primary)] text-sm focus:outline-none focus:border-[var(--hg-accent)]"
                       placeholder="e.g., Always verify before trusting"
                     />
                     <button
                       onClick={() => removeItem(setPrinciples, index)}
-                      className="p-2 text-gray-500 hover:text-red-400"
+                      className="p-2 text-[var(--hg-text-tertiary)] hover:text-red-400"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -306,7 +278,7 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
                 ))}
                 <button
                   onClick={() => addItem(setPrinciples)}
-                  className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                  className="text-sm text-[var(--hg-accent)] hover:text-[var(--hg-accent-hover)] flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add principle
                 </button>
@@ -318,20 +290,20 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
           {activeTab === 'memory' && (
             <div className="space-y-6">
               {/* Semantic Focus - Most Important */}
-              <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <div className="p-4 bg-[var(--hg-surface-hover)] border border-[var(--hg-border-subtle)] rounded-lg">
                 <div className="flex items-start gap-3">
-                  <Lightbulb className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <Lightbulb className="w-5 h-5 text-[var(--hg-accent)] mt-0.5" />
                   <div className="flex-1">
-                    <label className="block text-sm font-medium text-blue-400 mb-1">
+                    <label className="block text-sm font-medium text-[var(--hg-accent)] mb-1">
                       Semantic Focus *
                     </label>
-                    <p className="text-xs text-blue-300/70 mb-3">
+                    <p className="text-xs text-[var(--hg-text-secondary)] mb-3 opacity-80">
                       This is the question your agent asks of project memory. It determines what meaning gets extracted, not just what text is included.
                     </p>
                     <textarea
                       value={semanticFocus}
                       onChange={(e) => setSemanticFocus(e.target.value)}
-                      className="w-full bg-gray-950 border border-gray-800 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-blue-500 min-h-[60px]"
+                      className="w-full bg-[var(--hg-bg)] border border-[var(--hg-border)] rounded-lg px-3 py-2.5 text-[var(--hg-text-primary)] focus:outline-none focus:border-[var(--hg-accent)] min-h-[60px]"
                       placeholder='e.g., "What security patterns exist? What vulnerabilities have been found before?"'
                     />
                   </div>
@@ -425,8 +397,8 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
               </div>
 
               {/* Model Settings */}
-              <div className="pt-4 border-t border-gray-800">
-                <h3 className="text-sm font-medium text-gray-300 mb-4">Model Settings</h3>
+              <div className="pt-4 border-t border-[var(--hg-border)]">
+                <h3 className="text-sm font-medium text-[var(--hg-text-primary)] mb-4">Model Settings</h3>
 
                 <div className="space-y-4">
                   <div>
@@ -441,7 +413,7 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
                       step="0.1"
                       value={temperature}
                       onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                      className="w-full"
+                      className="w-full accent-[var(--hg-accent)]"
                     />
                     <div className="flex justify-between text-xs text-gray-600">
                       <span>Precise</span>
@@ -610,23 +582,25 @@ export function AgentCreatorModal({ agent, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-800 flex justify-between items-center">
-          <p className="text-xs text-gray-500">
+        <div className="px-6 py-4 border-t border-[var(--hg-border)] flex justify-between items-center">
+          <p className="text-xs text-[var(--hg-text-tertiary)]">
             {isEditing ? 'Changes auto-save to .chorum/agents/' : 'Will be saved to .chorum/agents/'}
           </p>
           <div className="flex gap-3">
-            <button
+            <HyggeButton
+              variant="ghost"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+              className="px-4"
             >
               Cancel
-            </button>
-            <button
+            </HyggeButton>
+            <HyggeButton
+              variant="accent"
               onClick={handleSubmit}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
+              className="px-4"
             >
               {isEditing ? 'Save Changes' : 'Create Agent'}
-            </button>
+            </HyggeButton>
           </div>
         </div>
       </div>

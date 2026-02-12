@@ -133,6 +133,15 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
         }
     }, [isActive])
 
+    // Auto-select first conversation if project is active but no conversation is selected
+    useEffect(() => {
+        if (isActive && conversations.length > 0 && !activeConversationId && !loadingConvos) {
+            // Basic "Last Accessed" approximation: usually the API returns most recent first.
+            // If not, we should sort, but for now assuming API order is correct (updatedAt desc usually).
+            onSelectConversation(conversations[0].id)
+        }
+    }, [isActive, conversations, activeConversationId, loadingConvos])
+
     const handleExpand = (e: React.MouseEvent) => {
         e.stopPropagation()
         if (!expanded) {
@@ -157,10 +166,10 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
                 <button
                     onClick={onSelect}
                     className={clsx(
-                        "flex-1 text-left px-2 py-1.5 rounded-lg text-sm transition-all flex items-center gap-2",
+                        "flex-1 text-left px-2 py-1.5 rounded-r-lg text-sm transition-all flex items-center gap-2 border-l-2",
                         isActive
-                            ? "bg-blue-600/10 text-blue-400 font-medium"
-                            : "text-gray-400 hover:bg-gray-900 hover:text-gray-200"
+                            ? "bg-blue-600/10 text-blue-400 font-medium border-blue-500"
+                            : "border-transparent text-gray-400 hover:bg-gray-900 hover:text-gray-200"
                     )}
                 >
                     <Folder className={clsx("w-4 h-4 shrink-0", isActive ? "text-blue-500" : "text-gray-600")} />
@@ -220,10 +229,10 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
                                     onSelectConversation(convo.id)
                                 }}
                                 className={clsx(
-                                    "w-full text-left px-2 py-1.5 rounded text-xs flex items-center gap-2 transition-colors",
+                                    "w-full text-left px-2 py-1.5 rounded-r text-xs flex items-center gap-2 transition-colors border-l-2",
                                     activeConversationId === convo.id
-                                        ? "bg-blue-600/10 text-blue-400 font-medium"
-                                        : "text-gray-500 hover:bg-gray-900 hover:text-gray-300"
+                                        ? "bg-blue-600/10 text-blue-400 font-medium border-blue-500"
+                                        : "border-transparent text-gray-500 hover:bg-gray-900 hover:text-gray-300"
                                 )}
                                 title={convo.preview || convo.title}
                             >

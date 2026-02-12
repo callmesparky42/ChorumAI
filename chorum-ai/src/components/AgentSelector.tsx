@@ -46,27 +46,23 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                     "flex items-center gap-2 rounded-lg transition-colors",
                     mode === 'default'
                         ? "bg-gray-800 border border-gray-700 text-gray-300 text-xs w-full p-2.5 hover:bg-gray-750"
-                        : "bg-transparent hover:bg-gray-800 text-gray-300 text-sm px-2 py-1.5 border border-transparent hover:border-gray-700"
+                        : "bg-transparent hover:bg-gray-800 text-gray-300 text-sm px-6 py-1.5 border border-transparent hover:border-gray-700"
                 )}
             >
                 {value === 'auto' ? (
                     <>
-                        <Bot className="w-4 h-4 text-gray-500" />
                         <span className="font-medium">Auto Agent</span>
                     </>
                 ) : value === 'none' ? (
                     <>
-                        <span className="w-4 h-4 text-gray-600 text-center">—</span>
                         <span className="font-medium text-gray-400">No Agent</span>
                     </>
                 ) : selectedAgent ? (
                     <>
-                        <span className="text-base">{selectedAgent.icon}</span>
                         <span className="font-medium">{selectedAgent.name}</span>
                     </>
                 ) : (
                     <>
-                        <Bot className="w-4 h-4 text-gray-500" />
                         <span>{value}</span>
                     </>
                 )}
@@ -83,7 +79,6 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                         )}
                         onClick={() => { onChange('auto'); setIsOpen(false) }}
                     >
-                        <Bot className="w-4 h-4 text-gray-500" />
                         <div>
                             <div className="text-gray-200">Auto Agent</div>
                             <div className="text-xs text-gray-500">Let AI pick the best agent for your message</div>
@@ -98,7 +93,6 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                         )}
                         onClick={() => { onChange('none'); setIsOpen(false) }}
                     >
-                        <span className="w-4 h-4 text-gray-600 text-center">—</span>
                         <div>
                             <div className="text-gray-200">No Agent</div>
                             <div className="text-xs text-gray-500">Direct LLM chat without agent processing</div>
@@ -118,7 +112,6 @@ export function AgentSelector({ value, onChange, mode = 'default' }: Props) {
                             )}
                             onClick={() => { onChange(agent.id); setIsOpen(false) }}
                         >
-                            <span className="text-lg">{agent.icon}</span>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm text-gray-200">{agent.name}</div>
                                 <div className="text-xs text-gray-500 truncate">{agent.role}</div>
