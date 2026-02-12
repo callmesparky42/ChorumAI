@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, RefreshCw, Server, Check, X, ChevronDown, ChevronUp, Globe, Terminal } from 'lucide-react'
+import { HyggeButton } from '@/components/hygge/HyggeButton'
 
 interface McpServer {
   id: string
@@ -165,8 +165,8 @@ export function McpServersSettings() {
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="h-6 bg-gray-700 rounded w-1/3"></div>
-        <div className="h-20 bg-gray-800 rounded"></div>
+        <div className="h-6 bg-[var(--hg-border)] w-1/3"></div>
+        <div className="h-20 bg-[var(--hg-surface)] border border-[var(--hg-border)]"></div>
       </div>
     )
   }
@@ -175,63 +175,54 @@ export function McpServersSettings() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Server className="w-5 h-5 text-blue-400" />
-          <div>
-            <h3 className="text-lg font-medium text-white">External MCP Servers</h3>
-            <p className="text-sm text-gray-400">
-              Connect to MCP servers to add tools like web search, APIs, and more.
-            </p>
-          </div>
+        <div>
+          <h3 className="text-lg font-medium text-[var(--hg-text-primary)]">External MCP Servers</h3>
+          <p className="text-sm text-[var(--hg-text-secondary)]">
+            Connect to MCP servers to add tools like web search, APIs, and more.
+          </p>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
+        <HyggeButton variant="accent" onClick={() => setShowAddForm(!showAddForm)} className="text-sm">
           Add Server
-        </button>
+        </HyggeButton>
       </div>
 
       {/* Add Server Form */}
       {showAddForm && (
-        <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50 space-y-4">
-          <h4 className="text-white font-medium">Add MCP Server</h4>
+        <div className="bg-[var(--hg-surface)] p-4 border border-[var(--hg-border)] space-y-4">
+          <h4 className="text-[var(--hg-text-primary)] font-medium">Add MCP Server</h4>
 
           {/* Server Name */}
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Server Name</label>
+            <label className="block text-sm text-[var(--hg-text-secondary)] mb-1">Server Name</label>
             <input
               type="text"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               placeholder="e.g., Brave Search"
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+              className="w-full bg-[var(--hg-bg)] border border-[var(--hg-border)] px-3 py-2 text-[var(--hg-text-primary)] placeholder-[var(--hg-text-tertiary)] focus:outline-none"
             />
           </div>
 
           {/* Transport Type */}
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Transport Type</label>
+            <label className="block text-sm text-[var(--hg-text-secondary)] mb-1">Transport Type</label>
             <div className="flex gap-2">
               <button
                 onClick={() => setFormTransport('http')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${formTransport === 'http'
-                    ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                className={`px-4 py-2 text-sm transition-colors border ${formTransport === 'http'
+                    ? 'bg-[var(--hg-accent-muted)] border-[var(--hg-accent)] text-[var(--hg-accent)]'
+                    : 'bg-[var(--hg-bg)] border-[var(--hg-border)] text-[var(--hg-text-secondary)] hover:border-[var(--hg-border-subtle)]'
                   }`}
               >
-                <Globe className="w-4 h-4" />
                 HTTP/SSE
               </button>
               <button
                 onClick={() => setFormTransport('stdio')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${formTransport === 'stdio'
-                    ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-sm'
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                className={`px-4 py-2 text-sm transition-colors border ${formTransport === 'stdio'
+                    ? 'bg-[var(--hg-accent-muted)] border-[var(--hg-accent)] text-[var(--hg-accent)]'
+                    : 'bg-[var(--hg-bg)] border-[var(--hg-border)] text-[var(--hg-text-secondary)] hover:border-[var(--hg-border-subtle)]'
                   }`}
               >
-                <Terminal className="w-4 h-4" />
                 Stdio (Local)
               </button>
             </div>
@@ -240,13 +231,13 @@ export function McpServersSettings() {
           {/* HTTP Config */}
           {formTransport === 'http' && (
             <div>
-              <label className="block text-sm text-gray-400 mb-1">Server URL</label>
+              <label className="block text-sm text-[var(--hg-text-secondary)] mb-1">Server URL</label>
               <input
                 type="text"
                 value={formUrl}
                 onChange={(e) => setFormUrl(e.target.value)}
                 placeholder="https://your-mcp-server.com/mcp"
-                className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[var(--hg-bg)] border border-[var(--hg-border)] px-3 py-2 text-[var(--hg-text-primary)] placeholder-[var(--hg-text-tertiary)] focus:outline-none"
               />
             </div>
           )}
@@ -256,60 +247,55 @@ export function McpServersSettings() {
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Command</label>
+                  <label className="block text-sm text-[var(--hg-text-secondary)] mb-1">Command</label>
                   <input
                     type="text"
                     value={formCommand}
                     onChange={(e) => setFormCommand(e.target.value)}
                     placeholder="npx"
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-[var(--hg-bg)] border border-[var(--hg-border)] px-3 py-2 text-[var(--hg-text-primary)] placeholder-[var(--hg-text-tertiary)] focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">Arguments</label>
+                  <label className="block text-sm text-[var(--hg-text-secondary)] mb-1">Arguments</label>
                   <input
                     type="text"
                     value={formArgs}
                     onChange={(e) => setFormArgs(e.target.value)}
                     placeholder="-y @anthropic-ai/brave-search-mcp"
-                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    className="w-full bg-[var(--hg-bg)] border border-[var(--hg-border)] px-3 py-2 text-[var(--hg-text-primary)] placeholder-[var(--hg-text-tertiary)] focus:outline-none"
                   />
                 </div>
               </div>
 
               {/* Environment Variables */}
               <div>
-                <label className="block text-sm text-gray-400 mb-1">Environment Variables</label>
+                <label className="block text-sm text-[var(--hg-text-secondary)] mb-1">Environment Variables</label>
                 <div className="flex gap-2 mb-2">
                   <input
                     type="text"
                     value={formEnvKey}
                     onChange={(e) => setFormEnvKey(e.target.value)}
                     placeholder="BRAVE_API_KEY"
-                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm"
+                    className="flex-1 bg-[var(--hg-bg)] border border-[var(--hg-border)] px-3 py-2 text-[var(--hg-text-primary)] placeholder-[var(--hg-text-tertiary)] focus:outline-none text-sm"
                   />
                   <input
                     type="password"
                     value={formEnvValue}
                     onChange={(e) => setFormEnvValue(e.target.value)}
                     placeholder="Value"
-                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 text-sm"
+                    className="flex-1 bg-[var(--hg-bg)] border border-[var(--hg-border)] px-3 py-2 text-[var(--hg-text-primary)] placeholder-[var(--hg-text-tertiary)] focus:outline-none text-sm"
                   />
-                  <button
-                    onClick={addEnvVar}
-                    className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white rounded-lg transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+                  <HyggeButton onClick={addEnvVar} className="text-xs">add</HyggeButton>
                 </div>
                 {Object.entries(formEnvVars).length > 0 && (
                   <div className="space-y-1">
                     {Object.entries(formEnvVars).map(([key, value]) => (
-                      <div key={key} className="flex items-center justify-between bg-gray-900 rounded px-3 py-1.5 text-sm">
-                        <span className="text-gray-300">{key}=***</span>
-                        <button onClick={() => removeEnvVar(key)} className="p-1 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-red-400 transition-colors">
-                          <X className="w-4 h-4" />
-                        </button>
+                      <div key={key} className="flex items-center justify-between bg-[var(--hg-bg)] border border-[var(--hg-border)] px-3 py-1.5 text-sm">
+                        <span className="text-[var(--hg-text-secondary)]">{key}=***</span>
+                        <HyggeButton onClick={() => removeEnvVar(key)} variant="destructive" className="text-xs">
+                          remove
+                        </HyggeButton>
                       </div>
                     ))}
                   </div>
@@ -320,57 +306,49 @@ export function McpServersSettings() {
 
           {/* Actions */}
           <div className="flex gap-2">
-            <button
+            <HyggeButton
+              variant="accent"
               onClick={addServer}
               disabled={creating || !formName || (formTransport === 'http' && !formUrl) || (formTransport === 'stdio' && !formCommand)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed text-white text-sm rounded-lg transition-colors shadow-sm"
+              className="text-sm"
             >
               {creating ? 'Adding...' : 'Add Server'}
-            </button>
-            <button
-              onClick={resetForm}
-              className="px-4 py-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors"
-            >
+            </HyggeButton>
+            <HyggeButton onClick={resetForm} className="text-sm">
               Cancel
-            </button>
+            </HyggeButton>
           </div>
         </div>
       )}
 
       {/* Server List */}
       {servers.length === 0 ? (
-        <div className="text-center py-8 text-gray-400">
-          <Server className="w-12 h-12 mx-auto mb-3 opacity-50" />
+        <div className="text-center py-8 text-[var(--hg-text-tertiary)] border border-dashed border-[var(--hg-border)]">
           <p>No MCP servers configured yet.</p>
           <p className="text-sm mt-1">Add a server to enable tools like web search.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {servers.map(server => (
-            <div key={server.id} className="bg-gray-800/50 rounded-lg border border-gray-700/50 overflow-hidden">
+            <div key={server.id} className="bg-[var(--hg-surface)] border border-[var(--hg-border)] overflow-hidden">
               {/* Server Header */}
               <div className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => toggleServer(server.id, !server.isEnabled)}
-                    className={`w-10 h-6 rounded-full transition-colors relative ${server.isEnabled ? 'bg-green-600' : 'bg-gray-600'
+                    className={`w-10 h-5 rounded-full transition-colors relative ${server.isEnabled ? 'bg-[var(--hg-accent)]' : 'bg-[var(--hg-border-subtle)]'
                       }`}
                   >
                     <span
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${server.isEnabled ? 'translate-x-5' : 'translate-x-1'
+                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${server.isEnabled ? 'translate-x-5' : 'translate-x-1'
                         }`}
                     />
                   </button>
                   <div>
-                    <h4 className="text-white font-medium flex items-center gap-2">
+                    <h4 className="text-[var(--hg-text-primary)] font-medium">
                       {server.name}
-                      {server.transportType === 'stdio' ? (
-                        <Terminal className="w-3.5 h-3.5 text-gray-500" />
-                      ) : (
-                        <Globe className="w-3.5 h-3.5 text-gray-500" />
-                      )}
                     </h4>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-[var(--hg-text-tertiary)]">
                       {server.transportType === 'stdio'
                         ? `${server.command} ${server.args?.join(' ') || ''}`
                         : server.url
@@ -380,47 +358,43 @@ export function McpServersSettings() {
                 </div>
                 <div className="flex items-center gap-2">
                   {server.cachedTools && (
-                    <span className="text-xs text-gray-400 px-2 py-1 bg-gray-700/50 rounded">
+                    <span className="text-xs text-[var(--hg-text-tertiary)] px-2 py-1 border border-[var(--hg-border)]">
                       {server.cachedTools.length} tools
                     </span>
                   )}
-                  <button
+                  <HyggeButton
                     onClick={() => refreshTools(server.id)}
                     disabled={refreshingId === server.id}
-                    className="p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors"
-                    title="Refresh tools"
+                    className="text-xs"
                   >
-                    <RefreshCw className={`w-4 h-4 ${refreshingId === server.id ? 'animate-spin' : ''}`} />
-                  </button>
-                  <button
+                    {refreshingId === server.id ? 'refreshing…' : 'refresh'}
+                  </HyggeButton>
+                  <HyggeButton
                     onClick={() => setExpandedServer(expandedServer === server.id ? null : server.id)}
-                    className="p-2 text-gray-400 hover:bg-gray-800 hover:text-gray-200 rounded-lg transition-colors"
+                    className="text-xs"
                   >
-                    {expandedServer === server.id ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </button>
-                  <button
+                    {expandedServer === server.id ? 'hide' : 'details'}
+                  </HyggeButton>
+                  <HyggeButton
                     onClick={() => deleteServer(server.id)}
-                    className="p-2 text-gray-400 hover:bg-gray-800 hover:text-red-400 rounded-lg transition-colors"
+                    variant="destructive"
+                    className="text-xs"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    delete
+                  </HyggeButton>
                 </div>
               </div>
 
               {/* Expanded Tools List */}
               {expandedServer === server.id && server.cachedTools && server.cachedTools.length > 0 && (
-                <div className="border-t border-gray-700/50 p-4">
-                  <h5 className="text-sm text-gray-400 mb-2">Available Tools:</h5>
+                <div className="border-t border-[var(--hg-border)] p-4">
+                  <h5 className="text-sm text-[var(--hg-text-secondary)] mb-2">Available Tools:</h5>
                   <div className="space-y-2">
                     {server.cachedTools.map((tool, i) => (
-                      <div key={i} className="bg-gray-900/50 rounded px-3 py-2">
-                        <div className="text-white text-sm font-mono">{tool.name}</div>
+                      <div key={i} className="bg-[var(--hg-bg)] border border-[var(--hg-border)] px-3 py-2">
+                        <div className="text-[var(--hg-text-primary)] text-sm font-mono">{tool.name}</div>
                         {tool.description && (
-                          <div className="text-gray-500 text-xs mt-0.5">{tool.description}</div>
+                          <div className="text-[var(--hg-text-tertiary)] text-xs mt-0.5">{tool.description}</div>
                         )}
                       </div>
                     ))}
@@ -433,12 +407,12 @@ export function McpServersSettings() {
       )}
 
       {/* Info Box */}
-      <div className="bg-blue-900/20 border border-blue-800/50 rounded-lg p-4">
-        <h4 className="text-blue-300 font-medium mb-2">Popular MCP Servers</h4>
-        <ul className="text-sm text-blue-200/80 space-y-1">
-          <li><strong>Brave Search:</strong> <code className="text-blue-300">npx -y @anthropic-ai/brave-search-mcp</code> (requires BRAVE_API_KEY)</li>
-          <li><strong>Fetch:</strong> <code className="text-blue-300">npx -y @anthropic-ai/fetch-mcp</code> (URL fetching)</li>
-          <li><strong>Filesystem:</strong> <code className="text-blue-300">npx -y @anthropic-ai/filesystem-mcp</code> (local file access)</li>
+      <div className="bg-[var(--hg-bg)] border border-[var(--hg-border)] p-4">
+        <h4 className="text-[var(--hg-text-primary)] font-medium mb-2">Popular MCP Servers</h4>
+        <ul className="text-sm text-[var(--hg-text-secondary)] space-y-1">
+          <li><strong>Brave Search:</strong> <code className="text-[var(--hg-text-primary)]">npx -y @anthropic-ai/brave-search-mcp</code> (requires BRAVE_API_KEY)</li>
+          <li><strong>Fetch:</strong> <code className="text-[var(--hg-text-primary)]">npx -y @anthropic-ai/fetch-mcp</code> (URL fetching)</li>
+          <li><strong>Filesystem:</strong> <code className="text-[var(--hg-text-primary)]">npx -y @anthropic-ai/filesystem-mcp</code> (local file access)</li>
         </ul>
       </div>
     </div>

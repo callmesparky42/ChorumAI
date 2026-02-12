@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Music, Loader2, Save, Info } from 'lucide-react'
 import clsx from 'clsx'
+import { HyggeButton } from '@/components/hygge/HyggeButton'
 
 interface ConductorSettingsProps {
     projectId: string
@@ -75,24 +75,21 @@ export function ConductorSettings({ projectId, className }: ConductorSettingsPro
 
     if (loading) {
         return (
-            <div className={clsx("flex items-center justify-center p-6", className)}>
-                <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
+            <div className={clsx("flex items-center justify-center p-6 text-[var(--hg-text-tertiary)]", className)}>
+                Loading conductor settings...
             </div>
         )
     }
 
     return (
         <div className={clsx("space-y-6", className)}>
-            {/* Header */}
-            <div className="flex items-center gap-3">
-                <Music className="w-5 h-5 text-purple-400" />
-                <h3 className="font-medium text-white">Conductor Settings</h3>
+            <div>
+                <h3 className="font-medium text-[var(--hg-text-primary)]">Conductor Settings</h3>
             </div>
 
             {/* Explanation */}
-            <div className="bg-gray-900/50 border border-gray-800 rounded-lg p-3 flex gap-3">
-                <Info className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-                <p className="text-sm text-gray-400">
+            <div className="bg-[var(--hg-surface)] border border-[var(--hg-border)] p-3">
+                <p className="text-sm text-[var(--hg-text-secondary)]">
                     The Conductor controls how much project context is injected into your conversations.
                     Adjust the lens to change the memory budget, and set focus domains to prioritize specific topics.
                 </p>
@@ -101,14 +98,14 @@ export function ConductorSettings({ projectId, className }: ConductorSettingsPro
             {/* Conductor Lens Slider */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-300">
+                    <label className="text-sm font-medium text-[var(--hg-text-secondary)]">
                         Conductor Lens
                     </label>
                     <span className={clsx(
                         "text-sm font-mono",
-                        lens < 0.5 ? "text-orange-400" :
-                            lens > 1.5 ? "text-green-400" :
-                                "text-gray-400"
+                        lens < 0.5 ? "text-[var(--hg-destructive)]" :
+                            lens > 1.5 ? "text-[var(--hg-accent)]" :
+                                "text-[var(--hg-text-tertiary)]"
                     )}>
                         {lens.toFixed(2)}x
                     </span>
@@ -120,14 +117,14 @@ export function ConductorSettings({ projectId, className }: ConductorSettingsPro
                     step="0.25"
                     value={lens}
                     onChange={(e) => handleLensChange(parseFloat(e.target.value))}
-                    className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    className="w-full h-2 bg-[var(--hg-border)] appearance-none cursor-pointer accent-[var(--hg-accent)]"
                 />
-                <div className="flex justify-between text-xs text-gray-600">
+                <div className="flex justify-between text-xs text-[var(--hg-text-tertiary)]">
                     <span>0.25x (Minimal)</span>
                     <span>1.0x (Default)</span>
                     <span>2.0x (Maximum)</span>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--hg-text-tertiary)]">
                     {lens < 0.5
                         ? "Minimal context injection — faster responses, less memory"
                         : lens > 1.5
@@ -138,10 +135,10 @@ export function ConductorSettings({ projectId, className }: ConductorSettingsPro
 
             {/* Focus Domains */}
             <div className="space-y-3">
-                <label className="text-sm font-medium text-gray-300">
+                <label className="text-sm font-medium text-[var(--hg-text-secondary)]">
                     Focus Domains
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-[var(--hg-text-tertiary)]">
                     Items matching these domains get a score boost (+15%)
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -150,10 +147,10 @@ export function ConductorSettings({ projectId, className }: ConductorSettingsPro
                             key={domain}
                             onClick={() => toggleDomain(domain)}
                             className={clsx(
-                                "px-3 py-1.5 text-sm rounded-full border transition-colors",
+                                "px-3 py-1.5 text-sm border transition-colors",
                                 focusDomains.includes(domain)
-                                    ? "bg-purple-500/20 border-purple-500/50 text-purple-300"
-                                    : "bg-gray-900/50 border-gray-700 text-gray-400 hover:border-gray-600"
+                                    ? "bg-[var(--hg-accent-muted)] border-[var(--hg-accent)] text-[var(--hg-accent)]"
+                                    : "bg-[var(--hg-bg)] border-[var(--hg-border)] text-[var(--hg-text-secondary)] hover:border-[var(--hg-border-subtle)]"
                             )}
                         >
                             {domain}
@@ -165,18 +162,14 @@ export function ConductorSettings({ projectId, className }: ConductorSettingsPro
             {/* Save Button */}
             {isDirty && (
                 <div className="flex justify-end">
-                    <button
+                    <HyggeButton
                         onClick={saveSettings}
                         disabled={saving}
-                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-600/50 rounded-lg text-sm font-medium flex items-center gap-2"
+                        variant="accent"
+                        className="text-sm"
                     >
-                        {saving ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Save className="w-4 h-4" />
-                        )}
-                        Save Settings
-                    </button>
+                        {saving ? 'Saving...' : 'Save Settings'}
+                    </HyggeButton>
                 </div>
             )}
         </div>

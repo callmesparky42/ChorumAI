@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Music, Pin, VolumeX, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Pin, VolumeX, ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react'
 import clsx from 'clsx'
 
 interface InjectedItem {
@@ -37,11 +37,11 @@ interface ConductorTraceProps {
 }
 
 const TYPE_LABELS: Record<string, { label: string; color: string; emoji: string }> = {
-    invariant: { label: 'Rule', color: 'text-red-400', emoji: '🛡️' },
-    pattern: { label: 'Pattern', color: 'text-blue-400', emoji: '🔄' },
-    decision: { label: 'Decision', color: 'text-green-400', emoji: '📋' },
-    golden_path: { label: 'Golden Path', color: 'text-yellow-400', emoji: '⭐' },
-    antipattern: { label: 'Avoid', color: 'text-orange-400', emoji: '⚠️' }
+    invariant: { label: 'Rule', color: 'text-[var(--hg-text-secondary)]', emoji: '🛡️' },
+    pattern: { label: 'Pattern', color: 'text-[var(--hg-text-secondary)]', emoji: '🔄' },
+    decision: { label: 'Decision', color: 'text-[var(--hg-text-secondary)]', emoji: '📋' },
+    golden_path: { label: 'Golden Path', color: 'text-[var(--hg-text-secondary)]', emoji: '⭐' },
+    antipattern: { label: 'Avoid', color: 'text-[var(--hg-text-secondary)]', emoji: '⚠️' }
 }
 
 export function ConductorTrace({
@@ -95,35 +95,34 @@ export function ConductorTrace({
 
     return (
         <div className={clsx(
-            "mt-2 border border-gray-800 rounded-lg overflow-hidden bg-gray-900/30",
+            "mt-2 border border-[var(--hg-border)] overflow-hidden bg-[var(--hg-surface)]",
             className
         )}>
             {/* Collapsed Header */}
             <button
                 onClick={() => setExpanded(!expanded)}
-                className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-gray-900/50 transition-colors"
+                className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-[var(--hg-surface-hover)] transition-colors"
             >
                 {expanded ? (
-                    <ChevronDown className="w-4 h-4 text-gray-500" />
+                    <ChevronDown className="w-4 h-4 text-[var(--hg-text-tertiary)]" />
                 ) : (
-                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                    <ChevronRight className="w-4 h-4 text-[var(--hg-text-tertiary)]" />
                 )}
-                <Music className="w-4 h-4 text-purple-400" />
-                <span className="text-sm text-gray-400">
+                <span className="text-sm text-[var(--hg-text-secondary)]">
                     {items.length} item{items.length !== 1 ? 's' : ''} injected
                 </span>
                 {domainLabel && !detailedView && (
-                    <span className="text-xs text-gray-500 ml-1">
+                    <span className="text-xs text-[var(--hg-text-tertiary)] ml-1">
                         ({domainLabel} context)
                     </span>
                 )}
                 {detailedView && relevance && (
-                    <span className="text-xs text-gray-600 ml-2">
+                    <span className="text-xs text-[var(--hg-text-tertiary)] ml-2">
                         ({relevance.latencyMs}ms • {tokenEstimate} tokens)
                     </span>
                 )}
                 {detailedView && domainLabel && (
-                    <span className="text-xs text-gray-600 ml-2">
+                    <span className="text-xs text-[var(--hg-text-tertiary)] ml-2">
                         Domain: {domainLabel}{domainConfidence !== undefined ? ` (${domainConfidence.toFixed(2)})` : ''}
                     </span>
                 )}
@@ -131,20 +130,20 @@ export function ConductorTrace({
 
             {/* Expanded Content */}
             {expanded && (
-                <div className="border-t border-gray-800">
+                <div className="border-t border-[var(--hg-border)]">
                     {detailedView && relevance && (
-                        <div className="px-3 py-2 bg-gray-950/50 text-xs text-gray-500 flex gap-4">
+                        <div className="px-3 py-2 bg-[var(--hg-bg)] text-xs text-[var(--hg-text-tertiary)] flex gap-4">
                             <span>Complexity: {relevance.complexity}</span>
                             {relevance.tier && <span>Tier: {relevance.tier} ({relevance.tierLabel})</span>}
                             <span>Budget: {relevance.budget} tokens</span>
                         </div>
                     )}
 
-                    <div className="divide-y divide-gray-800/50">
+                    <div className="divide-y divide-[var(--hg-border)]">
                         {items.map((item) => {
                             const typeInfo = TYPE_LABELS[item.type] || {
                                 label: item.type,
-                                color: 'text-gray-400',
+                                color: 'text-[var(--hg-text-secondary)]',
                                 emoji: '📄'
                             }
                             const isPinned = !!item.pinnedAt
@@ -152,7 +151,7 @@ export function ConductorTrace({
                             return (
                                 <div
                                     key={item.id}
-                                    className="px-3 py-2 hover:bg-gray-900/30"
+                                    className="px-3 py-2 hover:bg-[var(--hg-surface-hover)]"
                                 >
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0">
@@ -162,19 +161,19 @@ export function ConductorTrace({
                                                     {typeInfo.label}
                                                 </span>
                                                 {isPinned && (
-                                                    <Pin className="w-3 h-3 text-purple-400" />
+                                                    <Pin className="w-3 h-3 text-[var(--hg-accent)]" />
                                                 )}
                                                 {detailedView && item.score !== undefined && (
-                                                    <span className="text-xs text-gray-600 ml-auto">
+                                                    <span className="text-xs text-[var(--hg-text-tertiary)] ml-auto">
                                                         score: {item.score.toFixed(2)}
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-gray-300 line-clamp-2">
+                                            <p className="text-sm text-[var(--hg-text-primary)] line-clamp-2">
                                                 {item.content}
                                             </p>
                                             {detailedView && item.retrievalReason && (
-                                                <p className="text-xs text-gray-600 mt-1">
+                                                <p className="text-xs text-[var(--hg-text-tertiary)] mt-1">
                                                     {item.retrievalReason}
                                                 </p>
                                             )}
@@ -185,7 +184,7 @@ export function ConductorTrace({
                                             <button
                                                 onClick={() => handleFeedback(item.id, 'positive')}
                                                 disabled={actionLoading === `${item.id}-positive`}
-                                                className="p-1 text-gray-600 hover:text-green-400 hover:bg-green-400/10 rounded transition-colors"
+                                                className="hg-btn p-1"
                                                 title="Helpful"
                                             >
                                                 {actionLoading === `${item.id}-positive` ? (
@@ -197,7 +196,7 @@ export function ConductorTrace({
                                             <button
                                                 onClick={() => handleFeedback(item.id, 'negative')}
                                                 disabled={actionLoading === `${item.id}-negative`}
-                                                className="p-1 text-gray-600 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors"
+                                                className="hg-btn p-1"
                                                 title="Not helpful"
                                             >
                                                 {actionLoading === `${item.id}-negative` ? (
@@ -209,12 +208,7 @@ export function ConductorTrace({
                                             <button
                                                 onClick={() => handleAction(item.id, isPinned ? 'unpin' : 'pin')}
                                                 disabled={actionLoading?.startsWith(item.id)}
-                                                className={clsx(
-                                                    "p-1 rounded transition-colors",
-                                                    isPinned
-                                                        ? "text-purple-400 hover:bg-purple-400/10"
-                                                        : "text-gray-600 hover:text-purple-400 hover:bg-purple-400/10"
-                                                )}
+                                                className="hg-btn p-1"
                                                 title={isPinned ? "Unpin" : "Always include"}
                                             >
                                                 {actionLoading === `${item.id}-pin` || actionLoading === `${item.id}-unpin` ? (
@@ -226,7 +220,7 @@ export function ConductorTrace({
                                             <button
                                                 onClick={() => handleAction(item.id, 'mute')}
                                                 disabled={actionLoading?.startsWith(item.id)}
-                                                className="p-1 text-gray-600 hover:text-orange-400 hover:bg-orange-400/10 rounded transition-colors"
+                                                className="hg-btn p-1"
                                                 title="Mute this item"
                                             >
                                                 {actionLoading === `${item.id}-mute` ? (

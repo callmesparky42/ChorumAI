@@ -91,7 +91,7 @@ export function ResizableLayout({ left, center, right, rightCollapsed = false }:
         <div ref={containerRef} className="flex h-screen w-full">
             {/* Left Panel */}
             <div
-                className="bg-[#0A0A0A] overflow-hidden flex-shrink-0"
+                className="bg-[#0A0A0A] overflow-hidden flex-shrink-0 h-full"
                 style={{ width: `${leftWidth}%` }}
             >
                 {left}
@@ -121,7 +121,7 @@ export function ResizableLayout({ left, center, right, rightCollapsed = false }:
 
             {/* Right Panel */}
             <div
-                className="bg-[#0A0A0A] overflow-hidden flex-shrink-0"
+                className="bg-[#0A0A0A] overflow-hidden flex-shrink-0 h-full"
                 style={{ width: `${rightWidth}%` }}
             >
                 {right}

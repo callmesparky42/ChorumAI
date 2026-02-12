@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Plus, ChevronDown, ChevronRight, Zap, Brain, Gauge, Copy, Pencil, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ChevronDown, ChevronRight, Copy, Pencil, Trash2 } from 'lucide-react'
 import clsx from 'clsx'
 import { useAgentStore } from '@/lib/agents/store'
 import { AgentDefinition, AgentTier, TIER_INFO } from '@/lib/agents/types'
 import { AgentCreatorModal } from './AgentCreatorModal'
+import { HyggeButton } from '@/components/hygge/HyggeButton'
 
 interface Props {
   projectId?: string
@@ -63,51 +64,78 @@ export function AgentPanel({ projectId }: Props) {
     fast: agents.filter(a => a.tier === 'fast')
   }
 
-  const tierIcons: Record<AgentTier, React.ReactNode> = {
-    reasoning: <Brain className="w-3.5 h-3.5" />,
-    balanced: <Gauge className="w-3.5 h-3.5" />,
-    fast: <Zap className="w-3.5 h-3.5" />
-  }
-
   const editingAgent = editingAgentId ? agents.find(a => a.id === editingAgentId) : null
+  const activeAgentParams = useMemo(() => {
+    if (!activeAgent) return null
+    return {
+      focus: activeAgent.memory.semanticFocus,
+      temperature: activeAgent.model.temperature,
+      maxTokens: activeAgent.model.maxTokens,
+      reasoning: activeAgent.model.reasoningMode ? 'on' : 'off',
+      tools: activeAgent.capabilities.tools?.length || 0,
+      writesBack: activeAgent.memory.writesBack?.join(', ') || 'none'
+    }
+  }, [activeAgent])
 
   return (
     <>
-      <div className="w-full bg-gray-950 border-l border-gray-800 flex flex-col min-h-0">
+      <div className="w-full bg-[var(--hg-bg)] border-l border-[var(--hg-border)] flex flex-col min-h-0 h-full overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Agents</h2>
-          <button
+        <div className="p-4 border-b border-[var(--hg-border)] flex items-center justify-between">
+          <h2 className="text-xs font-semibold text-[var(--hg-text-tertiary)] uppercase tracking-wider">Agents</h2>
+          <HyggeButton
             onClick={openCreateModal}
-            className="p-1.5 hover:bg-gray-800 rounded-lg text-gray-400 hover:text-white transition-colors"
+            className="text-xs"
             title="Create custom agent"
           >
-            <Plus className="w-4 h-4" />
-          </button>
+            create
+          </HyggeButton>
         </div>
 
         {/* Active Agent Display */}
-        {activeAgent && (
-          <div className="p-4 border-b border-gray-800 bg-gray-900/50">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-2xl">{activeAgent.icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-white text-sm truncate">{activeAgent.name}</p>
-                <p className="text-xs text-gray-500 truncate">{activeAgent.role}</p>
-              </div>
-              <span className={clsx(
-                'px-2 py-0.5 rounded text-xs font-medium',
-                TIER_INFO[activeAgent.tier].bgColor,
-                TIER_INFO[activeAgent.tier].color
-              )}>
+        {activeAgent && activeAgentParams && (
+          <div className="p-4 border-b border-[var(--hg-border)] bg-[var(--hg-surface)] space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="text-xs uppercase tracking-wider text-[var(--hg-text-tertiary)]">
                 {TIER_INFO[activeAgent.tier].label}
-              </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-[var(--hg-text-primary)] text-sm truncate">{activeAgent.name}</p>
+                <p className="text-xs text-[var(--hg-text-tertiary)] truncate">{activeAgent.role}</p>
+              </div>
             </div>
 
-            {/* Semantic Focus - The Key Feature */}
-            <div className="mt-3 p-2.5 bg-gray-950 rounded-lg border border-gray-800">
-              <p className="text-xs text-gray-500 mb-1">Semantic Focus</p>
-              <p className="text-xs text-gray-300 italic">"{activeAgent.memory.semanticFocus}"</p>
+            <div className="space-y-1 text-xs">
+              <div className="hg-stat-line">
+                <span className="hg-label">semantic focus</span>
+                <span className="hg-fill" />
+                <span className="hg-value">"{activeAgentParams.focus}"</span>
+              </div>
+              <div className="hg-stat-line">
+                <span className="hg-label">temperature</span>
+                <span className="hg-fill" />
+                <span className="hg-value">{activeAgentParams.temperature.toFixed(2)}</span>
+              </div>
+              <div className="hg-stat-line">
+                <span className="hg-label">max tokens</span>
+                <span className="hg-fill" />
+                <span className="hg-value">{activeAgentParams.maxTokens}</span>
+              </div>
+              <div className="hg-stat-line">
+                <span className="hg-label">reasoning</span>
+                <span className="hg-fill" />
+                <span className="hg-value">{activeAgentParams.reasoning}</span>
+              </div>
+              <div className="hg-stat-line">
+                <span className="hg-label">tools</span>
+                <span className="hg-fill" />
+                <span className="hg-value">{activeAgentParams.tools}</span>
+              </div>
+              <div className="hg-stat-line">
+                <span className="hg-label">writes back</span>
+                <span className="hg-fill" />
+                <span className="hg-value">{activeAgentParams.writesBack}</span>
+              </div>
             </div>
           </div>
         )}
@@ -115,25 +143,22 @@ export function AgentPanel({ projectId }: Props) {
         {/* Agent List by Tier */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {(['reasoning', 'balanced', 'fast'] as AgentTier[]).map((tier) => (
-            <div key={tier} className="border-b border-gray-800/50">
+            <div key={tier} className="border-b border-[var(--hg-border)]">
               {/* Tier Header */}
               <button
                 onClick={() => toggleTier(tier)}
-                className="w-full px-4 py-2.5 flex items-center gap-2 hover:bg-gray-900/50 transition-colors"
+                className="w-full px-4 py-2.5 flex items-center gap-2 hover:bg-[var(--hg-surface-hover)] transition-colors"
                 title={TIER_INFO[tier].description}
               >
                 {expandedTiers[tier] ? (
-                  <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                  <ChevronDown className="w-3.5 h-3.5 text-[var(--hg-text-tertiary)]" />
                 ) : (
-                  <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                  <ChevronRight className="w-3.5 h-3.5 text-[var(--hg-text-tertiary)]" />
                 )}
-                <span className={clsx('flex items-center gap-1.5', TIER_INFO[tier].color)}>
-                  {tierIcons[tier]}
-                  <span className="text-xs font-medium uppercase tracking-wider">
-                    {TIER_INFO[tier].label}
-                  </span>
+                <span className="text-xs font-medium uppercase tracking-wider text-[var(--hg-text-secondary)]">
+                  {TIER_INFO[tier].label}
                 </span>
-                <span className="text-xs text-gray-600 ml-auto">
+                <span className="text-xs text-[var(--hg-text-tertiary)] ml-auto">
                   {agentsByTier[tier].length}
                 </span>
               </button>
@@ -147,19 +172,26 @@ export function AgentPanel({ projectId }: Props) {
                       onClick={() => setActiveAgent(agent)}
                       onContextMenu={(e) => handleContextMenu(e, agent.id)}
                       className={clsx(
-                        'flex flex-col items-center justify-center p-3 rounded-lg border transition-all text-center gap-2 group relative',
+                        'flex flex-col items-start justify-start p-3 border transition-colors text-left gap-2 group relative',
                         activeAgent?.id === agent.id
-                          ? 'bg-blue-600/10 border-blue-500/50 text-blue-400'
-                          : 'bg-gray-900/40 border-gray-800 text-gray-400 hover:bg-gray-800 hover:border-gray-700 hover:text-gray-200'
+                          ? 'bg-[var(--hg-accent-muted)] border-[var(--hg-accent)] text-[var(--hg-text-primary)]'
+                          : 'bg-[var(--hg-surface)] border-[var(--hg-border)] text-[var(--hg-text-secondary)] hover:bg-[var(--hg-surface-hover)] hover:border-[var(--hg-border-subtle)]'
                       )}
                       title={agent.role}
                     >
-                      <span className="text-2xl group-hover:scale-110 transition-transform">{agent.icon}</span>
-                      <p className="text-xs font-medium truncate w-full px-1">{agent.name}</p>
-
-                      {/* Hover Info (Semantic Focus in tooltip effectively) */}
+                      <div className="text-xs font-medium uppercase tracking-wider text-[var(--hg-text-tertiary)]">
+                        {agent.tier}
+                      </div>
+                      <p className="text-sm font-medium truncate w-full">{agent.name}</p>
+                      <p className="text-xs text-[var(--hg-text-tertiary)] line-clamp-2">{agent.role}</p>
+                      <div className="text-xs text-[var(--hg-text-tertiary)]">
+                        focus: “{agent.memory.semanticFocus}”
+                      </div>
+                      <div className="text-xs text-[var(--hg-text-tertiary)]">
+                        temp {agent.model.temperature.toFixed(2)} · {agent.capabilities.tools.length} tools
+                      </div>
                       {agent.isCustom && (
-                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-purple-500" title="Custom Agent" />
+                        <span className="absolute top-1 right-1 text-[10px] text-[var(--hg-accent)]">custom</span>
                       )}
                     </button>
                   ))}
@@ -168,23 +200,12 @@ export function AgentPanel({ projectId }: Props) {
             </div>
           ))}
         </div>
-
-        {/* Footer with Create Button */}
-        <div className="p-3 border-t border-gray-800">
-          <button
-            onClick={openCreateModal}
-            className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm text-gray-300 hover:text-white transition-colors flex items-center justify-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Create Custom Agent
-          </button>
-        </div>
       </div>
 
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 z-50 min-w-[160px]"
+          className="fixed bg-[var(--hg-bg)] border border-[var(--hg-border)] py-1 z-50 min-w-[160px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -193,7 +214,7 @@ export function AgentPanel({ projectId }: Props) {
               openEditModal(contextMenu.agentId)
               setContextMenu(null)
             }}
-            className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-800 flex items-center gap-2"
+            className="w-full px-3 py-2 text-left text-sm text-[var(--hg-text-secondary)] hover:bg-[var(--hg-surface-hover)] flex items-center gap-2"
           >
             <Pencil className="w-3.5 h-3.5" />
             Edit
@@ -203,7 +224,7 @@ export function AgentPanel({ projectId }: Props) {
               duplicateAgent(contextMenu.agentId)
               setContextMenu(null)
             }}
-            className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-gray-800 flex items-center gap-2"
+            className="w-full px-3 py-2 text-left text-sm text-[var(--hg-text-secondary)] hover:bg-[var(--hg-surface-hover)] flex items-center gap-2"
           >
             <Copy className="w-3.5 h-3.5" />
             Duplicate
@@ -214,7 +235,7 @@ export function AgentPanel({ projectId }: Props) {
                 deleteAgent(contextMenu.agentId)
                 setContextMenu(null)
               }}
-              className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-gray-800 flex items-center gap-2"
+              className="w-full px-3 py-2 text-left text-sm text-[var(--hg-destructive)] hover:bg-[var(--hg-surface-hover)] flex items-center gap-2"
             >
               <Trash2 className="w-3.5 h-3.5" />
               Delete

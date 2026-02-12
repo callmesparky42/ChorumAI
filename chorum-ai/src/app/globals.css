@@ -5,6 +5,92 @@
   --foreground: #171717;
 }
 
+/* ============================================
+   HYGGE BRUTALIST DESIGN SYSTEM
+   ============================================ */
+
+:root {
+  /* Surfaces */
+  --hg-bg: #0a0c10;
+  --hg-surface: #141820;
+  --hg-surface-hover: #1a2030;
+
+  /* Borders */
+  --hg-border: #1e2330;
+  --hg-border-subtle: #2a3040;
+
+  /* Text */
+  --hg-text-primary: #f4f4f5;
+  --hg-text-secondary: #a1a1aa;
+  --hg-text-tertiary: #71717a;
+
+  /* Brand Accents */
+  --hg-accent: #29ABE2;
+  --hg-accent-warm: #F7C325;
+  --hg-accent-muted: rgba(41, 171, 226, 0.12);
+  --hg-accent-warm-muted: rgba(247, 195, 37, 0.10);
+
+  /* Semantic */
+  --hg-destructive: #dc2626;
+  --hg-destructive-muted: rgba(220, 38, 38, 0.1);
+}
+
+/* Ghost Button — invisible until hover */
+.hg-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--hg-text-secondary);
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transition: all 150ms ease;
+  cursor: pointer;
+}
+.hg-btn:hover {
+  border-color: var(--hg-border-subtle);
+  color: var(--hg-text-primary);
+  background: var(--hg-surface-hover);
+}
+.hg-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.hg-btn-accent {
+  color: var(--hg-accent);
+}
+.hg-btn-accent:hover {
+  border-color: rgba(41, 171, 226, 0.3);
+  background: var(--hg-accent-muted);
+}
+.hg-btn-destructive:hover {
+  color: var(--hg-destructive);
+  border-color: var(--hg-destructive);
+  background: var(--hg-destructive-muted);
+}
+
+/* Stat Line — label ---- value */
+.hg-stat-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.875rem;
+  padding: 4px 0;
+}
+.hg-stat-line .hg-label {
+  color: var(--hg-text-secondary);
+  white-space: nowrap;
+}
+.hg-stat-line .hg-fill {
+  flex: 1;
+  border-bottom: 1px dashed var(--hg-border);
+  min-width: 20px;
+}
+.hg-stat-line .hg-value {
+  color: var(--hg-text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -30,7 +116,7 @@ body {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(79, 195, 247, 0.25) transparent;
+  scrollbar-color: rgba(41, 171, 226, 0.25) transparent;
 }
 
 /* Webkit browsers (Chrome, Safari, Edge) */
@@ -44,13 +130,13 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(79, 195, 247, 0.25);
+  background: rgba(41, 171, 226, 0.25);
   border-radius: 3px;
   transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 195, 247, 0.5);
+  background: rgba(41, 171, 226, 0.5);
 }
 
 ::-webkit-scrollbar-corner {
