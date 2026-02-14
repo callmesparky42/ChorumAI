@@ -16,6 +16,7 @@ import crypto from 'crypto'
 
 export interface ExtractedLearning {
     type: 'pattern' | 'decision' | 'invariant' | 'antipattern' | 'golden_path'
+    | 'character' | 'setting' | 'plot_thread' | 'voice' | 'world_rule'
     content: string
     context?: string
 }
@@ -27,6 +28,12 @@ export interface AnalysisResult {
     antipatterns: ExtractedLearning[]
     goldenPaths: ExtractedLearning[]
     anchors: ExtractedLearning[]
+    // Writing-domain categories
+    characters: ExtractedLearning[]
+    settings: ExtractedLearning[]
+    plotThreads: ExtractedLearning[]
+    voice: ExtractedLearning[]
+    worldRules: ExtractedLearning[]
 }
 
 type DomainSignalLike = DomainSignal | StoredDomainSignal | null | undefined
@@ -56,6 +63,10 @@ function formatDomainFocus(domainSignal: DomainSignalLike, focusDomains?: string
     return { primary: 'general', secondary: [] }
 }
 
+function isWritingDomain(domainSignal?: DomainSignalLike): boolean {
+    return domainSignal?.primary === 'writing'
+}
+
 function buildExtractionPrompt(options?: {
     domainSignal?: DomainSignalLike
     focusDomains?: string[]
@@ -65,6 +76,47 @@ function buildExtractionPrompt(options?: {
         ? `Domain focus: ${focus.primary} (secondary: ${focus.secondary.join(', ')})`
         : `Domain focus: ${focus.primary}`
 
+    // Writing-domain extraction prompt
+    if (isWritingDomain(options?.domainSignal)) {
+        return `You are analyzing a conversation about a writing/fiction project to extract story-specific learnings.
+
+${domainLine}
+Interpret everything in the context of creative writing and storytelling.
+
+ONLY extract items that are:
+1. Specific to this story/project (not generic writing advice)
+2. Worth remembering for future conversations about this story
+3. Explicitly stated or clearly implied
+
+Categories to extract:
+- CHARACTERS: Named characters with their role, key traits, and relationships
+  (e.g., "Marcus is the protagonist, a retired detective haunted by his last case. Brother to Elena.")
+- SETTING: Time period, locations, atmosphere, and sensory details
+  (e.g., "The story takes place in 1987 Portland, rain-soaked and noir-tinged.")
+- PLOT_THREADS: Unresolved questions, setup/payoff pairs, foreshadowing, story arcs
+  (e.g., "The locked drawer in Chapter 2 hasn't been opened yet — Chekhov's gun.")
+- VOICE: POV type, tense, style markers, prose quirks
+  (e.g., "First-person present tense, clipped sentences, avoids adverbs.")
+- WORLD_RULES: Any established facts about the story's reality, magic systems, technologies
+  (e.g., "Ghosts can only be seen by people who have died and been resuscitated.")
+- ANCHORS: Proper nouns, terminology, or identity facts about this project
+  (e.g., "The novel is called 'The Ghost he Became'", "The author's name is Daniel")
+
+Return a JSON object with this structure:
+{
+  "characters": [{ "content": "...", "context": "..." }],
+  "setting": [{ "content": "...", "context": "..." }],
+  "plot_threads": [{ "content": "...", "context": "..." }],
+  "voice": [{ "content": "...", "context": "..." }],
+  "world_rules": [{ "content": "...", "context": "..." }],
+  "anchors": [{ "content": "...", "context": "..." }]
+}
+
+If nothing worth extracting, return empty arrays for all categories.
+Be selective - only extract truly valuable story elements.`
+    }
+
+    // Default (coding/general) extraction prompt
     const domainGuidance = focus.primary === 'coding' || focus.primary === 'devops' || focus.primary === 'data'
         ? 'Interpret the categories in a software/technical context.'
         : `Interpret the categories in the context of ${focus.primary} work. Avoid coding or implementation details unless explicitly discussed.`
@@ -120,7 +172,12 @@ export async function analyzeConversation(
         invariants: [],
         antipatterns: [],
         goldenPaths: [],
-        anchors: []
+        anchors: [],
+        characters: [],
+        settings: [],
+        plotThreads: [],
+        voice: [],
+        worldRules: []
     }
 
     if (!providerConfig) {
@@ -188,6 +245,32 @@ Analyze this conversation and extract any learnings.`
                 type: 'anchor' as const,
                 content: a.content,
                 context: a.context
+            })),
+            // Writing-domain categories
+            characters: (parsed.characters || []).map((c: any) => ({
+                type: 'character' as const,
+                content: c.content,
+                context: c.context
+            })),
+            settings: (parsed.setting || []).map((s: any) => ({
+                type: 'setting' as const,
+                content: s.content,
+                context: s.context
+            })),
+            plotThreads: (parsed.plot_threads || []).map((p: any) => ({
+                type: 'plot_thread' as const,
+                content: p.content,
+                context: p.context
+            })),
+            voice: (parsed.voice || []).map((v: any) => ({
+                type: 'voice' as const,
+                content: v.content,
+                context: v.context
+            })),
+            worldRules: (parsed.world_rules || []).map((w: any) => ({
+                type: 'world_rule' as const,
+                content: w.content,
+                context: w.context
             }))
         }
     } catch (e) {
@@ -443,13 +526,20 @@ export async function extractAndStoreLearnings(
         focusDomains
     )
 
-    // Flatten all learnings
+    // Flatten all learnings (code + writing domains)
     const allLearnings: ExtractedLearning[] = [
         ...result.patterns,
         ...result.decisions,
         ...result.invariants,
         ...result.antipatterns,
-        ...result.goldenPaths
+        ...result.goldenPaths,
+        ...result.anchors,
+        // Writing-domain categories
+        ...result.characters,
+        ...result.settings,
+        ...result.plotThreads,
+        ...result.voice,
+        ...result.worldRules
     ]
 
     if (allLearnings.length === 0) {

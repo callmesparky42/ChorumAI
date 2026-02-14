@@ -133,18 +133,27 @@ export const MODEL_REGISTRY: Record<string, ProviderEntry> = {
         name: 'Google (Gemini)',
         category: 'cloud',
         requiresKey: true,
-        defaultModel: 'gemini-1.5-pro',
-        cheapModel: 'gemini-2.0-flash', // Assuming available/cheaper
+        defaultModel: 'gemini-2.0-flash',
+        cheapModel: 'gemini-2.0-flash',
         testModel: 'gemini-2.0-flash',
         models: [
             {
-                id: 'gemini-1.5-pro',
-                displayName: 'Gemini 1.5 Pro',
+                id: 'gemini-2.5-pro-preview-05-06',
+                displayName: 'Gemini 2.5 Pro',
+                provider: 'google',
+                tier: 'flagship',
+                contextWindow: 1000000,
+                cost: { input: 1.25, output: 10 },
+                capabilities: ['reasoning', 'long_context', 'vision', 'code', 'tools', 'general']
+            },
+            {
+                id: 'gemini-2.5-flash-preview-05-20',
+                displayName: 'Gemini 2.5 Flash',
                 provider: 'google',
                 tier: 'standard',
-                contextWindow: 1000000, // 1M+
-                cost: { input: 3.50, output: 10.50 }, // Approx
-                capabilities: ['long_context', 'vision', 'code', 'general']
+                contextWindow: 1000000,
+                cost: { input: 0.15, output: 0.60 },
+                capabilities: ['reasoning', 'long_context', 'vision', 'code', 'tools', 'general']
             },
             {
                 id: 'gemini-2.0-flash',
@@ -152,17 +161,17 @@ export const MODEL_REGISTRY: Record<string, ProviderEntry> = {
                 provider: 'google',
                 tier: 'fast',
                 contextWindow: 1000000,
-                cost: { input: 0.10, output: 0.40 }, // Approx
-                capabilities: ['long_context', 'general']
+                cost: { input: 0.10, output: 0.40 },
+                capabilities: ['long_context', 'vision', 'code', 'tools', 'general']
             },
             {
-                id: 'gemini-pro',
-                displayName: 'Gemini 1.0 Pro',
+                id: 'gemini-1.5-pro',
+                displayName: 'Gemini 1.5 Pro',
                 provider: 'google',
                 tier: 'legacy',
-                contextWindow: 32000,
-                cost: { input: 0.50, output: 1.50 },
-                capabilities: ['general'],
+                contextWindow: 1000000,
+                cost: { input: 3.50, output: 10.50 },
+                capabilities: ['long_context', 'vision', 'code', 'general'],
                 deprecated: true
             }
         ]

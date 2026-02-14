@@ -68,6 +68,32 @@ export const DECAY_CURVES: Record<LearningType, DecayConfig> = {
         halfLifeDays: 14,
         floor: 0.02,
         rationale: '"Don\'t do X" loses relevance as the developer learns to avoid it'
+    },
+    // Writing-domain decay curves
+    character: {
+        halfLifeDays: null,
+        floor: 1.0,
+        rationale: 'Characters are perpetual — Marcus is always Marcus'
+    },
+    world_rule: {
+        halfLifeDays: null,
+        floor: 1.0,
+        rationale: 'World rules are invariants of the story — they never expire'
+    },
+    setting: {
+        halfLifeDays: 365,
+        floor: 0.3,
+        rationale: 'Settings rarely change — 1987 Portland stays 1987 Portland'
+    },
+    plot_thread: {
+        halfLifeDays: 90,
+        floor: 0.15,
+        rationale: 'Plot threads stay relevant across chapters until resolved'
+    },
+    voice: {
+        halfLifeDays: 365,
+        floor: 0.3,
+        rationale: 'Voice/style decisions are architectural — they last the whole project'
     }
 }
 
@@ -510,6 +536,7 @@ export class RelevanceEngine {
 
         const sections: string[] = ['<chorum_context>']
 
+        // Universal sections
         if (groups['anchor']) {
             sections.push('## Project Identity & Anchors')
             groups['anchor'].forEach(i => sections.push(`- ${i.content}`))
@@ -520,6 +547,7 @@ export class RelevanceEngine {
             groups['invariant'].forEach(i => sections.push(`- ${i.content}`))
         }
 
+        // Code-domain sections
         if (groups['pattern']) {
             sections.push('## Relevant Patterns')
             groups['pattern'].forEach(i => sections.push(`- ${i.content}`))
@@ -535,8 +563,38 @@ export class RelevanceEngine {
             groups['golden_path'].forEach(i => sections.push(`- ${i.content}`))
         }
 
-        // Catch-all
-        const otherTypes = Object.keys(groups).filter(t => !['invariant', 'pattern', 'decision', 'golden_path'].includes(t))
+        // Writing-domain sections
+        if (groups['character']) {
+            sections.push('## Characters')
+            groups['character'].forEach(i => sections.push(`- ${i.content}${i.context ? ` (${i.context})` : ''}`))
+        }
+
+        if (groups['setting']) {
+            sections.push('## Setting & Atmosphere')
+            groups['setting'].forEach(i => sections.push(`- ${i.content}`))
+        }
+
+        if (groups['plot_thread']) {
+            sections.push('## Active Plot Threads')
+            groups['plot_thread'].forEach(i => sections.push(`- ${i.content}`))
+        }
+
+        if (groups['voice']) {
+            sections.push('## Voice & Style')
+            groups['voice'].forEach(i => sections.push(`- ${i.content}`))
+        }
+
+        if (groups['world_rule']) {
+            sections.push('## World Rules')
+            groups['world_rule'].forEach(i => sections.push(`- ${i.content}`))
+        }
+
+        // Catch-all for any unknown types
+        const knownTypes = [
+            'invariant', 'pattern', 'decision', 'golden_path', 'anchor', 'antipattern',
+            'character', 'setting', 'plot_thread', 'voice', 'world_rule'
+        ]
+        const otherTypes = Object.keys(groups).filter(t => !knownTypes.includes(t))
         if (otherTypes.length > 0) {
             sections.push('## Other Context')
             otherTypes.forEach(t => {

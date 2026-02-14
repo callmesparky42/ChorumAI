@@ -4,6 +4,7 @@
  */
 
 export type LearningType = 'pattern' | 'antipattern' | 'decision' | 'invariant' | 'golden_path' | 'anchor'
+    | 'character' | 'setting' | 'plot_thread' | 'voice' | 'world_rule'
 
 export type InvariantCheckType = 'keyword' | 'regex' | 'contains' | 'not_contains'
 

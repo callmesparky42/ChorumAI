@@ -1,11 +1,11 @@
 ---
 title: Learning Types
-description: Understanding patterns, decisions, invariants, and antipatterns in Chorum's memory.
+description: Understanding patterns, decisions, invariants, antipatterns, and domain-specific knowledge in Chorum's memory.
 ---
 
 # Learning Types
 
-Chorum's memory system stores five distinct types of knowledge, each serving a different purpose. Understanding these types helps you curate your project's memory effectively.
+Chorum's memory system stores distinct types of knowledge, each serving a different purpose. The system is **domain-aware** — when your project is about code, it extracts patterns, decisions, and invariants. When it's about creative writing, it extracts characters, settings, plot threads, and more. Understanding these types helps you curate your project's memory effectively.
 
 ## Why This Matters
 
@@ -13,7 +13,9 @@ Not all knowledge is the same. A coding convention ("use early returns") is diff
 
 ---
 
-## The Five Types
+## Code Domain Types
+
+These are the default extraction categories for coding, devops, data, and general projects.
 
 ### 1. Patterns
 
@@ -148,6 +150,99 @@ This means an invariant with the same semantic similarity as a pattern will rank
 
 ---
 
+## Writing Domain Types
+
+When Chorum detects that your project is in the **writing** domain (via the [Domain Signal Engine](./conductor.mdx#domain-signal)), the extraction system switches to a completely different set of categories tailored for creative work.
+
+Instead of asking "what are the coding patterns?", it asks "who are the characters?" and "what plot threads are still open?"
+
+### 1. Characters
+
+**What they are:** Named characters with their role, key traits, and relationships.
+
+**Examples:**
+```
+✓ "Marcus is the protagonist, a retired detective haunted by his last case. Brother to Elena."
+✓ "Dr. Voss is the antagonist, a neuroscientist who believes consciousness can be bottled."
+✓ "Lily is Marcus's daughter, 12 years old, sees ghosts but doesn't tell anyone."
+```
+
+**Decay:** Never — characters are perpetual. Marcus is always Marcus.
+
+---
+
+### 2. Setting & Atmosphere
+
+**What they are:** Time periods, locations, atmosphere, and sensory details that define the story's world.
+
+**Examples:**
+```
+✓ "The story takes place in 1987 Portland, rain-soaked and noir-tinged."
+✓ "Marcus's apartment: third floor walkup, blinds always drawn, smells like coffee and regret."
+✓ "Chapter 4 shifts to rural Montana — wide open, quiet, unsettling."
+```
+
+**Decay:** 365-day half-life — settings rarely change once established.
+
+---
+
+### 3. Plot Threads
+
+**What they are:** Unresolved questions, setup/payoff pairs, foreshadowing, and story arcs.
+
+**Examples:**
+```
+✓ "The locked drawer in Chapter 2 hasn't been opened yet — Chekhov's gun."
+✓ "Elena mentioned a 'debt' in the prologue. Marcus doesn't know about it yet."
+✓ "The recurring dream sequence (Chapters 1, 4, 7) is escalating — needs resolution."
+```
+
+**Decay:** 90-day half-life — plot threads stay relevant across chapters until resolved.
+
+---
+
+### 4. Voice & Style
+
+**What they are:** POV type, tense, style markers, and prose quirks.
+
+**Examples:**
+```
+✓ "First-person present tense, clipped sentences, avoids adverbs."
+✓ "Dialogue has no attribution tags — speaker identity implied by cadence."
+✓ "Internal monologue uses em-dashes heavily, never parentheses."
+```
+
+**Decay:** 365-day half-life — voice decisions are architectural, lasting the whole project.
+
+---
+
+### 5. World Rules
+
+**What they are:** Established facts about the story's reality — magic systems, technologies, physical laws that differ from our world.
+
+**Examples:**
+```
+✓ "Ghosts can only be seen by people who have died and been resuscitated."
+✓ "Time moves backward in the Mirror District — aging reverses inside."
+✓ "Animals can sense the presence of ghosts; dogs growl, cats stare."
+```
+
+**Decay:** Never — world rules are the invariants of fiction. They define reality.
+
+---
+
+## Future Domains
+
+The domain-aware extraction system is designed to be extensible. Writing is the first non-code domain, but the architecture supports future additions:
+
+- **Research:** Hypotheses, methodology decisions, sources, findings
+- **Business:** Customer segments, pricing decisions, competitive observations
+- **Marketing:** Audience personas, messaging, campaign performance
+
+Until domain-specific extractors are built for these areas, projects in these domains use the general-purpose categories (patterns, decisions, invariants) with domain-adaptive prompting.
+
+---
+
 ## Automatic Extraction
 
 Chorum's pattern analyzer examines conversations and extracts learnings automatically. The extraction prompt looks for:
@@ -271,6 +366,8 @@ Human memory doesn't decay uniformly. A traumatic warning ("don't touch the hot 
 
 Chorum models this same behavior:
 
+**Code Domain:**
+
 | Learning Type | Decay Rate | Human Memory Parallel |
 |---------------|------------|----------------------|
 | **Invariant** | **No decay** (always 1.0) | **Threat/constraint memory** — "Never do X" warnings stay perpetually vivid |
@@ -278,6 +375,16 @@ Chorum models this same behavior:
 | **Pattern** | **90-day half-life** | **Procedural memory** — Skills stabilize quickly, stay relevant for months |
 | **Golden Path** | **30-day half-life** | **Working procedures** — Step-by-step recipes get stale as tools change |
 | **Antipattern** | **14-day half-life** | **Inhibitory learning** — "Don't do X" loses relevance as you internalize the lesson |
+
+**Writing Domain:**
+
+| Learning Type | Decay Rate | Rationale |
+|---------------|------------|-----------|
+| **Character** | **No decay** (always 1.0) | Characters are permanent — Marcus is always Marcus |
+| **World Rule** | **No decay** (always 1.0) | World rules are the invariants of fiction |
+| **Voice** | **365-day half-life** | Style decisions are architectural, lasting the whole project |
+| **Setting** | **365-day half-life** | Settings rarely change once established |
+| **Plot Thread** | **90-day half-life** | Plot threads stay relevant across chapters until resolved |
 
 ### Why This Matters
 
