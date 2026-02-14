@@ -13,7 +13,7 @@ const KnowledgeGraph = dynamic(
 interface LearningItem {
   id: string
   projectId: string
-  type: 'pattern' | 'antipattern' | 'decision' | 'invariant' | 'golden_path'
+  type: string // Dynamic based on domain
   content: string
   context?: string | null
   domains?: string[] | null
@@ -40,9 +40,11 @@ interface KnowledgeGatewayProps {
   projectId: string
   projectName?: string
   isPro?: boolean
+  primaryDomain?: string
 }
 
-const TYPE_LABELS: Record<LearningItem['type'], string> = {
+// Default code domain configuration
+const CODE_DOMAIN_LABELS: Record<string, string> = {
   invariant: 'Rule',
   pattern: 'Pattern',
   antipattern: 'Thing to avoid',
@@ -50,9 +52,24 @@ const TYPE_LABELS: Record<LearningItem['type'], string> = {
   golden_path: 'How-to'
 }
 
-const TYPE_ORDER: LearningItem['type'][] = ['invariant', 'pattern', 'antipattern', 'decision', 'golden_path']
+const CODE_DOMAIN_ORDER = ['invariant', 'pattern', 'antipattern', 'decision', 'golden_path']
 
-export function KnowledgeGateway({ projectId, projectName, isPro = false }: KnowledgeGatewayProps) {
+// Writing domain configuration
+const WRITING_DOMAIN_LABELS: Record<string, string> = {
+  character: 'Character',
+  setting: 'Setting',
+  plot_thread: 'Plot Thread',
+  voice: 'Voice',
+  world_rule: 'World Rule',
+  // Fallbacks for mixed content
+  invariant: 'Rule',
+  pattern: 'Pattern',
+  decision: 'Decision'
+}
+
+const WRITING_DOMAIN_ORDER = ['character', 'setting', 'plot_thread', 'voice', 'world_rule', 'invariant', 'pattern', 'decision']
+
+export function KnowledgeGateway({ projectId, projectName, isPro = false, primaryDomain = 'code' }: KnowledgeGatewayProps) {
   const [items, setItems] = useState<LearningItem[]>([])
   const [confidence, setConfidence] = useState<ConfidenceMetric | null>(null)
   const [criticalFiles, setCriticalFiles] = useState<FileMetadata[]>([])
@@ -66,10 +83,32 @@ export function KnowledgeGateway({ projectId, projectName, isPro = false }: Know
   const [editContext, setEditContext] = useState('')
 
   const [showAddForm, setShowAddForm] = useState(false)
-  const [addType, setAddType] = useState<LearningItem['type']>('invariant')
+
+  // Dynamic configuration based on domain
+  const { labels, order, defaultType } = useMemo(() => {
+    if (primaryDomain === 'writing') {
+      return {
+        labels: WRITING_DOMAIN_LABELS,
+        order: WRITING_DOMAIN_ORDER,
+        defaultType: 'character'
+      }
+    }
+    return {
+      labels: CODE_DOMAIN_LABELS,
+      order: CODE_DOMAIN_ORDER,
+      defaultType: 'invariant'
+    }
+  }, [primaryDomain])
+
+  const [addType, setAddType] = useState<string>('invariant')
   const [addContent, setAddContent] = useState('')
   const [addContext, setAddContext] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // Reset addType when domain changes
+  useEffect(() => {
+    setAddType(defaultType)
+  }, [defaultType])
 
   const [analyzingLinks, setAnalyzingLinks] = useState(false)
   const [linkAnalysisResult, setLinkAnalysisResult] = useState<{ success: boolean; message: string } | null>(null)
@@ -275,14 +314,12 @@ export function KnowledgeGateway({ projectId, projectName, isPro = false }: Know
           <div className="grid md:grid-cols-[160px_1fr] gap-4">
             <select
               value={addType}
-              onChange={e => setAddType(e.target.value as LearningItem['type'])}
+              onChange={e => setAddType(e.target.value)}
               className="bg-[var(--hg-bg)] border border-[var(--hg-border)] text-[var(--hg-text-primary)] px-3 py-2 text-sm"
             >
-              <option value="invariant">Rule</option>
-              <option value="pattern">Pattern</option>
-              <option value="antipattern">Thing to avoid</option>
-              <option value="decision">Decision</option>
-              <option value="golden_path">How-to</option>
+              {order.map(type => (
+                <option key={type} value={type}>{labels[type] || type}</option>
+              ))}
             </select>
             <textarea
               value={addContent}
@@ -307,31 +344,13 @@ export function KnowledgeGateway({ projectId, projectName, isPro = false }: Know
       )}
 
       <div className="space-y-1">
-        <div className="hg-stat-line">
-          <span className="hg-label">Rules</span>
-          <span className="hg-fill" />
-          <span className="hg-value">{itemsByType.invariant?.length || 0}</span>
-        </div>
-        <div className="hg-stat-line">
-          <span className="hg-label">Patterns</span>
-          <span className="hg-fill" />
-          <span className="hg-value">{itemsByType.pattern?.length || 0}</span>
-        </div>
-        <div className="hg-stat-line">
-          <span className="hg-label">Things to avoid</span>
-          <span className="hg-fill" />
-          <span className="hg-value">{itemsByType.antipattern?.length || 0}</span>
-        </div>
-        <div className="hg-stat-line">
-          <span className="hg-label">Decisions</span>
-          <span className="hg-fill" />
-          <span className="hg-value">{itemsByType.decision?.length || 0}</span>
-        </div>
-        <div className="hg-stat-line">
-          <span className="hg-label">How-tos</span>
-          <span className="hg-fill" />
-          <span className="hg-value">{itemsByType.golden_path?.length || 0}</span>
-        </div>
+        {order.map(type => (
+          <div key={type} className="hg-stat-line">
+            <span className="hg-label">{labels[type] || type}</span>
+            <span className="hg-fill" />
+            <span className="hg-value">{itemsByType[type]?.length || 0}</span>
+          </div>
+        ))}
       </div>
 
       {confidence && (
@@ -373,7 +392,7 @@ export function KnowledgeGateway({ projectId, projectName, isPro = false }: Know
                         </div>
                       </div>
                       <div className="mt-1 text-xs text-[var(--hg-text-tertiary)]">
-                        {TYPE_LABELS[item.type]}
+                        {labels[item.type] || item.type}
                         {item.domains?.length ? ` · ${item.domains.join(', ')}` : ''}
                         {isPinned ? ' · pinned' : ''}
                       </div>
@@ -471,12 +490,12 @@ export function KnowledgeGateway({ projectId, projectName, isPro = false }: Know
             </button>
           </div>
 
-          {TYPE_ORDER.map(type => {
+          {order.map(type => {
             const typeItems = itemsByType[type] || []
             return (
               <div key={type} className="border border-[var(--hg-border)]">
                 <div className="px-4 py-2 border-b border-[var(--hg-border)] text-sm text-[var(--hg-text-secondary)]">
-                  {TYPE_LABELS[type]} · {typeItems.length}
+                  {labels[type] || type} · {typeItems.length}
                 </div>
                 {typeItems.length === 0 ? (
                   <div className="px-4 py-4 text-xs text-[var(--hg-text-tertiary)]">No items yet.</div>

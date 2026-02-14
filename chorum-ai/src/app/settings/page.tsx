@@ -1035,8 +1035,8 @@ function SettingsContent() {
                                                 const newSettings = { ...userSettings, memorySettings: { ...userSettings.memorySettings, autoLearn: value } }
                                                 setUserSettings(newSettings)
                                             }}
-                                            label="Auto-Learn Patterns"
-                                            description="Extract patterns, decisions, and invariants from conversations for future context."
+                                            label="Auto-Learn"
+                                            description="Extract insights from conversations for future context."
                                         />
 
                                         {userSettings.memorySettings?.autoLearn && (
@@ -1273,6 +1273,7 @@ function SettingsContent() {
                                                     projectId={selectedProjectId}
                                                     projectName={projects.find(p => p.id === selectedProjectId)?.name}
                                                     isPro={false}
+                                                    primaryDomain={domainSignal?.primary}
                                                 />
                                             )}
                                         </div>
