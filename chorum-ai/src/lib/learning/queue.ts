@@ -62,6 +62,16 @@ export async function processQueue(userId?: string): Promise<{ processed: number
                 lt(learningQueue.attempts, MAX_ATTEMPTS)
             )
 
+        // Recovery: Reset stuck "processing" items older than 10 minutes
+        // This handles serverless timeouts where items get stuck in processing forever
+        const zombieCutoff = new Date(Date.now() - 10 * 60 * 1000)
+        await db.update(learningQueue)
+            .set({ status: 'pending' })
+            .where(and(
+                eq(learningQueue.status, 'processing'),
+                lt(learningQueue.createdAt, zombieCutoff)
+            ))
+
         const pendingItems = await db.select()
             .from(learningQueue)
             .where(whereClause)

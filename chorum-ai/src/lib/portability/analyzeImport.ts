@@ -127,12 +127,21 @@ export async function analyzeImportedConversations(
             continue
         }
 
-        // Concatenate all pairs from this conversation into one learning unit
-        // This preserves the full context of the conversation for the analyzer
-        const userContent = pairs.map(p => p.user).join('\n\n')
-        const assistantContent = pairs.map(p => p.assistant).join('\n\n')
+        // Chunk large conversations to avoid context limits
+        // A single 3k line conversation will blow up the context window if sent as one blob.
+        // We use a sliding window of 3 turns to maintain local context.
+        const WINDOW_SIZE = 3
 
-        allPairs.push({ userMessage: userContent, assistantResponse: assistantContent })
+        for (let i = 0; i < pairs.length; i += WINDOW_SIZE) {
+            const window = pairs.slice(i, i + WINDOW_SIZE)
+            const userContent = window.map(p => p.user).join('\n\n---\n\n')
+            const assistantContent = window.map(p => p.assistant).join('\n\n---\n\n')
+
+            allPairs.push({
+                userMessage: userContent,
+                assistantResponse: assistantContent
+            })
+        }
     }
 
     // Queue for async processing

@@ -3,7 +3,7 @@
  * Defines the structure for patterns, invariants, antipatterns, decisions, and golden paths.
  */
 
-export type LearningType = 'pattern' | 'antipattern' | 'decision' | 'invariant' | 'golden_path'
+export type LearningType = 'pattern' | 'antipattern' | 'decision' | 'invariant' | 'golden_path' | 'anchor'
 
 export type InvariantCheckType = 'keyword' | 'regex' | 'contains' | 'not_contains'
 

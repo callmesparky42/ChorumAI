@@ -23,8 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Domain-Adaptive Extraction**: Learning extraction prompt now adapts to inferred or user-focused domains, avoiding code-centric bias (`src/lib/learning/analyzer.ts`).
 - **Classifier Domain Detection**: Query classifier now leverages domain keywords to expand domain detection beyond code (`src/lib/chorum/classifier.ts`).
 - **Domain-Aware Injection**: Memory injection scoring now uses inferred project domains when explicit focus domains are unset (`src/lib/learning/injector.ts`).
+- **Settings UI (Hygge Pass)**: Restyled MCP Integration, MCP Servers, Web Search, and Conductor settings plus pending learnings to the hygge brutalist system (`src/components/settings/McpSettings.tsx`, `src/components/settings/McpServersSettings.tsx`, `src/components/settings/SearchSettings.tsx`, `src/components/settings/ConductorSettings.tsx`, `src/components/PendingLearnings.tsx`, `src/app/settings/page.tsx`).
 
-## [1.5.0] - 2026-02-08
+## [Unreleased]
+
+### Fixed
+- **Conductor Import Triage (Phase 0)**: Fixed critical failure mode where large conversation imports were concatenated into single massive strings.
+  - Implemented windowed chunking (3-turn max) in `src/lib/portability/analyzeImport.ts` to bound context size.
+  - Added zombie recovery to `src/lib/learning/queue.ts`: items stuck in `processing` >10 mins are automatically reset to `pending`.
+  - Cleared 6 stuck "zombie" items from the learning queue.
+
+### Added
+- **Meaning Anchors (Phase 1)**: Added `anchor` learning type for capturing project identity, proper nouns, and terminology.
+  - Implemented anchor extraction in `src/lib/learning/analyzer.ts` with dedicated prompt section.
+  - Added infinite-decay configuration for anchors in `src/lib/chorum/relevance.ts` (identity facts never expire).
+  - Anchors are now injected at the top of the context under "## Project Identity & Anchors".
+- **Domain Signal Engine (Phase 1)**: Introduced keyword-based domain inference with project-level aggregation, caching, and storage (`src/lib/chorum/domainSignal.ts`).
 
 ### Added
 - **Conductor's Podium**: User-facing control layer for the memory relevance engine.

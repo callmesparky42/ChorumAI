@@ -26,6 +26,7 @@ export interface AnalysisResult {
     invariants: ExtractedLearning[]
     antipatterns: ExtractedLearning[]
     goldenPaths: ExtractedLearning[]
+    anchors: ExtractedLearning[]
 }
 
 type DomainSignalLike = DomainSignal | StoredDomainSignal | null | undefined
@@ -84,6 +85,9 @@ Categories to extract (domain-adaptive):
 - INVARIANTS: Rules that must NEVER be violated
 - ANTIPATTERNS: Things to avoid
 - GOLDEN_PATHS: Step-by-step procedures that worked well
+- ANCHORS: Proper nouns, specific terminology, or identity facts about this project
+  (e.g., "This project is called ChorumAI, not Chorus or Choral",
+   "The design system is called Hygge", "The user's name is Daniel")
 
 Return a JSON object with this structure:
 {
@@ -91,7 +95,8 @@ Return a JSON object with this structure:
   "decisions": [{ "content": "...", "context": "..." }],
   "invariants": [{ "content": "...", "context": "..." }],
   "antipatterns": [{ "content": "...", "context": "..." }],
-  "golden_paths": [{ "content": "...", "context": "..." }]
+  "golden_paths": [{ "content": "...", "context": "..." }],
+  "anchors": [{ "content": "...", "context": "..." }]
 }
 
 If nothing worth extracting, return empty arrays for all categories.
@@ -114,7 +119,8 @@ export async function analyzeConversation(
         decisions: [],
         invariants: [],
         antipatterns: [],
-        goldenPaths: []
+        goldenPaths: [],
+        anchors: []
     }
 
     if (!providerConfig) {
@@ -177,6 +183,11 @@ Analyze this conversation and extract any learnings.`
                 type: 'golden_path' as const,
                 content: g.content,
                 context: g.context
+            })),
+            anchors: (parsed.anchors || []).map((a: any) => ({
+                type: 'anchor' as const,
+                content: a.content,
+                context: a.context
             }))
         }
     } catch (e) {

@@ -44,6 +44,11 @@ export const DECAY_CURVES: Record<LearningType, DecayConfig> = {
         floor: 1.0,
         rationale: 'Constraints never expire — "never use console.log" is perpetual'
     },
+    anchor: {
+        halfLifeDays: null,
+        floor: 1.0,
+        rationale: 'Identity anchors are perpetual — project names never change'
+    },
     decision: {
         halfLifeDays: 365,
         floor: 0.3,
@@ -504,6 +509,11 @@ export class RelevanceEngine {
         }
 
         const sections: string[] = ['<chorum_context>']
+
+        if (groups['anchor']) {
+            sections.push('## Project Identity & Anchors')
+            groups['anchor'].forEach(i => sections.push(`- ${i.content}`))
+        }
 
         if (groups['invariant']) {
             sections.push('## Active Invariants')
