@@ -132,7 +132,7 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
     const handleExpand = (e: React.MouseEvent) => {
         e.stopPropagation()
         if (!expanded) {
-            fetchConversations()
+            handleFetchConversations()
         }
         setExpanded(!expanded)
     }
