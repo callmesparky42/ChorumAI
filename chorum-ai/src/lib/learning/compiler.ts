@@ -11,7 +11,7 @@ import type { LearningItem } from './types'
 // ============================================================================
 
 /** Usage count threshold to trigger promotion */
-const PROMOTION_THRESHOLD = 10
+const PROMOTION_THRESHOLD = 3
 
 /**
  * Promote high-usage items that haven't been promoted yet.
