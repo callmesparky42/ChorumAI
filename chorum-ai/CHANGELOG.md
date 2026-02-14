@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added infinite-decay configuration for anchors in `src/lib/chorum/relevance.ts` (identity facts never expire).
   - Anchors are now injected at the top of the context under "## Project Identity & Anchors".
 - **Domain Signal Engine (Phase 1)**: Introduced keyword-based domain inference with project-level aggregation, caching, and storage (`src/lib/chorum/domainSignal.ts`).
+- **Compaction Pipeline (Phase 2)**: Added semantic clustering engine to merge redundant learning items.
+  - Implemented greedy clustering (0.85 cosine similarity thresh) in `src/lib/learning/compactor.ts`.
+  - Added prototype selection (highest usage + recency) and merge-on-write logic.
+  - New admin endpoint `POST /api/conductor/compact` to trigger compaction jobs.
+- **Link Backfill Engine (Phase 3)**: Implemented graph bootstrapping from co-occurrence data.
+  - Converting 10k+ co-occurrence observations into semantic `supports` links (`src/lib/learning/linker.ts`).
+  - Adjusted promotion threshold from 10 to 3 uses to activate the compiled cache pipeline earlier.
+  - New admin endpoint `POST /api/conductor/link/backfill` to trigger link generation.
 
 ### Added
 - **Conductor's Podium**: User-facing control layer for the memory relevance engine.
