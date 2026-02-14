@@ -4,7 +4,12 @@ import { db } from '@/lib/db'
 import { providerCredentials, usageLog } from '@/lib/db/schema'
 import { eq, and, desc, gte } from 'drizzle-orm'
 import { encrypt } from '@/lib/crypto'
-import { getDefaultBaseUrl } from '@/lib/providers'
+import {
+    getDefaultBaseUrl,
+    MODEL_REGISTRY,
+    getModelsForProvider,
+    isProviderSupported
+} from '@/lib/providers/registry'
 import { writeProviderKeyToEnv } from '@/lib/env'
 
 export async function GET(req: NextRequest) {
@@ -69,42 +74,6 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// Default capabilities and costs per provider
-const PROVIDER_DEFAULTS: Record<string, { capabilities: string[], costPer1M: { input: number, output: number } }> = {
-    anthropic: {
-        capabilities: ['deep_reasoning', 'code_generation', 'general'],
-        costPer1M: { input: 3, output: 15 }
-    },
-    openai: {
-        capabilities: ['code_generation', 'structured_output', 'general'],
-        costPer1M: { input: 10, output: 30 }
-    },
-    google: {
-        capabilities: ['cost_efficient', 'long_context', 'general'],
-        costPer1M: { input: 1.25, output: 5 }
-    },
-    mistral: {
-        capabilities: ['cost_efficient', 'code_generation', 'general'],
-        costPer1M: { input: 2, output: 6 }
-    },
-    deepseek: {
-        capabilities: ['code_generation', 'cost_efficient', 'general'],
-        costPer1M: { input: 0.14, output: 0.28 }
-    },
-    ollama: {
-        capabilities: ['general', 'code_generation'],
-        costPer1M: { input: 0, output: 0 } // Free locally
-    },
-    lmstudio: {
-        capabilities: ['general', 'code_generation'],
-        costPer1M: { input: 0, output: 0 }
-    },
-    'openai-compatible': {
-        capabilities: ['general'],
-        costPer1M: { input: 0, output: 0 }
-    }
-}
-
 export async function POST(req: NextRequest) {
     try {
         const session = await auth()
@@ -130,15 +99,23 @@ export async function POST(req: NextRequest) {
         }
 
         // Local providers don't require API key
-        const isLocalProvider = isLocal || ['ollama', 'lmstudio'].includes(provider)
+        const isLocalProvider = isLocal || (MODEL_REGISTRY[provider]?.category === 'local')
         if (!isLocalProvider && !apiKey) {
             return NextResponse.json({ error: 'API key required for cloud providers' }, { status: 400 })
         }
 
-        // Get defaults or use custom values
-        const defaults = PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS['openai-compatible']
-        const capabilities = customCapabilities || defaults.capabilities
-        const costPer1M = customCost || defaults.costPer1M
+        // Get defaults from registry
+        const registryEntry = MODEL_REGISTRY[provider]
+        const registryModel = registryEntry?.models.find(m => m.id === model)
+
+        // Fallback defaults if not found in registry (e.g. custom provider)
+        const defaultCapabilities = registryModel?.capabilities || ['general']
+        const defaultCost = registryModel?.cost
+            ? { input: registryModel.cost.input, output: registryModel.cost.output }
+            : { input: 0, output: 0 }
+
+        const capabilities = customCapabilities || defaultCapabilities
+        const costPer1M = customCost || defaultCost
 
         // Use placeholder for local providers without keys
         const encryptedKey = apiKey ? encrypt(apiKey) : encrypt('not-required')
@@ -165,7 +142,6 @@ export async function POST(req: NextRequest) {
             const envResult = await writeProviderKeyToEnv(provider, apiKey)
             if (!envResult.success) {
                 console.warn(`[Providers] Failed to write to .env.local: ${envResult.error}`)
-                // Don't fail the request - DB storage is primary
             }
         }
 
@@ -211,8 +187,6 @@ export async function PATCH(req: NextRequest) {
         if (displayName !== undefined) updateData.displayName = displayName
         if (capabilities !== undefined) updateData.capabilities = capabilities
         if (costPer1M !== undefined) updateData.costPer1M = costPer1M
-
-        // Note: API key is NOT updatable - must delete and recreate for security
 
         const [updated] = await db.update(providerCredentials)
             .set(updateData)

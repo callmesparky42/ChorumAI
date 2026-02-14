@@ -6,7 +6,7 @@
  */
 
 import { db } from '@/lib/db'
-import { projectLearningPaths } from '@/lib/db/schema'
+import { projectLearningPaths, pendingLearnings } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { callProvider, type FullProviderConfig } from '@/lib/providers'
 import { embeddings } from '@/lib/chorum/embeddings'
@@ -281,12 +281,51 @@ export async function storeLearnings(
     projectId: string,
     learnings: ExtractedLearning[],
     sourceMessageId?: string,
-    userId?: string
+    userId?: string,
+    source: string = 'web-ui',
+    needsReview: boolean = false
 ): Promise<{ stored: number; duplicates: number; merged: number }> {
     let stored = 0
     let duplicates = 0
     let merged = 0
 
+    // If review is needed, route to pending_learnings table
+    if (needsReview && userId) {
+        for (const learning of learnings) {
+            // Check for exact duplicate in pending
+            const existingPending = await db.select()
+                .from(pendingLearnings)
+                .where(
+                    and(
+                        eq(pendingLearnings.projectId, projectId),
+                        eq(pendingLearnings.type, learning.type),
+                        eq(pendingLearnings.status, 'pending')
+                    )
+                )
+                .then(rows => rows.find(r => hashContent(r.content) === hashContent(learning.content)))
+
+            if (existingPending) {
+                duplicates++
+                continue
+            }
+
+            // Insert into pending
+            await db.insert(pendingLearnings).values({
+                projectId,
+                userId,
+                type: learning.type,
+                content: learning.content,
+                context: learning.context,
+                source,
+                status: 'pending',
+                sourceMetadata: sourceMessageId ? { sourceMessageId } : undefined
+            })
+            stored++
+        }
+        return { stored, duplicates, merged }
+    }
+
+    // Original logic for active learnings
     for (const learning of learnings) {
         const contentHash = hashContent(learning.content)
 
@@ -353,7 +392,8 @@ export async function storeLearnings(
             content: learning.content,
             context: learning.context,
             metadata: sourceMessageId ? { source_message_id: sourceMessageId } : undefined,
-            embedding
+            embedding,
+            source // Track source
         })
 
         stored++
@@ -380,7 +420,8 @@ export async function extractAndStoreLearnings(
     sourceMessageId?: string,
     userId?: string,
     domainSignal?: DomainSignalLike,
-    focusDomains?: string[]
+    focusDomains?: string[],
+    source: string = 'web-ui'
 ): Promise<{ stored: number; duplicates: number; merged: number }> {
     const result = await analyzeConversation(
         userMessage,
@@ -404,5 +445,9 @@ export async function extractAndStoreLearnings(
         return { stored: 0, duplicates: 0, merged: 0 }
     }
 
-    return await storeLearnings(projectId, allLearnings, sourceMessageId, userId)
+    // Determine if review is needed
+    // Imports (starting with "Import:") require review
+    const needsReview = source.startsWith('Import:')
+
+    return await storeLearnings(projectId, allLearnings, sourceMessageId, userId, source, needsReview)
 }

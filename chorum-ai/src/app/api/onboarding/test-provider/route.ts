@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import type { TestProviderRequest, ProviderTestResult } from '@/lib/onboarding/types'
+import { getTestModel } from '@/lib/providers/registry'
 
 /**
  * POST /api/onboarding/test-provider
@@ -36,25 +37,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'API key is required for cloud providers' }, { status: 400 })
     }
 
+    // ... existing code ...
+
+    // ... existing code ...
+
     // Test cloud provider
     const startTime = performance.now()
     let result: ProviderTestResult
 
+    // Use the requested model or fall back to the registry's test model for this provider
+    const modelToTest = model || getTestModel(provider)
+
     switch (provider) {
       case 'anthropic':
-        result = await testAnthropic(apiKey, model)
+        result = await testAnthropic(apiKey, modelToTest)
         break
       case 'openai':
-        result = await testOpenAI(apiKey, model)
+        result = await testOpenAI(apiKey, modelToTest)
         break
       case 'google':
-        result = await testGoogle(apiKey, model)
+        result = await testGoogle(apiKey, modelToTest)
         break
       case 'perplexity':
-        result = await testPerplexity(apiKey, model)
+        result = await testPerplexity(apiKey, modelToTest)
         break
       case 'deepseek':
-        result = await testDeepSeek(apiKey, model)
+        result = await testDeepSeek(apiKey, modelToTest)
         break
       default:
         return NextResponse.json({ error: `Unknown provider: ${provider}` }, { status: 400 })
@@ -101,7 +109,7 @@ async function testAnthropic(apiKey: string, model?: string): Promise<ProviderTe
       return {
         success: false,
         provider: 'anthropic',
-        model: model || 'claude-sonnet-4-20250514',
+        model: model!,
         error: errorMsg,
         details: response.status === 401 ? 'Invalid API key' : `API error: ${response.status}`,
       }
@@ -110,7 +118,7 @@ async function testAnthropic(apiKey: string, model?: string): Promise<ProviderTe
     return {
       success: true,
       provider: 'anthropic',
-      model: model || 'claude-sonnet-4-20250514',
+      model: model!,
       details: 'API key validated successfully',
     }
   } catch (error) {
@@ -144,7 +152,7 @@ async function testOpenAI(apiKey: string, model?: string): Promise<ProviderTestR
       return {
         success: false,
         provider: 'openai',
-        model: model || 'gpt-4o-mini',
+        model: model!,
         error: errorMsg,
         details: response.status === 401 ? 'Invalid API key' : `API error: ${response.status}`,
       }
@@ -153,7 +161,7 @@ async function testOpenAI(apiKey: string, model?: string): Promise<ProviderTestR
     return {
       success: true,
       provider: 'openai',
-      model: model || 'gpt-4o-mini',
+      model: model!,
       details: 'API key validated successfully',
     }
   } catch (error) {
@@ -232,7 +240,7 @@ async function testPerplexity(apiKey: string, model?: string): Promise<ProviderT
       return {
         success: false,
         provider: 'perplexity',
-        model: model || 'llama-3.1-sonar-small-128k-online',
+        model: model!,
         error: errorMsg,
         details: response.status === 401 ? 'Invalid API key' : `API error: ${response.status}`,
       }
@@ -241,7 +249,7 @@ async function testPerplexity(apiKey: string, model?: string): Promise<ProviderT
     return {
       success: true,
       provider: 'perplexity',
-      model: model || 'llama-3.1-sonar-small-128k-online',
+      model: model!,
       details: 'API key validated successfully',
     }
   } catch (error) {
@@ -275,7 +283,7 @@ async function testDeepSeek(apiKey: string, model?: string): Promise<ProviderTes
       return {
         success: false,
         provider: 'deepseek',
-        model: model || 'deepseek-chat',
+        model: model!,
         error: errorMsg,
         details: response.status === 401 ? 'Invalid API key' : `API error: ${response.status}`,
       }
@@ -284,7 +292,7 @@ async function testDeepSeek(apiKey: string, model?: string): Promise<ProviderTes
     return {
       success: true,
       provider: 'deepseek',
-      model: model || 'deepseek-chat',
+      model: model!,
       details: 'API key validated successfully',
     }
   } catch (error) {

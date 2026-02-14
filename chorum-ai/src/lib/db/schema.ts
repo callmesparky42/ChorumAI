@@ -194,6 +194,7 @@ export const messages = pgTable('messages', {
     mimeType: string;
   }[]>(), // New structured attachments
   provider: text('provider'), // Which LLM answered (null for user messages)
+  model: text('model'), // Specific model ID (e.g. 'claude-3-5-sonnet-20240620')
   costUsd: decimal('cost_usd', { precision: 10, scale: 6 }),
   tokensInput: integer('tokens_input'),
   tokensOutput: integer('tokens_output'),
@@ -324,9 +325,13 @@ export const learningQueue = pgTable('learning_queue', {
   status: text('status').notNull().default('pending'), // 'pending' | 'processing' | 'completed' | 'failed'
   attempts: integer('attempts').default(0),
   error: text('error'),
+  batchId: text('batch_id'),
+  batchLabel: text('batch_label'),
   createdAt: timestamp('created_at').defaultNow(),
   processedAt: timestamp('processed_at')
-})
+}, (t) => ({
+  batchIdx: index('learning_queue_batch_idx').on(t.batchId)
+}))
 // --- Custom Agents ---
 
 export const customAgents = pgTable('custom_agents', {
@@ -398,6 +403,7 @@ export const pendingLearnings = pgTable('pending_learnings', {
     agentVersion?: string
     sessionId?: string
     conversationId?: string
+    sourceMessageId?: string
   }>(),
   status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'denied'
   reviewedAt: timestamp('reviewed_at'),

@@ -7,6 +7,7 @@ import { decrypt } from '@/lib/crypto'
 import { getMessageCount, getMessagesForSummarization, archiveMessages, saveMemorySummary } from '@/lib/chorum/memory'
 import { buildSummarizationPrompt } from '@/lib/chorum/summarize'
 import { callProvider } from '@/lib/providers'
+import { getCheapModel, BACKGROUND_PROVIDER_PREFERENCE } from '@/lib/providers/registry'
 
 export async function POST(req: NextRequest) {
     try {
@@ -61,46 +62,51 @@ export async function POST(req: NextRequest) {
             )
         })
 
-        let providerConfigs: any[] = []
-        if (creds.length === 0) {
-            // Use env API keys as fallback
-            if (process.env.ANTHROPIC_API_KEY) {
-                providerConfigs.push({
-                    provider: 'anthropic',
-                    model: 'claude-3-haiku-20240307',
-                    apiKey: process.env.ANTHROPIC_API_KEY,
-                    costPer1M: { input: 0.25, output: 1.25 }
-                })
+        let selectedProvider: { provider: string, apiKey: string, model: string, baseUrl?: string, isLocal?: boolean } | undefined
+
+        // Helper
+        const findProvider = (providerName: string) => {
+            const cred = creds.find(c => c.provider === providerName)
+            if (!cred) return undefined
+            return {
+                provider: cred.provider,
+                apiKey: decrypt(cred.apiKeyEncrypted),
+                model: getCheapModel(cred.provider),
+                baseUrl: cred.baseUrl || undefined,
+                isLocal: cred.isLocal || false
             }
-            if (process.env.OPENAI_API_KEY) {
-                providerConfigs.push({
-                    provider: 'openai',
-                    model: 'gpt-4o-mini',
-                    apiKey: process.env.OPENAI_API_KEY,
-                    costPer1M: { input: 0.15, output: 0.6 }
-                })
-            }
-        } else {
-            providerConfigs = creds.map(c => ({
-                provider: c.provider,
-                model: c.model,
-                apiKey: decrypt(c.apiKeyEncrypted),
-                costPer1M: c.costPer1M || { input: 0, output: 0 },
-                baseUrl: c.baseUrl || undefined,
-                isLocal: c.isLocal || false
-            }))
         }
 
-        if (providerConfigs.length === 0) {
+        // 1. Try credentials in preference order
+        for (const provider of BACKGROUND_PROVIDER_PREFERENCE) {
+            const result = findProvider(provider)
+            if (result) {
+                selectedProvider = result
+                break
+            }
+        }
+
+        // 2. Fallback to Env vars
+        if (!selectedProvider) {
+            for (const provider of BACKGROUND_PROVIDER_PREFERENCE) {
+                const envKey = `${provider.toUpperCase()}_API_KEY`
+                const apiKey = process.env[envKey] || (provider === 'google' ? process.env.GOOGLE_AI_API_KEY : undefined)
+                if (apiKey) {
+                    selectedProvider = {
+                        provider,
+                        apiKey,
+                        model: getCheapModel(provider)
+                    }
+                    break
+                }
+            }
+        }
+
+        if (!selectedProvider) {
             return NextResponse.json({
                 error: 'No providers configured. Add API keys in Settings.'
             }, { status: 400 })
         }
-
-        // Use cheapest provider for summarization
-        const cheapestProvider = providerConfigs.sort((a, b) =>
-            (a.costPer1M.input + a.costPer1M.output) - (b.costPer1M.input + b.costPer1M.output)
-        )[0]
 
         // Format messages for summarization
         const formatted = oldMessages.map(m => `${m.role}: ${m.content}`).join('\n\n')
@@ -109,13 +115,11 @@ export async function POST(req: NextRequest) {
         // Generate summary
         const result = await callProvider(
             {
-                provider: cheapestProvider.provider,
-                apiKey: cheapestProvider.apiKey,
-                model: cheapestProvider.provider === 'openai' ? 'gpt-4o-mini' :
-                    cheapestProvider.provider === 'anthropic' ? 'claude-3-haiku-20240307' :
-                        cheapestProvider.model,
-                baseUrl: cheapestProvider.baseUrl,
-                isLocal: cheapestProvider.isLocal
+                provider: selectedProvider.provider,
+                apiKey: selectedProvider.apiKey,
+                model: selectedProvider.model,
+                baseUrl: selectedProvider.baseUrl,
+                isLocal: selectedProvider.isLocal
             },
             [{ role: 'user', content: prompt }],
             'You are a helpful assistant that summarizes conversations concisely.'
@@ -143,7 +147,7 @@ export async function POST(req: NextRequest) {
             message: `Summarized ${oldMessages.length} messages`,
             summarizedCount: oldMessages.length,
             remainingCount: count - oldMessages.length,
-            provider: cheapestProvider.provider
+            provider: selectedProvider.provider
         })
 
     } catch (error: any) {

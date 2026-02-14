@@ -7,6 +7,7 @@ import { learningContextCache, providerCredentials, usageLog, projectLearningPat
 import { eq, and, desc, gte, sql } from 'drizzle-orm'
 import { compileTier1, compileTier2, promoteHighUsageItems, type CompilerProviderConfig } from './compiler'
 import { decrypt } from '@/lib/crypto'
+import { getCheapModel, BACKGROUND_PROVIDER_PREFERENCE } from '@/lib/providers/registry'
 import type { LearningItem, LearningItemMetadata } from './types'
 
 export async function getCachedContext(
@@ -131,6 +132,17 @@ export async function recompileCache(
  * Preference order: Gemini (cheapest) → Anthropic → OpenAI → DeepSeek
  * Each provider uses a hardcoded "cheap" model suitable for background tasks.
  */
+// ... existing code ...
+
+// ... existing imports ...
+
+// ... existing code ...
+
+/**
+ * Get optimal provider for background tasks (compilation, summarization)
+ * Uses explicit cascade rather than cost-based sorting for predictability.
+ * Preference order is defined in registry.
+ */
 async function getCheapestProvider(userId: string): Promise<CompilerProviderConfig | undefined> {
     const creds = await db.query.providerCredentials.findMany({
         where: and(
@@ -143,44 +155,36 @@ async function getCheapestProvider(userId: string): Promise<CompilerProviderConf
     const cloudCreds = creds.filter(c => !c.isLocal)
 
     // Helper to find a provider and return with preferred cheap model
-    const findProvider = (providerName: string, cheapModel: string): CompilerProviderConfig | undefined => {
+    const findProvider = (providerName: string): CompilerProviderConfig | undefined => {
         const cred = cloudCreds.find(c => c.provider === providerName)
         if (!cred) return undefined
         return {
             provider: cred.provider,
-            model: cheapModel,
+            model: getCheapModel(cred.provider),
             apiKey: decrypt(cred.apiKeyEncrypted),
             baseUrl: cred.baseUrl || undefined,
             isLocal: false
         }
     }
 
-    // Cascade: Check providers in order of cost-effectiveness for background tasks
-    // 1. Google Gemini - Flash is extremely cheap ($0.075/1M input)
-    const google = findProvider('google', 'gemini-2.0-flash')
-    if (google) return google
-
-    // 2. Anthropic - Haiku is the cheap workhorse ($0.25/1M input)
-    const anthropic = findProvider('anthropic', 'claude-3-haiku-20240307')
-    if (anthropic) return anthropic
-
-    // 3. OpenAI - 4o-mini is the new cheap option ($0.15/1M input)
-    const openai = findProvider('openai', 'gpt-4o-mini')
-    if (openai) return openai
-
-    // 4. DeepSeek - Very cheap but may have latency ($0.14/1M input)
-    const deepseek = findProvider('deepseek', 'deepseek-chat')
-    if (deepseek) return deepseek
-
-    // 5. Fallback to env vars if no user credentials
-    if (process.env.GOOGLE_API_KEY) return {
-        provider: 'google', model: 'gemini-2.0-flash', apiKey: process.env.GOOGLE_API_KEY
+    // Check providers in preference order
+    for (const provider of BACKGROUND_PROVIDER_PREFERENCE) {
+        const config = findProvider(provider)
+        if (config) return config
     }
-    if (process.env.ANTHROPIC_API_KEY) return {
-        provider: 'anthropic', model: 'claude-3-haiku-20240307', apiKey: process.env.ANTHROPIC_API_KEY
-    }
-    if (process.env.OPENAI_API_KEY) return {
-        provider: 'openai', model: 'gpt-4o-mini', apiKey: process.env.OPENAI_API_KEY
+
+    // Fallback to env vars if no user credentials
+    // We iterate the same preference list to check env vars
+    for (const provider of BACKGROUND_PROVIDER_PREFERENCE) {
+        const envKey = `${provider.toUpperCase()}_API_KEY`
+        const apiKey = process.env[envKey]
+        if (apiKey) {
+            return {
+                provider,
+                model: getCheapModel(provider),
+                apiKey
+            }
+        }
     }
 
     return undefined

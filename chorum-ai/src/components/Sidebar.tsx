@@ -6,6 +6,8 @@ import clsx from 'clsx'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useChorumStore } from '@/lib/store'
+import { prepareImportPayload, ImportPayload } from '@/lib/portability/intake'
+import { HyggeButton } from './hygge/HyggeButton'
 
 interface ProjectDocument {
     id: string
@@ -50,9 +52,9 @@ interface ProjectItemProps {
 
 function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversation, onNewConversation, onDelete, onDeleteConversation, onHover, refreshTrigger, onOpenSettings, deletingId, activeConversationId }: ProjectItemProps) {
     const [expanded, setExpanded] = useState(false)
-    const [conversations, setConversations] = useState<Conversation[]>([])
-    const [loadingConvos, setLoadingConvos] = useState(false)
-    const [conversationCount, setConversationCount] = useState<number | null>(null)
+    const { conversations: allConversations, isConversationsLoading, fetchConversations, deleteConversation } = useChorumStore()
+    const conversations = allConversations[project.id] || []
+    const loadingConvos = isConversationsLoading[project.id] || false
 
     // Project documents state
     const [documents, setDocuments] = useState<ProjectDocument[]>([])
@@ -61,21 +63,8 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
     const [deletingDocId, setDeletingDocId] = useState<string | null>(null)
 
     // Fetch conversations when component mounts, project becomes active, or refresh is triggered
-    const fetchConversations = async (force = false) => {
-        if (!force && conversations.length > 0 && !isActive) return
-        setLoadingConvos(true)
-        try {
-            const res = await fetch(`/api/conversations?projectId=${project.id}`)
-            if (res.ok) {
-                const data = await res.json()
-                setConversations(data)
-                setConversationCount(data.length)
-            }
-        } catch (e) {
-            console.error('Failed to load conversations', e)
-        } finally {
-            setLoadingConvos(false)
-        }
+    const handleFetchConversations = async (force = false) => {
+        await fetchConversations(project.id, force)
     }
 
     // Fetch project documents
@@ -114,13 +103,13 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
 
     // Initial fetch
     useEffect(() => {
-        fetchConversations()
+        handleFetchConversations()
     }, [project.id])
 
     // Refresh when trigger changes (new conversation created)
     useEffect(() => {
         if (refreshTrigger > 0 && isActive) {
-            fetchConversations(true)
+            handleFetchConversations(true)
             fetchDocuments()
         }
     }, [refreshTrigger, isActive])
@@ -129,15 +118,13 @@ function ProjectItem({ project, isActive, isHovered, onSelect, onSelectConversat
     useEffect(() => {
         if (isActive && !expanded) {
             setExpanded(true)
-            fetchConversations(true)
+            handleFetchConversations(true)
         }
     }, [isActive])
 
     // Auto-select first conversation if project is active but no conversation is selected
     useEffect(() => {
         if (isActive && conversations.length > 0 && !activeConversationId && !loadingConvos) {
-            // Basic "Last Accessed" approximation: usually the API returns most recent first.
-            // If not, we should sort, but for now assuming API order is correct (updatedAt desc usually).
             onSelectConversation(conversations[0].id)
         }
     }, [isActive, conversations, activeConversationId, loadingConvos])
@@ -360,8 +347,16 @@ interface Props {
 }
 
 export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation }: Props) {
-    const [projects, setProjects] = useState<Project[]>([])
-    const [loading, setLoading] = useState(true)
+    const {
+        projects,
+        isProjectsLoading: loading,
+        fetchProjects,
+        deleteProject,
+        deleteConversation,
+        startNewConversation,
+        conversationRefreshTrigger
+    } = useChorumStore()
+
     const [showNewProjectModal, setShowNewProjectModal] = useState(false)
     const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null)
     const [settingsProject, setSettingsProject] = useState<Project | null>(null)
@@ -372,10 +367,6 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
     const searchParams = useSearchParams()
     const activeConversationId = searchParams.get('conversationId')
 
-    // Get refresh trigger from store
-    const { conversationRefreshTrigger, startNewConversation } = useChorumStore()
-
-    // New Project Form State
     const [newName, setNewName] = useState('')
     const [newDesc, setNewDesc] = useState('')
     const [newInstructions, setNewInstructions] = useState('')
@@ -385,25 +376,64 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
     const [importPassword, setImportPassword] = useState('')
     const [pendingImportData, setPendingImportData] = useState<any>(null)
 
+    // New Universal Import State
+    const [showUniversalImportModal, setShowUniversalImportModal] = useState(false)
+    const [universalImportPayload, setUniversalImportPayload] = useState<ImportPayload | null>(null)
+
     useEffect(() => {
-        fetchProjects()
+        handleInitialFetch()
     }, [])
 
-    const fetchProjects = async () => {
+    const handleInitialFetch = async () => {
+        await fetchProjects()
+        // Select first project if none active and projects exist
+        if (!activeProjectId && projects.length > 0) {
+            onSelectProject(projects[0].id)
+        }
+    }
+
+    // Auto-select first project if projects load and none active
+    useEffect(() => {
+        if (!activeProjectId && projects.length > 0 && !loading) {
+            onSelectProject(projects[0].id)
+        }
+    }, [projects, activeProjectId, loading])
+
+    const performUniversalImport = async (payload: ImportPayload, storeConversations: boolean) => {
+        if (!activeProjectId) return
+
+        setIsImporting(true)
         try {
-            const res = await fetch('/api/projects')
-            if (res.ok) {
-                const data = await res.json()
-                setProjects(data)
-                // Select first project if none active and projects exist
-                if (!activeProjectId && data.length > 0) {
-                    onSelectProject(data[0].id)
+            const res = await fetch('/api/import/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projectId: activeProjectId,
+                    data: payload.type === 'json' ? payload.data : undefined,
+                    rawText: payload.type === 'text' ? payload.text : undefined,
+                    fileHint: payload.hint,
+                    storeConversations
+                })
+            })
+
+            const result = await res.json()
+            if (res.ok && result.success) {
+                alert(`Import successful!\n\nformat: ${result.format}\nqueued: ${result.queued}\n\n${result.message}`)
+                // Refresh conversations if we are on the active project
+                if (activeProjectId === result.projectId) {
+                    useChorumStore.getState().triggerConversationRefresh()
                 }
+            } else {
+                console.error('Import failed', result)
+                alert(`Import failed: ${result.error || 'Unknown error'}\n\n${result.parseWarnings?.join('\n')}`)
             }
-        } catch (error) {
-            console.error('Failed to load projects', error)
+        } catch (error: any) {
+            console.error('Import request failed', error)
+            alert(`Import failed: ${error.message}`)
         } finally {
-            setLoading(false)
+            setIsImporting(false)
+            setShowUniversalImportModal(false)
+            setUniversalImportPayload(null)
         }
     }
 
@@ -425,7 +455,8 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
 
             if (res.ok) {
                 const project = await res.json()
-                setProjects([project, ...projects])
+                // Update store by re-fetching
+                await fetchProjects(true)
                 onSelectProject(project.id)
                 setShowNewProjectModal(false)
                 setNewName('')
@@ -442,22 +473,15 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
         if (!confirm('Delete this project? This cannot be undone.')) return
 
         try {
-            const res = await fetch(`/api/projects?id=${projectId}`, { method: 'DELETE' })
-            if (res.ok) {
-                const newProjects = projects.filter(p => p.id !== projectId)
-                setProjects(newProjects)
-                // If deleted project was active, select another
-                if (activeProjectId === projectId && newProjects.length > 0) {
-                    onSelectProject(newProjects[0].id)
-                }
-            } else {
-                const errorData = await res.json().catch(() => ({}))
-                console.error('Delete failed:', res.status, errorData)
-                alert(`Failed to delete project: ${errorData.error || res.statusText}`)
+            await deleteProject(projectId)
+            // If deleted project was active, select another
+            const remainingProjects = projects.filter(p => p.id !== projectId)
+            if (activeProjectId === projectId && remainingProjects.length > 0) {
+                onSelectProject(remainingProjects[0].id)
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to delete project', error)
-            alert('Failed to delete project. Check console for details.')
+            alert(`Failed to delete project: ${error.message}`)
         }
     }
 
@@ -470,17 +494,11 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
             // Check if this is the active conversation BEFORE deleting
             const currentConversationId = searchParams.get('conversationId')
 
-            const res = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' })
-            if (res.ok) {
-                // Determine if we need to clear the current conversation view
-                useChorumStore.getState().triggerConversationRefresh()
+            await deleteConversation(conversationId)
 
-                // If we deleted the active conversation, navigate to the project root to clear the view
-                if (currentConversationId === conversationId) {
-                    router.push(`/app?project=${activeProjectId || ''}`)
-                }
-            } else {
-                alert('Failed to delete conversation')
+            // If we deleted the active conversation, navigate to the project root to clear the view
+            if (currentConversationId === conversationId) {
+                router.push(`/app?project=${activeProjectId || ''}`)
             }
         } catch (error) {
             console.error('Failed to delete conversation', error)
@@ -540,29 +558,54 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
         setIsImporting(true)
         try {
             const text = await file.text()
-            const exportData = JSON.parse(text)
+            const ext = file.name.split('.').pop()
 
-            // Check for encryption
-            if (exportData._encrypted) {
-                setPendingImportData(exportData)
-                setShowImportPasswordModal(true)
-                setIsImporting(false)
-            } else {
-                await performImport(exportData)
+            const payload = prepareImportPayload(text, ext)
+
+            // 1. Check for Chorum Native (JSON + metadata + project)
+            if (payload.type === 'json') {
+                const data = payload.data as any
+                if (data.metadata && data.project) {
+                    // Check for encryption
+                    if (data._encrypted) {
+                        setPendingImportData(data)
+                        setShowImportPasswordModal(true)
+                        setIsImporting(false)
+                    } else {
+                        await performImport(data)
+                    }
+                    e.target.value = ''
+                    return
+                }
             }
+
+            // 2. Foreign JSON or Text -> Show Confirmation
+            // We need active project to import INTO
+            if (!activeProjectId) {
+                alert('Please select a project first to import conversations into.')
+                setIsImporting(false)
+                e.target.value = ''
+                return
+            }
+
+            setUniversalImportPayload(payload)
+            setShowUniversalImportModal(true)
+            setIsImporting(false)
+
         } catch (error) {
             console.error('File parse failed', error)
-            alert('Failed to read file. Please ensure it is a valid JSON export.')
+            alert('Failed to process file.')
             setIsImporting(false)
         } finally {
             e.target.value = '' // Reset input
         }
     }
 
+    const activeProjectName = projects.find(p => p.id === activeProjectId)?.name || 'Current Project'
+
     return (
         <>
             <div className="w-full h-full bg-gray-950 border-r border-gray-800 flex flex-col">
-                {/* Logo */}
                 <div className="p-4 border-b border-gray-800">
                     <img src="/logo.png" alt="Chorum AI" className="w-full h-auto object-contain max-h-32" />
                 </div>
@@ -631,7 +674,7 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
                         title="Import Project"
                     >
                         {isImporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
-                        <input type="file" accept=".json" className="hidden" onChange={handleImportProject} disabled={isImporting} />
+                        <input type="file" accept=".json,.md,.txt,.csv" className="hidden" onChange={handleImportProject} disabled={isImporting} />
                     </label>
 
                     <button
@@ -714,6 +757,50 @@ export function Sidebar({ activeProjectId, onSelectProject, onSelectConversation
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Universal Import Confirmation Modal */}
+            {
+                showUniversalImportModal && universalImportPayload && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-[var(--hg-surface)] border border-[var(--hg-border)] rounded-xl w-full max-w-md p-6 shadow-2xl">
+                            <h3 className="text-lg font-medium text-[var(--hg-text-primary)] mb-2">Import Conversation</h3>
+                            <p className="text-sm text-[var(--hg-text-secondary)] mb-4">
+                                Detected <strong>{universalImportPayload.hint === 'unknown' ? 'text' : universalImportPayload.hint}</strong> content.
+                                <br />
+                                Import into <strong>{projects.find(p => p.id === activeProjectId)?.name || 'Current Project'}</strong>?
+                            </p>
+
+                            <div className="bg-[var(--hg-bg)] p-3 rounded-lg text-xs text-[var(--hg-text-tertiary)] font-mono mb-6 max-h-32 overflow-hidden relative">
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--hg-bg)] pointer-events-none" />
+                                {universalImportPayload.type === 'text'
+                                    ? universalImportPayload.text?.slice(0, 200)
+                                    : JSON.stringify(universalImportPayload.data, null, 2).slice(0, 200)
+                                }...
+                            </div>
+
+                            <div className="flex justify-end gap-3 flex-wrap">
+                                <HyggeButton
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setShowUniversalImportModal(false)
+                                        setUniversalImportPayload(null)
+                                    }}
+                                    className="px-4"
+                                >
+                                    Cancel
+                                </HyggeButton>
+                                <HyggeButton
+                                    variant="accent"
+                                    onClick={() => performUniversalImport(universalImportPayload, true)}
+                                    className="px-4"
+                                >
+                                    Import & Learn
+                                </HyggeButton>
+                            </div>
                         </div>
                     </div>
                 )

@@ -37,7 +37,9 @@ export async function callDeepSeek(
 
     return {
         content: result.choices[0].message.content || '',
+        model: result.model,
         tokensInput: result.usage?.prompt_tokens || 0,
-        tokensOutput: result.usage?.completion_tokens || 0
+        tokensOutput: result.usage?.completion_tokens || 0,
+        stopReason: result.choices[0].finish_reason || null
     }
 }

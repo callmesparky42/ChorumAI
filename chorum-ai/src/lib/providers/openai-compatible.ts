@@ -145,6 +145,7 @@ export async function callOpenAICompatible(
 
     return {
         content: choice?.message?.content || '',
+        model: result.model || config.model,
         tokensInput: result.usage?.prompt_tokens || 0,
         tokensOutput: result.usage?.completion_tokens || 0,
         stopReason,

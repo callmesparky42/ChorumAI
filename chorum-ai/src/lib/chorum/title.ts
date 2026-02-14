@@ -1,4 +1,5 @@
 import { callProvider } from '@/lib/providers'
+import { getCheapModel } from '@/lib/providers/registry'
 
 interface TitleGeneratorConfig {
   provider: string
@@ -22,7 +23,7 @@ Rules:
 - Capture the main topic or intent
 - Use title case
 - Do NOT use quotes around the title
-- Do NOT include phrases like "Help with" or "Question about"
+- Do NOT use phrases like "Help with" or "Question about"
 - Just output the title, nothing else
 
 Examples:
@@ -43,7 +44,7 @@ Title: Next.js Authentication Strategy`
       {
         provider: config.provider,
         apiKey: config.apiKey,
-        model: getFastModel(config.provider, config.model),
+        model: getCheapModel(config.provider),
         baseUrl: config.baseUrl,
         isLocal: config.isLocal
       },
@@ -67,21 +68,6 @@ Title: Next.js Authentication Strategy`
     // Fallback: use truncated first message
     return truncateMessage(userMessage)
   }
-}
-
-/**
- * Get the fastest/cheapest model for a provider (for title generation)
- */
-function getFastModel(provider: string, defaultModel: string): string {
-  const fastModels: Record<string, string> = {
-    anthropic: 'claude-3-haiku-20240307',
-    openai: 'gpt-4o-mini',
-    google: 'gemini-2.0-flash',
-    mistral: 'mistral-small-latest',
-    deepseek: 'deepseek-chat',
-    xai: 'grok-2-mini'
-  }
-  return fastModels[provider] || defaultModel
 }
 
 /**

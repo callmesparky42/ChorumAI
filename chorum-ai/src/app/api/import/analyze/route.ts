@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { projects } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { parseConversationExport } from '@/lib/portability/parsers'
+import { parseImport } from '@/lib/portability/parsers'
 import { analyzeImportedConversations } from '@/lib/portability/analyzeImport'
 import { analyzeProjectDomain } from '@/lib/chorum/domainSignal'
 import { getCheapestProvider } from '@/lib/providers/cheapest'
@@ -16,7 +16,9 @@ import { storeNormalizedConversations } from '@/lib/portability/store'
  *
  * Body: {
  *   projectId: string,
- *   data: object,
+ *   data?: object,          // For JSON imports
+ *   rawText?: string,       // For text/markdown imports
+ *   fileHint?: string,      // Optional hint for text imports (e.g. 'md', 'txt')
  *   storeConversations?: boolean,
  *   maxConversations?: number
  * }
@@ -30,11 +32,11 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json()
-        const { projectId, data, storeConversations = false, maxConversations } = body
+        const { projectId, data, rawText, fileHint, storeConversations = false, maxConversations } = body
 
-        if (!projectId || !data) {
+        if (!projectId || (!data && !rawText)) {
             return NextResponse.json(
-                { error: 'projectId and data are required' },
+                { error: 'projectId and either data or rawText are required' },
                 { status: 400 }
             )
         }
@@ -46,7 +48,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Project not found' }, { status: 404 })
         }
 
-        const parseResult = parseConversationExport(data)
+        const parseResult = parseImport(
+            data
+                ? { type: 'json', data }
+                : { type: 'text', text: rawText, hint: fileHint }
+        )
 
         if (parseResult.format === 'chorum') {
             return NextResponse.json(
@@ -105,6 +111,11 @@ export async function POST(req: NextRequest) {
             success: true,
             format: parseResult.format,
             domainSignal: analysisResult.domainSignal,
+            batchId: analysisResult.batchId,
+            queued: analysisResult.queued,
+            message: analysisResult.batchId
+                ? `${analysisResult.queued} conversations queued for learning extraction. Use batchId to track progress.`
+                : 'No conversations queued.',
             stats: {
                 conversationsProcessed: analysisResult.conversationsProcessed,
                 conversationsSkipped: analysisResult.conversationsSkipped,

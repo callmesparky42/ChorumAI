@@ -624,19 +624,19 @@ export const TIER_INFO: Record<AgentTier, { label: string; description: string; 
   reasoning: {
     label: 'Reasoning',
     description: 'Quality-first for complex analysis',
-    color: 'text-purple-400',
-    bgColor: 'bg-purple-500/10'
+    color: 'text-[var(--hg-text-primary)]',
+    bgColor: 'bg-[var(--hg-accent-muted)]'
   },
   balanced: {
     label: 'Balanced',
     description: 'Versatile for most tasks',
-    color: 'text-blue-400',
-    bgColor: 'bg-blue-500/10'
+    color: 'text-[var(--hg-text-secondary)]',
+    bgColor: 'bg-[var(--hg-surface)]'
   },
   fast: {
     label: 'Fast',
     description: 'Speed-first for simple tasks',
-    color: 'text-green-400',
-    bgColor: 'bg-green-500/10'
+    color: 'text-[var(--hg-text-tertiary)]',
+    bgColor: 'bg-[var(--hg-surface)]'
   }
 }

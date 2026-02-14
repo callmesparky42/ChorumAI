@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Download, Upload, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Download, Upload, Loader2, AlertTriangle, CheckCircle2, Clock, XCircle } from 'lucide-react'
 import clsx from 'clsx'
+import { prepareImportPayload, ImportPayload } from '@/lib/portability/intake'
 
 interface ProjectSummary {
     id: string
@@ -28,12 +29,25 @@ interface ImportAnalyzeResult {
         errors: string[]
     }
     parseWarnings: string[]
+    batchId?: string
+    queued?: number
+}
+
+interface BatchProgress {
+    batchId: string
+    label: string | null
+    total: number
+    pending: number
+    processing: number
+    completed: number
+    failed: number
+    errors: string[]
 }
 
 export default function MigratePage() {
     const [projects, setProjects] = useState<ProjectSummary[]>([])
     const [projectId, setProjectId] = useState<string>('')
-    const [rawData, setRawData] = useState<Record<string, unknown> | null>(null)
+    const [importPayload, setImportPayload] = useState<ImportPayload | null>(null)
     const [fileName, setFileName] = useState<string | null>(null)
     const [storeConversations, setStoreConversations] = useState(false)
     const [maxConversations, setMaxConversations] = useState<string>('')
@@ -41,7 +55,35 @@ export default function MigratePage() {
     const [error, setError] = useState<string | null>(null)
     const [result, setResult] = useState<ImportAnalyzeResult | null>(null)
     const [parseWarnings, setParseWarnings] = useState<string[]>([])
+    const [batchId, setBatchId] = useState<string | null>(null)
+    const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null)
     const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+    useEffect(() => {
+        if (!batchId) return
+
+        const poll = async () => {
+            try {
+                const res = await fetch(`/api/learning/queue?batchId=${batchId}`)
+                if (res.ok) {
+                    const data = await res.json()
+                    setBatchProgress(data)
+                    return data.pending === 0 && data.processing === 0
+                }
+            } catch (e) {
+                console.error('Polling error:', e)
+            }
+            return false
+        }
+
+        poll()
+        const interval = setInterval(async () => {
+            const done = await poll()
+            if (done) clearInterval(interval)
+        }, 3000)
+
+        return () => clearInterval(interval)
+    }, [batchId])
 
     useEffect(() => {
         const fetchProjects = async () => {
@@ -63,26 +105,30 @@ export default function MigratePage() {
 
     const dropZoneLabel = useMemo(() => {
         if (fileName) return `Loaded: ${fileName}`
-        return 'Drop your export JSON here or click to browse'
+        return 'Drop your export file here (JSON, Markdown, Text) or click to browse'
     }, [fileName])
 
     const resetResult = () => {
         setResult(null)
         setParseWarnings([])
         setError(null)
+        setBatchId(null)
+        setBatchProgress(null)
     }
 
     const handleFile = async (file: File) => {
         resetResult()
         try {
             const text = await file.text()
-            const parsed = JSON.parse(text)
-            setRawData(parsed)
+            const ext = file.name.split('.').pop()
+            const payload = prepareImportPayload(text, ext)
+
+            setImportPayload(payload)
             setFileName(file.name)
         } catch (e) {
-            setRawData(null)
+            setImportPayload(null)
             setFileName(null)
-            setError('Could not parse JSON. Please provide a valid export file.')
+            setError('Could not process file. Please provide a valid export file.')
         }
     }
 
@@ -92,10 +138,7 @@ export default function MigratePage() {
         event.preventDefault()
         if (!event.dataTransfer.files?.length) return
         const file = event.dataTransfer.files[0]
-        if (file.type !== 'application/json' && !file.name.endsWith('.json')) {
-            setError('Only JSON export files are supported.')
-            return
-        }
+        // Relaxed validation for universal import
         handleFile(file)
     }
 
@@ -104,7 +147,7 @@ export default function MigratePage() {
             setError('Select a target project before analyzing.')
             return
         }
-        if (!rawData) {
+        if (!importPayload) {
             setError('Upload an export file first.')
             return
         }
@@ -119,7 +162,9 @@ export default function MigratePage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     projectId,
-                    data: rawData,
+                    data: importPayload.type === 'json' ? importPayload.data : undefined,
+                    rawText: importPayload.type === 'text' ? importPayload.text : undefined,
+                    fileHint: importPayload.hint,
                     storeConversations,
                     maxConversations: maxConversations ? Number(maxConversations) : undefined
                 })
@@ -131,6 +176,9 @@ export default function MigratePage() {
             }
 
             setResult(payload)
+            if (payload.batchId) {
+                setBatchId(payload.batchId)
+            }
             setParseWarnings(payload.parseWarnings || [])
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Import failed')
@@ -158,7 +206,7 @@ export default function MigratePage() {
                             onClick={handleBrowse}
                             className={clsx(
                                 'border border-dashed rounded-2xl p-8 cursor-pointer transition-colors',
-                                rawData ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-[#2D3645] bg-[#141A24] hover:border-[#3C485C]'
+                                importPayload ? 'border-emerald-500/60 bg-emerald-500/10' : 'border-[#2D3645] bg-[#141A24] hover:border-[#3C485C]'
                             )}
                         >
                             <div className="flex flex-col items-center gap-3 text-center">
@@ -167,14 +215,14 @@ export default function MigratePage() {
                                     <p className="text-sm md:text-base text-[#DCE5F3] font-medium">
                                         {dropZoneLabel}
                                     </p>
-                                    <p className="text-xs text-[#7E8CA5] mt-1">Supported: .json exports</p>
+                                    <p className="text-xs text-[#7E8CA5] mt-1">Supported: .json, .md, .txt, .csv</p>
                                 </div>
                             </div>
                         </div>
                         <input
                             ref={fileInputRef}
                             type="file"
-                            accept="application/json,.json"
+                            accept=".json,.md,.txt,.csv"
                             className="hidden"
                             onChange={(event) => {
                                 const file = event.target.files?.[0]
@@ -221,7 +269,7 @@ export default function MigratePage() {
 
                         <button
                             onClick={handleAnalyze}
-                            disabled={loading || !rawData}
+                            disabled={loading || !importPayload}
                             className="w-full flex items-center justify-center gap-2 bg-[#2E5CF6] hover:bg-[#3C6CFF] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl px-4 py-3 text-sm font-medium transition-colors"
                         >
                             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
@@ -264,13 +312,78 @@ export default function MigratePage() {
                                             </span>
                                         )}
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs text-[#7E8CA5]">
-                                        <div>{result.stats.conversationsProcessed} conversations processed</div>
-                                        <div>{result.stats.learningsStored} learnings stored</div>
-                                        <div>{result.stats.duplicatesFound} duplicates skipped</div>
-                                        <div>{result.stats.learningsMerged} merged</div>
-                                    </div>
-                                    {result.stats.errors.length > 0 && (
+
+                                    {batchProgress ? (
+                                        <div className="space-y-4 pt-4 border-t border-[#2D3645]">
+                                            <div className="flex items-center justify-between text-sm">
+                                                <div className="flex items-center gap-2 text-[#E6EDF6]">
+                                                    {batchProgress.pending === 0 && batchProgress.processing === 0 ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                                    ) : (
+                                                        <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                                                    )}
+                                                    <span className="font-medium">Learning Extraction</span>
+                                                </div>
+                                                <span className="text-[#9AA6BA]">
+                                                    {batchProgress.completed}/{batchProgress.total}
+                                                </span>
+                                            </div>
+
+                                            <div className="h-2 bg-[#2D3645] rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-blue-500 transition-all duration-500 ease-out"
+                                                    style={{ width: `${(batchProgress.completed / batchProgress.total) * 100}%` }}
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-3 gap-2 text-xs text-[#7E8CA5]">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                                    Completed ({batchProgress.completed})
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-2 h-2 rounded-full bg-[#2D3645]" />
+                                                    Pending ({batchProgress.pending + batchProgress.processing})
+                                                </div>
+                                                {batchProgress.failed > 0 && (
+                                                    <div className="flex items-center gap-1.5 text-red-400">
+                                                        <XCircle className="w-3 h-3" />
+                                                        Failed ({batchProgress.failed})
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {batchProgress.errors.length > 0 && (
+                                                <div className="text-xs text-red-300 mt-2 space-y-1">
+                                                    <p className="font-medium mb-1">Errors:</p>
+                                                    {batchProgress.errors.map((err, i) => (
+                                                        <div key={i} className="flex items-center gap-1">
+                                                            <AlertTriangle className="w-3 h-3" />
+                                                            {err}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-2 text-xs text-[#7E8CA5]">
+                                            <div>{result.stats.conversationsProcessed} conversations processed</div>
+                                            {result.queued ? (
+                                                <div className="col-span-2 text-blue-400 flex items-center gap-1.5 mt-1">
+                                                    <Clock className="w-3 h-3" />
+                                                    {result.queued} conversations queued for analysis...
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div>{result.stats.learningsStored} learnings stored</div>
+                                                    <div>{result.stats.duplicatesFound} duplicates skipped</div>
+                                                    <div>{result.stats.learningsMerged} merged</div>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {!batchProgress && result.stats.errors.length > 0 && (
                                         <div className="text-xs text-red-300">
                                             {result.stats.errors.length} errors encountered (see logs)
                                         </div>

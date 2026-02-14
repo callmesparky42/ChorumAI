@@ -19,9 +19,12 @@ import {
 import { eq, and } from 'drizzle-orm'
 import { v4 as uuidv4 } from 'uuid'
 import { ExportPayload, ImportOptions, ImportResult } from './types'
+import { queueBatchForLearning } from '@/lib/learning/queue'
 
 export async function importProject(userId: string, data: ExportPayload, options: ImportOptions): Promise<ImportResult> {
-    return await db.transaction(async (tx) => {
+    const pairsToQueue: Array<{ userMessage: string; assistantResponse: string }> = []
+
+    const result = await db.transaction(async (tx) => {
         const stats = {
             patternsImported: 0,
             invariantsImported: 0,
@@ -265,6 +268,14 @@ export async function importProject(userId: string, data: ExportPayload, options
                             images: msg.images
                         }))
                     )
+
+                    // Collect for queueing
+                    const userMsg = convo.messages.filter(m => m.role === 'user').map(m => m.content).join('\n\n')
+                    const assistantMsg = convo.messages.filter(m => m.role === 'assistant').map(m => m.content).join('\n\n')
+
+                    if (userMsg.length >= 20 && assistantMsg.length >= 20) {
+                        pairsToQueue.push({ userMessage: userMsg, assistantResponse: assistantMsg })
+                    }
                 }
                 stats.conversationsImported++
             }
@@ -277,4 +288,19 @@ export async function importProject(userId: string, data: ExportPayload, options
             warnings
         }
     })
+
+    if (result.success && pairsToQueue.length > 0) {
+        try {
+            await queueBatchForLearning(
+                result.projectId,
+                userId,
+                pairsToQueue,
+                `Chorum import (${pairsToQueue.length} conversations)`
+            )
+        } catch (e) {
+            console.error('Failed to queue imported conversations for learning:', e)
+        }
+    }
+
+    return result
 }

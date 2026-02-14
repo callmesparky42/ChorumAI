@@ -1,0 +1,41 @@
+# Importing History
+
+Chorum isn't just about the conversations you have today—it's about leveraging the knowledge from all the conversations you've had in the past. To help you get up to speed quickly, Chorum includes a robust **Learn on Intake** pipeline that can ingest history from other AI providers, analyze it for patterns, and build your long-term memory instantly.
+
+## Supported Sources
+
+We currently support importing conversation exports from:
+
+- **ChatGPT** (`conversations.json`)
+- **Claude** (Data export JSON)
+- **Perplexity**
+- **Generic JSON**: Any JSON file containing an array of message objects with `role` and `content` fields.
+
+## How to Import
+
+1. **Export your data** from your current AI provider (usually found in Settings > Data Controls > Export Data).
+2. Navigate to the **Help Me Migrate** page in Chorum (referenced in the sidebar or at `/helpmemigrate`).
+3. **Upload** your `.json` export file.
+4. **Select a Target Project**. This is where the conversations and learnings will be stored.
+5. (Optional) Check **"Also import conversation history"** if you want the full chat logs searchable in Chorum, not just the extracted learnings.
+6. Click **Analyze & Import**.
+
+## Asynchronous Learning
+
+When you import a file, Chorum performs a two-step process:
+
+1. **Immediate Analysis**: It scans the file to identify the number of conversations and infers the primary **Domain Signal** (e.g., "React Engineering", "Creative Writing") to help categorize the memories.
+2. **Background Extraction**: The system queues the conversations for deep learning extraction. This happens asynchronously in the background so you don't have to keep the browser tab open.
+
+### Tracking Progress
+
+You can track the status of the learning extraction on the import page. A progress bar will show you:
+- **Completed**: Conversations successfully analyzed and memories stored.
+- **Pending**: Items currently in the queue.
+- **Failed**: Any conversations that couldn't be processed (often due to content policy filters).
+
+## Project Assignments
+
+Chorum's **Learn on Intake** isn't limited to bulk imports. If you start a "Midnight Musing" (a conversation without a project) and later decide to **Assign** it to a specific project, Chorum will automatically queue that conversation for learning extraction in the context of the new project.
+
+This ensures your project-specific memory banks are always growing, no matter where the conversation started.

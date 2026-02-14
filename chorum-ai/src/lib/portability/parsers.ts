@@ -241,3 +241,22 @@ export function parseConversationExport(data: unknown): ParseResult {
 
     return parseGenericExport(data)
 }
+
+import { parseTextConversation } from './textParser'
+import { ImportPayload } from './intake'
+
+export function parseImport(payload: ImportPayload): ParseResult {
+    if (payload.type === 'json' && payload.data) {
+        return parseConversationExport(payload.data)
+    }
+
+    if (payload.type === 'text' && payload.text) {
+        return parseTextConversation(payload.text, payload.hint)
+    }
+
+    return {
+        format: 'unknown',
+        conversations: [],
+        warnings: ['Invalid import payload']
+    }
+}

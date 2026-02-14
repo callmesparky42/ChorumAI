@@ -10,6 +10,7 @@ interface Message {
     images?: string[] // base64 strings
     attachments?: Attachment[]
     provider?: string
+    model?: string
     costUsd?: string
     tokensInput?: number
     tokensOutput?: number
@@ -19,7 +20,30 @@ interface Message {
     createdAt?: string
 }
 
+interface Project {
+    id: string
+    name: string
+    description?: string
+    techStack?: string[]
+    customInstructions?: string
+}
+
+interface Conversation {
+    id: string
+    title: string
+    preview: string | null
+    messageCount: number
+    createdAt: string
+    updatedAt: string
+}
+
 interface ChorumStore {
+    // Navigation Data
+    projects: Project[]
+    conversations: Record<string, Conversation[]> // projectId -> conversations
+    isProjectsLoading: boolean
+    isConversationsLoading: Record<string, boolean> // projectId -> loading state
+
     messages: Message[]
     isLoading: boolean
     currentConversationId: string | null
@@ -40,6 +64,12 @@ interface ChorumStore {
     startNewConversation: () => void
     triggerConversationRefresh: () => void
 
+    // Actions for Navigation Data
+    fetchProjects: (force?: boolean) => Promise<void>
+    fetchConversations: (projectId: string, force?: boolean) => Promise<void>
+    deleteProject: (projectId: string) => Promise<void>
+    deleteConversation: (conversationId: string) => Promise<void>
+
     // Settings
     settings: {
         showCost: boolean
@@ -56,6 +86,12 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
         settings: { ...state.settings, ...newSettings }
     })),
 
+    // Navigation Data
+    projects: [],
+    conversations: {},
+    isProjectsLoading: false,
+    isConversationsLoading: {},
+
     messages: [],
     isLoading: false,
     currentConversationId: null,
@@ -65,9 +101,100 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
     addMessage: (msg) => set((state) => ({ messages: [...state.messages, msg] })),
     clearMessages: () => set({ messages: [], currentConversationId: null }),
     startNewConversation: () => set({ messages: [], currentConversationId: null }),
-    triggerConversationRefresh: () => set((state) => ({
-        conversationRefreshTrigger: state.conversationRefreshTrigger + 1
-    })),
+    triggerConversationRefresh: () => {
+        const { currentConversationId, projects } = get()
+        set((state) => ({
+            conversationRefreshTrigger: state.conversationRefreshTrigger + 1
+        }))
+        // Background refresh all projects and their conversations
+        get().fetchProjects(true)
+        projects.forEach(p => get().fetchConversations(p.id, true))
+    },
+
+    fetchProjects: async (force = false) => {
+        const { projects, isProjectsLoading } = get()
+        if (!force && projects.length > 0) return
+        if (isProjectsLoading) return
+
+        set({ isProjectsLoading: true })
+        try {
+            const res = await fetch('/api/projects')
+            if (res.ok) {
+                const data = await res.json()
+                set({ projects: data })
+            }
+        } catch (error) {
+            console.error('Failed to fetch projects:', error)
+        } finally {
+            set({ isProjectsLoading: false })
+        }
+    },
+
+    fetchConversations: async (projectId: string, force = false) => {
+        const { conversations, isConversationsLoading } = get()
+        if (!force && conversations[projectId]?.length > 0) return
+        if (isConversationsLoading[projectId]) return
+
+        set((state) => ({
+            isConversationsLoading: { ...state.isConversationsLoading, [projectId]: true }
+        }))
+        try {
+            const res = await fetch(`/api/conversations?projectId=${projectId}`)
+            if (res.ok) {
+                const data = await res.json()
+                set((state) => ({
+                    conversations: { ...state.conversations, [projectId]: data }
+                }))
+            }
+        } catch (error) {
+            console.error(`Failed to fetch conversations for project ${projectId}:`, error)
+        } finally {
+            set((state) => ({
+                isConversationsLoading: { ...state.isConversationsLoading, [projectId]: false }
+            }))
+        }
+    },
+
+    deleteProject: async (projectId: string) => {
+        try {
+            const res = await fetch(`/api/projects?id=${projectId}`, { method: 'DELETE' })
+            if (res.ok) {
+                set((state) => ({
+                    projects: state.projects.filter(p => p.id !== projectId),
+                    conversations: { ...state.conversations, [projectId]: [] }
+                }))
+            } else {
+                const errorData = await res.json().catch(() => ({}))
+                throw new Error(errorData.error || 'Failed to delete project')
+            }
+        } catch (error) {
+            console.error('Failed to delete project:', error)
+            throw error
+        }
+    },
+
+    deleteConversation: async (conversationId: string) => {
+        try {
+            const res = await fetch(`/api/conversations/${conversationId}`, { method: 'DELETE' })
+            if (res.ok) {
+                // Find which project this conversation belonged to and refresh it
+                // Sinceเรา don't easily know the projectId from the ID alone without scanning, 
+                // we'll just trigger a global refresh or the user can scan the state
+                set((state) => {
+                    const newConversations = { ...state.conversations }
+                    Object.keys(newConversations).forEach(pkgId => {
+                        newConversations[pkgId] = newConversations[pkgId].filter(c => c.id !== conversationId)
+                    })
+                    return { conversations: newConversations }
+                })
+            } else {
+                throw new Error('Failed to delete conversation')
+            }
+        } catch (error) {
+            console.error('Failed to delete conversation:', error)
+            throw error
+        }
+    },
     loadConversation: async (conversationId: string) => {
         set({ isLoading: true })
         try {
@@ -83,6 +210,7 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
                 role: msg.role,
                 content: msg.content,
                 provider: msg.provider,
+                model: msg.model,
                 costUsd: msg.costUsd,
                 tokensInput: msg.tokensInput,
                 tokensOutput: msg.tokensOutput,
@@ -166,6 +294,7 @@ export const useChorumStore = create<ChorumStore>((set, get) => ({
                     agentName: data.agent?.name,
                     agentIcon: data.agent?.icon,
                     agentTier: data.agent?.tier,
+                    model: data.message.model,
                     createdAt: data.message.createdAt || new Date().toISOString()
                 }
                 set((state) => ({ messages: [...state.messages, assistantMsg] }))

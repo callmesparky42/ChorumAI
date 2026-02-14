@@ -1,5 +1,9 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import clsx from 'clsx'
+import { useChorumStore } from '@/lib/store'
 import { Activity, Loader2, User, ExternalLink, Github, Wifi, WifiOff, RefreshCw, Download } from 'lucide-react'
 import { KnowledgeGateway } from '@/components/KnowledgeGateway'
 import { McpSettings } from '@/components/settings/McpSettings'
@@ -9,26 +13,25 @@ import { SearchSettings } from '@/components/settings/SearchSettings'
 import { HyggeButton } from '@/components/hygge/HyggeButton'
 import { HyggeCard } from '@/components/hygge/HyggeCard'
 import { HyggeToggle } from '@/components/hygge/HyggeToggle'
-import Link from 'next/link'
-import clsx from 'clsx'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useChorumStore } from '@/lib/store'
-
-// Provider presets for the UI
+import { MODEL_REGISTRY, getModelsForProvider } from '@/lib/providers/registry'
+// Provider presets derived from Registry
 // 'auto' means the router will select the best model based on task type
-const PROVIDER_PRESETS: Record<string, { name: string, models: string[], requiresKey: boolean, isLocal: boolean, defaultBaseUrl?: string }> = {
-    anthropic: { name: 'Anthropic (Claude)', models: ['auto', 'claude-sonnet-4-5-20250514', 'claude-sonnet-4-20250514', 'claude-haiku-4-5-20250514', 'claude-opus-4-5-20250514'], requiresKey: true, isLocal: false },
-    openai: { name: 'OpenAI (GPT)', models: ['auto', 'gpt-5.2', 'gpt-5', 'gpt-4.1', 'gpt-4o', 'o1-preview', 'o1-mini'], requiresKey: true, isLocal: false },
-    google: { name: 'Google (Gemini)', models: ['auto', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-pro'], requiresKey: true, isLocal: false },
-    mistral: { name: 'Mistral AI', models: ['auto', 'mistral-large-latest', 'mistral-medium-latest', 'codestral-latest'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.mistral.ai/v1' },
-    deepseek: { name: 'DeepSeek', models: ['auto', 'deepseek-chat', 'deepseek-coder'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.deepseek.com/v1' },
-    perplexity: { name: 'Perplexity AI', models: ['llama-3.1-sonar-large-128k-online', 'llama-3.1-sonar-small-128k-online', 'llama-3.1-sonar-huge-128k-online'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.perplexity.ai' },
-    xai: { name: 'xAI (Grok)', models: ['grok-2-latest', 'grok-2-vision-latest', 'grok-beta'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://api.x.ai/v1' },
-    glm: { name: 'GLM-4 (Zhipu AI)', models: ['auto', 'glm-4-plus', 'glm-4-long', 'glm-4-flash', 'glm-4-flashx'], requiresKey: true, isLocal: false, defaultBaseUrl: 'https://open.bigmodel.cn/api/paas/v4' },
-    ollama: { name: 'Ollama (Local)', models: ['phi3', 'llama3.3', 'mistral', 'phi4', 'codellama', 'gemma2', 'glm4'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:11434' },
-    lmstudio: { name: 'LM Studio (Local)', models: ['local-model'], requiresKey: false, isLocal: true, defaultBaseUrl: 'http://localhost:1234/v1' },
-    'openai-compatible': { name: 'OpenAI-Compatible API', models: ['custom'], requiresKey: false, isLocal: true }
-}
+const PROVIDER_PRESETS: Record<string, { name: string, models: string[], requiresKey: boolean, isLocal: boolean, defaultBaseUrl?: string }> = Object.values(MODEL_REGISTRY).reduce((acc, p) => {
+    const models = getModelsForProvider(p.id).map(m => m.id)
+    // Add 'auto' option for cloud providers as a convenience/convention in UI
+    if (p.category === 'cloud') {
+        models.unshift('auto')
+    }
+
+    acc[p.id] = {
+        name: p.name,
+        models,
+        requiresKey: p.requiresKey,
+        isLocal: p.category === 'local',
+        defaultBaseUrl: p.defaultBaseUrl
+    }
+    return acc
+}, {} as Record<string, any>)
 
 interface Provider {
     id: string

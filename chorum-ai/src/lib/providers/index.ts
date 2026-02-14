@@ -19,45 +19,36 @@ export interface FullProviderConfig extends ProviderCallConfig {
     provider: string
 }
 
-/**
- * Default models for 'auto' mode per provider
- * These are the best general-purpose models for each provider
- */
-const DEFAULT_MODELS: Record<string, string> = {
-    anthropic: 'claude-sonnet-4-5-20250514',
-    openai: 'gpt-5.2',
-    google: 'gemini-2.5-flash',
-    mistral: 'mistral-large-latest',
-    deepseek: 'deepseek-chat',
-    perplexity: 'llama-3.1-sonar-large-128k-online',
-    xai: 'grok-2-latest',
-    glm: 'glm-4-plus',
-    ollama: 'phi3',
-    lmstudio: 'local-model'
-}
+import {
+    MODEL_REGISTRY,
+    getCheapModel as getRegistryCheapModel,
+    BACKGROUND_PROVIDER_PREFERENCE as REGISTRY_BACKGROUND_PREFERENCE,
+    isProviderSupported as isRegistryProviderSupported,
+    getDefaultModel,
+    getContextWindow,
+    getDefaultBaseUrl
+} from './registry'
+
+export { getDefaultModel, getContextWindow, getDefaultBaseUrl }
+
+// ... existing code ...
 
 /**
  * Cheap models for background tasks (summarization, compilation, title generation)
- * These are optimized for cost rather than capability
+ * @deprecated Use registry.ts
  */
-export const CHEAP_MODELS: Record<string, string> = {
-    google: 'gemini-2.0-flash',          // $0.075/1M input - cheapest
-    openai: 'gpt-4o-mini',               // $0.15/1M input
-    deepseek: 'deepseek-chat',           // $0.14/1M input
-    anthropic: 'claude-3-haiku-20240307', // $0.25/1M input
-    mistral: 'mistral-small-latest'      // ~$0.20/1M input
-}
+export const CHEAP_MODELS: Record<string, string> = {} // Kept temporarily if imported elsewhere, but empty implies deprecation
 
 /**
  * Provider preference order for background tasks (most cost-effective first)
  */
-export const BACKGROUND_PROVIDER_PREFERENCE = ['google', 'openai', 'deepseek', 'anthropic', 'mistral']
+export const BACKGROUND_PROVIDER_PREFERENCE = REGISTRY_BACKGROUND_PREFERENCE
 
 /**
  * Get the cheap model for a provider (for background tasks)
  */
 export function getCheapModel(provider: string): string {
-    return CHEAP_MODELS[provider] || DEFAULT_MODELS[provider] || 'auto'
+    return getRegistryCheapModel(provider)
 }
 
 /**
@@ -65,7 +56,7 @@ export function getCheapModel(provider: string): string {
  */
 export function resolveModelForProvider(provider: string, model: string): string {
     if (model === 'auto') {
-        return DEFAULT_MODELS[provider] || model
+        return getDefaultModel(provider) || model
     }
     return model
 }
@@ -171,29 +162,10 @@ export async function callProvider(
  * Check if a provider is supported
  */
 export function isProviderSupported(provider: string): boolean {
-    const supported = [
-        'anthropic', 'openai', 'google', 'mistral', 'deepseek',
-        'perplexity', 'xai', 'glm',
-        'ollama', 'lmstudio', 'openai-compatible'
-    ]
-    return supported.includes(provider)
+    return !!MODEL_REGISTRY[provider]
 }
 
-/**
- * Get the default base URL for a provider (if any)
- */
-export function getDefaultBaseUrl(provider: string): string | undefined {
-    const defaults: Record<string, string> = {
-        ollama: 'http://localhost:11434',
-        lmstudio: 'http://localhost:1234/v1',
-        mistral: 'https://api.mistral.ai/v1',
-        deepseek: 'https://api.deepseek.com/v1',
-        perplexity: 'https://api.perplexity.ai',
-        xai: 'https://api.x.ai/v1',
-        glm: 'https://open.bigmodel.cn/api/paas/v4'
-    }
-    return defaults[provider]
-}
+
 
 /**
  * Generate an image using a supported provider

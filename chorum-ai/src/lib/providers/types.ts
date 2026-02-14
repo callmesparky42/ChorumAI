@@ -41,6 +41,7 @@ export interface ChatMessage {
 
 export interface ChatResult {
     content: string
+    model?: string
     tokensInput: number
     tokensOutput: number
     // Tool calling support

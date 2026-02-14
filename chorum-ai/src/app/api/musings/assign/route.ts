@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authFromRequest } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { conversations, messages, projects } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, asc } from 'drizzle-orm'
+import { queueBatchForLearning } from '@/lib/learning/queue'
 
 /**
  * Assign Musing to Project
@@ -68,6 +69,36 @@ export async function POST(req: NextRequest) {
                 .set({ projectId })
                 .where(eq(messages.conversationId, musingId))
         })
+
+        // 4. Queue for learning extraction
+        try {
+            const conversationMessages = await db.query.messages.findMany({
+                where: eq(messages.conversationId, musingId),
+                orderBy: [asc(messages.createdAt)]
+            })
+
+            if (conversationMessages.length >= 2) {
+                const userContent = conversationMessages
+                    .filter(m => m.role === 'user')
+                    .map(m => m.content)
+                    .join('\n\n')
+                const assistantContent = conversationMessages
+                    .filter(m => m.role === 'assistant')
+                    .map(m => m.content)
+                    .join('\n\n')
+
+                if (userContent.length > 20 && assistantContent.length > 20) {
+                    await queueBatchForLearning(
+                        projectId,
+                        userId,
+                        [{ userMessage: userContent, assistantResponse: assistantContent }],
+                        'Conversation reassignment'
+                    )
+                }
+            }
+        } catch (e) {
+            console.error('[Musing Assign] Failed to queue for learning:', e)
+        }
 
         console.log(`[Musing Assign] Moved musing ${musingId} to project ${projectId} for user ${userId}`)
 

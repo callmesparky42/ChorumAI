@@ -11,8 +11,8 @@ import { getRelevantMemory, buildMemoryContext, type MemoryStrategy } from '@/li
 import { checkAndSummarize, buildSummarizationPrompt } from '@/lib/chorum/summarize'
 import { generateConversationTitle } from '@/lib/chorum/title'
 import { anonymizePii } from '@/lib/pii'
-import { callProvider, generateImage, BACKGROUND_PROVIDER_PREFERENCE, getCheapModel, type FullProviderConfig, type ChatResult, type ToolDefinition, type ChatMessage } from '@/lib/providers'
-import { getPreset } from '@/lib/providers/presets'
+import { callProvider, generateImage, BACKGROUND_PROVIDER_PREFERENCE, getCheapModel, getDefaultModel, getContextWindow, type FullProviderConfig, type ChatResult, type ToolDefinition, type ChatMessage } from '@/lib/providers'
+// getPreset removed
 import { getToolsForUser, executeToolCall, type McpTool } from '@/lib/mcp-client'
 import {
     callProviderWithFallback,
@@ -233,26 +233,26 @@ export async function POST(req: NextRequest) {
         if (creds.length === 0) {
             if (process.env.ANTHROPIC_API_KEY) {
                 providerConfigs.push({
-                    provider: 'anthropic', model: 'claude-sonnet-4-20250514', apiKey: process.env.ANTHROPIC_API_KEY,
+                    provider: 'anthropic', model: getDefaultModel('anthropic'), apiKey: process.env.ANTHROPIC_API_KEY,
                     capabilities: ['deep_reasoning', 'code_generation'], costPer1M: { input: 3, output: 15 }, dailyBudget: 10, spentToday: 0,
                     securitySettings: securitySettings || undefined,
-                    contextWindow: 200000
+                    contextWindow: getContextWindow('anthropic')
                 })
             }
             if (process.env.OPENAI_API_KEY) {
                 providerConfigs.push({
-                    provider: 'openai', model: 'gpt-4o', apiKey: process.env.OPENAI_API_KEY,
+                    provider: 'openai', model: getDefaultModel('openai'), apiKey: process.env.OPENAI_API_KEY,
                     capabilities: ['code_generation', 'general'], costPer1M: { input: 10, output: 30 }, dailyBudget: 10, spentToday: 0,
                     securitySettings: securitySettings || undefined,
-                    contextWindow: 128000
+                    contextWindow: getContextWindow('openai')
                 })
             }
             if (process.env.GOOGLE_AI_API_KEY) {
                 providerConfigs.push({
-                    provider: 'google', model: 'gemini-1.5-pro', apiKey: process.env.GOOGLE_AI_API_KEY,
+                    provider: 'google', model: getDefaultModel('google'), apiKey: process.env.GOOGLE_AI_API_KEY,
                     capabilities: ['cost_efficient', 'long_context'], costPer1M: { input: 3.5, output: 10.5 }, dailyBudget: 5, spentToday: 0,
                     securitySettings: securitySettings || undefined,
-                    contextWindow: 1000000
+                    contextWindow: getContextWindow('google')
                 })
             }
         } else {
@@ -284,7 +284,7 @@ export async function POST(req: NextRequest) {
                 displayName: c.displayName || undefined,
                 // Pass security settings for SSL/TLS configuration
                 securitySettings: securitySettings || undefined,
-                contextWindow: c.contextWindow || getPreset(c.provider)?.contextWindow || 128000
+                contextWindow: c.contextWindow || getContextWindow(c.provider, c.model)
             }))
         }
 
@@ -774,6 +774,7 @@ export async function POST(req: NextRequest) {
                 role: 'assistant',
                 content: response,
                 provider: actualProvider, // Use actual provider (may differ if fallback)
+                model: result.model || decision.model, // Use returned model or fallback to decision
                 costUsd: actualCost.toString(),
                 tokensInput,
                 tokensOutput
@@ -941,7 +942,7 @@ export async function POST(req: NextRequest) {
                 })().catch(err => console.error('[DomainSignal] Recomputation failed:', err))
             )
         }
-return NextResponse.json({
+        return NextResponse.json({
             message: {
                 id: assistantMsgId,
                 role: 'assistant',

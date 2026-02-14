@@ -80,8 +80,11 @@ export async function callOllama(
 
     // Ollama returns token counts differently
     return {
-        content: result.message?.content || '',
+        content: result.message.content,
+        model: result.model,
         tokensInput: result.prompt_eval_count || 0,
-        tokensOutput: result.eval_count || 0
+        tokensOutput: result.eval_count || 0,
+        stopReason: result.done_reason === 'stop' ? 'end_turn' : 'max_tokens', // Approximate map
+        toolCalls: [] // Ollama does not natively support tool calls
     }
 }

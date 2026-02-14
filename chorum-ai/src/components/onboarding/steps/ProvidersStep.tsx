@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useState } from 'react'
 import { useOnboardingStore, type ProviderConfig } from '@/lib/onboarding'
 import { theme, cn } from '@/lib/theme'
-import { ProviderCard, ProviderBadge, PROVIDER_INFO, SecretInput, TextInput } from '../shared'
+import { ProviderCard, ProviderBadge, SecretInput, TextInput } from '../shared'
 import {
   Plus,
   X,
@@ -14,19 +14,21 @@ import {
   ChevronUp,
 } from 'lucide-react'
 
-const CLOUD_PROVIDERS = ['anthropic', 'openai', 'google', 'perplexity', 'deepseek']
-const LOCAL_PROVIDERS = ['ollama', 'lmstudio']
+import {
+  getDefaultModel,
+  getCloudProviders,
+  getLocalProviders,
+  getModelsForProvider,
+  MODEL_REGISTRY
+} from '@/lib/providers/registry'
 
-// Default models per provider
-const DEFAULT_MODELS: Record<string, string> = {
-  anthropic: 'claude-sonnet-4-20250514',
-  openai: 'gpt-4o',
-  google: 'gemini-2.0-flash',
-  perplexity: 'llama-3.1-sonar-large-128k-online',
-  deepseek: 'deepseek-chat',
-  ollama: 'llama3',
-  lmstudio: 'local-model',
-}
+const CLOUD_PROVIDERS = getCloudProviders().map(p => p.id)
+const LOCAL_PROVIDERS = getLocalProviders().map(p => p.id)
+
+// Helper to get default model
+const getDefault = (provider: string) => getDefaultModel(provider)
+// Helper to get provider info
+const getProvider = (provider: string) => MODEL_REGISTRY[provider]
 
 export function ProvidersStep() {
   const {
@@ -71,7 +73,7 @@ export function ProvidersStep() {
   const handleSelectProvider = useCallback((provider: string) => {
     setSelectedProvider(provider)
     setApiKeyInput('')
-    setModelInput(DEFAULT_MODELS[provider] || '')
+    setModelInput(getDefault(provider) || '')
     setBaseUrlInput(
       provider === 'ollama'
         ? 'http://localhost:11434'
@@ -87,8 +89,8 @@ export function ProvidersStep() {
   const handleAddProvider = useCallback(async () => {
     if (!selectedProvider) return
 
-    const info = PROVIDER_INFO[selectedProvider]
-    const isLocal = info?.isLocal ?? false
+    const info = getProvider(selectedProvider)
+    const isLocal = info?.category === 'local'
 
     // Validation
     if (!isLocal && !apiKeyInput) {
@@ -110,7 +112,7 @@ export function ProvidersStep() {
         body: JSON.stringify({
           provider: selectedProvider,
           apiKey: isLocal ? undefined : apiKeyInput,
-          model: modelInput || DEFAULT_MODELS[selectedProvider],
+          model: modelInput || getDefault(selectedProvider),
           baseUrl: baseUrlInput || undefined,
         }),
       })
@@ -122,7 +124,7 @@ export function ProvidersStep() {
         const newProvider: ProviderConfig = {
           provider: selectedProvider,
           apiKey: apiKeyInput,
-          model: modelInput || DEFAULT_MODELS[selectedProvider],
+          model: modelInput || getDefault(selectedProvider),
           baseUrl: baseUrlInput || undefined,
           isLocal,
           validated: true,
@@ -241,15 +243,15 @@ export function ProvidersStep() {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
                 <span className="font-bold text-blue-400">
-                  {PROVIDER_INFO[selectedProvider]?.name.charAt(0) || '?'}
+                  {getProvider(selectedProvider)?.name.charAt(0) || '?'}
                 </span>
               </div>
               <div>
                 <h3 className={cn('font-medium', theme.text.primary)}>
-                  Configure {PROVIDER_INFO[selectedProvider]?.name}
+                  Configure {getProvider(selectedProvider)?.name}
                 </h3>
                 <p className={cn('text-sm', theme.text.muted)}>
-                  {PROVIDER_INFO[selectedProvider]?.isLocal
+                  {getProvider(selectedProvider)?.category === 'local'
                     ? 'Local provider - no API key needed'
                     : 'Enter your API key to connect'}
                 </p>
@@ -265,7 +267,7 @@ export function ProvidersStep() {
           </div>
 
           {/* API Key (for cloud providers) */}
-          {!PROVIDER_INFO[selectedProvider]?.isLocal && (
+          {getProvider(selectedProvider)?.category !== 'local' && (
             <SecretInput
               label="API Key"
               value={apiKeyInput}
@@ -273,11 +275,11 @@ export function ProvidersStep() {
                 setApiKeyInput(value)
                 setFieldValidation('providerApiKey', { status: 'idle' })
               }}
-              placeholder={`${PROVIDER_INFO[selectedProvider]?.keyPrefix || ''}...`}
-              hint={`Get your key from ${PROVIDER_INFO[selectedProvider]?.name}`}
+              placeholder={`${getProvider(selectedProvider)?.name} API Key...`}
+              hint={`Get your key from ${getProvider(selectedProvider)?.name}`}
               helpLink={{
                 text: 'Where do I find this?',
-                url: PROVIDER_INFO[selectedProvider]?.helpUrl || '#',
+                url: '#', // TODO: Add help URLs to registry if needed
               }}
               validation={fieldValidation.providerApiKey}
             />
@@ -308,11 +310,11 @@ export function ProvidersStep() {
                 label="Model"
                 value={modelInput}
                 onChange={setModelInput}
-                placeholder={DEFAULT_MODELS[selectedProvider]}
+                placeholder={getDefault(selectedProvider)}
                 hint="Leave empty to use the default model"
               />
 
-              {(PROVIDER_INFO[selectedProvider]?.isLocal ||
+              {(getProvider(selectedProvider)?.category === 'local' ||
                 selectedProvider === 'openai-compatible') && (
                   <TextInput
                     label="Base URL"

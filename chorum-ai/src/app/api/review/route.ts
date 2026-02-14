@@ -14,6 +14,7 @@ import {
   ReviewProvider
 } from '@/lib/review/types'
 import { injectLearningContext } from '@/lib/learning'
+import { getDefaultModel } from '@/lib/providers/registry'
 
 // Simple peer review: resend the original prompt to a different provider
 export async function POST(req: NextRequest) {
@@ -130,9 +131,10 @@ Please provide your answer to this question.`
     try {
       if (reviewProvider === 'anthropic') {
         const anthropic = new Anthropic({ apiKey: reviewConfig.apiKey })
+        const model = getDefaultModel('anthropic')
 
         const result = await anthropic.messages.create({
-          model: 'claude-sonnet-4-20250514',
+          model,
           max_tokens: 4096,
           system: systemPrompt,
           messages: [{ role: 'user', content: userPrompt }]
@@ -144,9 +146,10 @@ Please provide your answer to this question.`
 
       } else if (reviewProvider === 'openai') {
         const openai = new OpenAI({ apiKey: reviewConfig.apiKey })
+        const model = getDefaultModel('openai')
 
         const result = await openai.chat.completions.create({
-          model: 'gpt-4o',
+          model,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt }
@@ -161,8 +164,9 @@ Please provide your answer to this question.`
       } else {
         // Google
         const genAI = new GoogleGenerativeAI(reviewConfig.apiKey)
+        const modelId = getDefaultModel('google')
         const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-pro',
+          model: modelId,
           systemInstruction: systemPrompt
         })
 

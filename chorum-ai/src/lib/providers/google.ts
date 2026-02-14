@@ -145,6 +145,7 @@ export async function callGoogle(
 
     return {
         content: textContent,
+        model: config.model,
         tokensInput: result.response.usageMetadata?.promptTokenCount || 0,
         tokensOutput: result.response.usageMetadata?.candidatesTokenCount || 0,
         stopReason,

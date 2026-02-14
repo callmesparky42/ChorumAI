@@ -34,9 +34,16 @@ export async function callMistral(
 
     const result = await response.json()
 
+    const choice = result.choices[0]
+    const stopReason = choice.finish_reason || null
+    const toolCalls = choice.message.tool_calls || []
+
     return {
-        content: result.choices[0].message.content || '',
+        content: choice.message.content || '',
+        model: result.model,
         tokensInput: result.usage?.prompt_tokens || 0,
-        tokensOutput: result.usage?.completion_tokens || 0
+        tokensOutput: result.usage?.completion_tokens || 0,
+        stopReason,
+        toolCalls
     }
 }

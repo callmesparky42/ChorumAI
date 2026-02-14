@@ -12,6 +12,7 @@ import { extractAndStoreLearnings } from './analyzer'
 import { decrypt } from '@/lib/crypto'
 import type { FullProviderConfig } from '@/lib/providers'
 import { getOrComputeDomainSignal } from '@/lib/chorum/domainSignal'
+import { getCheapModel, BACKGROUND_PROVIDER_PREFERENCE } from '@/lib/providers/registry'
 
 const MAX_ATTEMPTS = 3
 const PROCESSING_DELAY_MS = 1000 // 1 second between processing attempts
@@ -100,7 +101,8 @@ export async function processQueue(userId?: string): Promise<{ processed: number
                     undefined, // sourceMessageId
                     item.userId,
                     domainSignal,
-                    project?.focusDomains ?? []
+                    project?.focusDomains ?? [],
+                    item.agentName || 'web-ui' // Pass source/agentName
                 )
 
                 // Mark as completed
@@ -133,8 +135,128 @@ export async function processQueue(userId?: string): Promise<{ processed: number
         console.error('[Queue] Error processing queue:', e)
     }
 
+    // Check if there are more items to process (drain the queue)
+    const [remaining] = await db.select()
+        .from(learningQueue)
+        .where(
+            and(
+                eq(learningQueue.status, 'pending'),
+                lt(learningQueue.attempts, MAX_ATTEMPTS)
+            )
+        )
+        .limit(1)
+
+    if (remaining) {
+        setTimeout(() => processQueue(userId), PROCESSING_DELAY_MS)
+    }
+
     return { processed, failed }
 }
+
+/**
+ * Queue multiple conversation pairs for learning extraction as a batch.
+ * Used by import pipelines to trigger learning on intake.
+ * Returns batch ID for progress tracking.
+ */
+export async function queueBatchForLearning(
+    projectId: string,
+    userId: string,
+    pairs: Array<{ userMessage: string; assistantResponse: string }>,
+    label?: string,
+    agentName?: string
+): Promise<{ batchId: string; queued: number }> {
+    const batchId = crypto.randomUUID()
+    const batchLabel = label || `Import batch (${pairs.length} conversations)`
+
+    // Filter valid pairs
+    const validPairs = pairs.filter(p =>
+        p.userMessage.trim().length >= 20 &&
+        p.assistantResponse.trim().length >= 20
+    )
+
+    if (validPairs.length === 0) {
+        return { batchId, queued: 0 }
+    }
+
+    // Insert in a single query
+    await db.insert(learningQueue).values(
+        validPairs.map(p => ({
+            projectId,
+            userId,
+            userMessage: p.userMessage,
+            assistantResponse: p.assistantResponse,
+            status: 'pending',
+            batchId,
+            batchLabel,
+            agentName
+        }))
+    )
+
+    // Schedule processing
+    setTimeout(() => processQueue(userId), PROCESSING_DELAY_MS)
+
+    return { batchId, queued: validPairs.length }
+}
+
+/**
+ * Get progress for a specific batch of queued learning extractions.
+ */
+export async function getBatchProgress(batchId: string): Promise<{
+    batchId: string
+    label: string | null
+    total: number
+    pending: number
+    processing: number
+    completed: number
+    failed: number
+    errors: string[]
+}> {
+    const items = await db.select({
+        status: learningQueue.status,
+        error: learningQueue.error,
+        label: learningQueue.batchLabel
+    })
+        .from(learningQueue)
+        .where(eq(learningQueue.batchId, batchId))
+
+    const stats = {
+        batchId,
+        label: items[0]?.label || null,
+        total: items.length,
+        pending: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+        errors: [] as string[]
+    }
+
+    const errorSet = new Set<string>()
+
+    for (const item of items) {
+        if (item.status === 'pending') stats.pending++
+        else if (item.status === 'processing') stats.processing++
+        else if (item.status === 'completed') stats.completed++
+        else if (item.status === 'failed') stats.failed++
+
+        if (item.error) errorSet.add(item.error)
+    }
+
+    stats.errors = Array.from(errorSet)
+
+    return stats
+}
+
+/**
+ * Get a cheap provider config for the user (for learning extraction)
+ * 
+ * Priority:
+ * 1. User's configured cloud providers (cheaper ones first)
+ * 2. Environment API keys (Anthropic, OpenAI, Google)
+ * 3. Local providers if explicitly configured with a specific model
+ */
+// ... existing code ...
+
+// ... existing code ...
 
 /**
  * Get a cheap provider config for the user (for learning extraction)
@@ -159,49 +281,40 @@ async function getProviderForUser(userId: string): Promise<FullProviderConfig | 
     const cloudProviders = providers.filter(p => !p.isLocal)
     const localProviders = providers.filter(p => p.isLocal)
 
-    // Prefer cheaper cloud models for background processing
-    const cheapOrder = ['deepseek', 'mistral', 'google', 'openai', 'anthropic', 'perplexity', 'xai', 'glm']
-    const sortedCloud = cloudProviders.sort((a, b) => {
-        const aIndex = cheapOrder.indexOf(a.provider)
-        const bIndex = cheapOrder.indexOf(b.provider)
-        return (aIndex === -1 ? 100 : aIndex) - (bIndex === -1 ? 100 : bIndex)
-    })
-
-    // Use a cloud provider if available
-    if (sortedCloud.length > 0) {
-        const selected = sortedCloud[0]
+    // Helper to find a provider
+    const findProvider = (providerName: string): FullProviderConfig | null => {
+        const cred = cloudProviders.find(p => p.provider === providerName)
+        if (!cred) return null
         return {
-            provider: selected.provider,
-            apiKey: decrypt(selected.apiKeyEncrypted),
-            model: selected.model,
-            baseUrl: selected.baseUrl || undefined,
+            provider: cred.provider,
+            apiKey: decrypt(cred.apiKeyEncrypted),
+            model: getCheapModel(cred.provider),
+            baseUrl: cred.baseUrl || undefined,
             isLocal: false
         }
+    }
+
+    // Check providers in preference order
+    for (const provider of BACKGROUND_PROVIDER_PREFERENCE) {
+        const config = findProvider(provider)
+        if (config) return config
     }
 
     // Fall back to environment API keys (cheap models for background tasks)
-    if (process.env.GOOGLE_AI_API_KEY) {
-        return {
-            provider: 'google',
-            apiKey: process.env.GOOGLE_AI_API_KEY,
-            model: 'gemini-2.0-flash-lite',
-            isLocal: false
-        }
-    }
-    if (process.env.ANTHROPIC_API_KEY) {
-        return {
-            provider: 'anthropic',
-            apiKey: process.env.ANTHROPIC_API_KEY,
-            model: 'claude-3-haiku-20240307',
-            isLocal: false
-        }
-    }
-    if (process.env.OPENAI_API_KEY) {
-        return {
-            provider: 'openai',
-            apiKey: process.env.OPENAI_API_KEY,
-            model: 'gpt-4o-mini',
-            isLocal: false
+    // We iterate the same preference list to check env vars
+    for (const provider of BACKGROUND_PROVIDER_PREFERENCE) {
+        const envKey = `${provider.toUpperCase()}_API_KEY`
+        // Special case for Google env var name mismatch if needed, but standardizing on PROVIDER_API_KEY is better
+        // The original code used GOOGLE_AI_API_KEY
+        const apiKey = process.env[envKey] || (provider === 'google' ? process.env.GOOGLE_AI_API_KEY : undefined)
+
+        if (apiKey) {
+            return {
+                provider,
+                apiKey,
+                model: getCheapModel(provider),
+                isLocal: false
+            }
         }
     }
 

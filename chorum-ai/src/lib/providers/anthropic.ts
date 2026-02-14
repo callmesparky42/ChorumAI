@@ -123,6 +123,7 @@ export async function callAnthropic(
 
     return {
         content: textContent,
+        model: config.model,
         tokensInput: result.usage.input_tokens,
         tokensOutput: result.usage.output_tokens,
         stopReason,

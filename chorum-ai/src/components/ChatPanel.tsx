@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, Users, Plus, X, Image as ImageIcon, PanelRight, PanelRightClose, Zap, Paperclip, Bug } from 'lucide-react'
+import { Send, Bot, Users, Plus, X, Image as ImageIcon, PanelRight, PanelRightClose, Paperclip, Bug } from 'lucide-react'
 import { Message } from './Message'
 import { ProviderSelector } from './ProviderSelector'
-import { AgentSelector } from './AgentSelector'
+import { useAgentStore } from '@/lib/agents/store'
 import { CostMeter } from './CostMeter'
 import { ChoralThinking } from './ChoralSpinner'
 import { FileConsentDialog } from './FileConsentDialog'
@@ -66,7 +66,8 @@ interface PendingFile {
 export function ChatPanel({ projectId }: { projectId?: string }) {
     const [message, setMessage] = useState('')
     const [selectedProvider, setSelectedProvider] = useState<string>('auto')
-    const [selectedAgent, setSelectedAgent] = useState<string>('none')
+    const { activeAgent } = useAgentStore()
+    const selectedAgent = activeAgent?.id || 'none'
     const [attachments, setAttachments] = useState<Attachment[]>([])
     const [isDragging, setIsDragging] = useState(false)
 
@@ -412,23 +413,6 @@ export function ChatPanel({ projectId }: { projectId?: string }) {
                         onDragLeave={onDragLeave}
                         onDrop={onDrop}
                     >
-                        {/* Omnibar Header: Agent & Context */}
-                        <div className="flex items-center gap-2 p-1.5 border-b border-gray-800/50">
-                            <AgentSelector
-                                value={selectedAgent}
-                                onChange={setSelectedAgent}
-                                mode="omnibar"
-                            />
-
-                            {/* Context Indicator - show when agent selected (not 'none' control mode) */}
-                            {selectedAgent !== 'none' && (
-                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 text-[10px] font-medium border border-blue-500/20">
-                                    <Zap className="w-3 h-3" />
-                                    <span>Context Active</span>
-                                </div>
-                            )}
-                        </div>
-
                         {/* Input Area */}
                         <div className="p-3">
                             {/* Attachment Previews */}

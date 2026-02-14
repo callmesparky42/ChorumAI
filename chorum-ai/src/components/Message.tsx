@@ -18,6 +18,7 @@ interface MessageProps {
         images?: string[] | null
         attachments?: { type: string; name: string; content: string }[] | null
         provider?: string | null
+        model?: string | null
         costUsd?: string | null
         tokensInput?: number | null
         tokensOutput?: number | null
@@ -117,8 +118,6 @@ export function Message({ message, previousUserMessage, projectId }: MessageProp
             <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isUser ? 'bg-blue-600' : 'bg-gray-800 border border-gray-700'}`}>
                 {isUser ? (
                     <User className="w-4 h-4" />
-                ) : message.agentIcon ? (
-                    <span className="text-base">{message.agentIcon}</span>
                 ) : (
                     <Bot className="w-4 h-4" />
                 )}
@@ -132,9 +131,14 @@ export function Message({ message, previousUserMessage, projectId }: MessageProp
                             <span className="font-medium text-gray-400">{message.agentName}</span>
                         )}
                         {message.provider && (
-                            <span className="flex items-center gap-0.5 bg-gray-800/50 px-1.5 py-0.5 rounded">
+                            <span className="flex items-center gap-0.5 bg-gray-800/50 px-1.5 py-0.5 rounded" title={message.model || undefined}>
                                 <Cpu className="w-2.5 h-2.5" />
                                 <span className="capitalize">{message.provider}</span>
+                                {message.model && (
+                                    <span className="text-gray-500 ml-0.5 border-l border-gray-700 pl-1 max-w-[100px] truncate">
+                                        {message.model}
+                                    </span>
+                                )}
                             </span>
                         )}
                         {tokenDisplay && (

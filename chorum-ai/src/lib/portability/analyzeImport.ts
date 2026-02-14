@@ -1,4 +1,4 @@
-import { extractAndStoreLearnings } from '@/lib/learning/analyzer'
+import { queueBatchForLearning } from '@/lib/learning/queue'
 import { detectDomainsFromText, type DomainSignal, type DomainScore } from '@/lib/chorum/domainSignal'
 import type { FullProviderConfig } from '@/lib/providers'
 import type { NormalizedConversation } from './parsers'
@@ -11,6 +11,8 @@ export interface ImportAnalysisResult {
     learningsMerged: number
     errors: string[]
     domainSignal: DomainSignal
+    batchId?: string
+    queued?: number
 }
 
 export interface ImportAnalysisOptions {
@@ -21,10 +23,6 @@ export interface ImportAnalysisOptions {
     minMessages?: number
     rateLimitMs?: number
     focusDomains?: string[]
-}
-
-function delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 function normalizeDomainSignal(conversations: NormalizedConversation[]): DomainSignal {
@@ -107,20 +105,16 @@ export async function analyzeImportedConversations(
 ): Promise<ImportAnalysisResult> {
     const maxConversations = options.maxConversations ?? conversations.length
     const minMessages = options.minMessages ?? 2
-    const rateLimitMs = options.rateLimitMs ?? 500
-    const focusDomains = options.focusDomains ?? []
+
+    // Filter and select conversations
     const selected = conversations.slice(0, maxConversations)
-
     const domainSignal = normalizeDomainSignal(selected)
-    const errors: string[] = []
-    let conversationsProcessed = 0
-    let conversationsSkipped = 0
-    let learningsStored = 0
-    let duplicatesFound = 0
-    let learningsMerged = 0
 
-    for (let index = 0; index < selected.length; index++) {
-        const conversation = selected[index]
+    let conversationsSkipped = 0
+    const allPairs: Array<{ userMessage: string; assistantResponse: string }> = []
+
+    // Build learning pairs from all conversations
+    for (const conversation of selected) {
         const eligibleMessages = conversation.messages.filter(m => m.role === 'user' || m.role === 'assistant')
         if (eligibleMessages.length < minMessages) {
             conversationsSkipped++
@@ -133,45 +127,40 @@ export async function analyzeImportedConversations(
             continue
         }
 
-        try {
-            for (const pair of pairs) {
-                const result = await extractAndStoreLearnings(
-                    options.projectId,
-                    pair.user,
-                    pair.assistant,
-                    options.providerConfig,
-                    undefined,
-                    undefined,
-                    options.userId,
-                    domainSignal,
-                    focusDomains
-                )
-                learningsStored += result.stored
-                duplicatesFound += result.duplicates
-                learningsMerged += result.merged
-            }
+        // Concatenate all pairs from this conversation into one learning unit
+        // This preserves the full context of the conversation for the analyzer
+        const userContent = pairs.map(p => p.user).join('\n\n')
+        const assistantContent = pairs.map(p => p.assistant).join('\n\n')
 
-            conversationsProcessed++
-            if (conversationsProcessed % 10 === 0) {
-                console.log(`[ImportAnalyze] Processed ${conversationsProcessed}/${selected.length} conversations`)
-            }
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error'
-            errors.push(`Conversation ${index + 1}: ${message}`)
-        }
+        allPairs.push({ userMessage: userContent, assistantResponse: assistantContent })
+    }
 
-        if (index < selected.length - 1) {
-            await delay(rateLimitMs)
-        }
+    // Queue for async processing
+    let batchId: string | undefined
+    let queued = 0
+
+    if (allPairs.length > 0) {
+        const batchLabel = `Import analysis (${allPairs.length} conversations)`
+        const result = await queueBatchForLearning(
+            options.projectId,
+            options.userId,
+            allPairs,
+            batchLabel,
+            'Import:Universal'
+        )
+        batchId = result.batchId
+        queued = result.queued
     }
 
     return {
-        conversationsProcessed,
+        conversationsProcessed: allPairs.length,
         conversationsSkipped,
-        learningsStored,
-        duplicatesFound,
-        learningsMerged,
-        errors,
-        domainSignal
+        learningsStored: 0, // Will be populated asynchronously
+        duplicatesFound: 0,
+        learningsMerged: 0,
+        errors: [],
+        domainSignal,
+        batchId,
+        queued
     }
 }
