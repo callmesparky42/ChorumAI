@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { HyggeButton } from '@/components/hygge/HyggeButton'
+import QRCode from 'qrcode'
 
 interface Token {
   id: string
@@ -23,10 +24,23 @@ export function McpSettings() {
   const [copied, setCopied] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     fetchTokens()
   }, [])
+
+  useEffect(() => {
+    if (newToken && qrCanvasRef.current) {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://chorum.ai'
+      const payload = `chorum://connect?url=${encodeURIComponent(origin)}&token=${encodeURIComponent(newToken)}`
+      QRCode.toCanvas(qrCanvasRef.current, payload, {
+        width: 96,
+        margin: 1,
+        color: { dark: '#e0e0e0', light: '#00000000' }
+      })
+    }
+  }, [newToken])
 
   async function fetchTokens() {
     try {
@@ -134,6 +148,12 @@ export function McpSettings() {
             <HyggeButton onClick={() => copyToClipboard(newToken)} className="text-xs">
               {copied ? 'copied' : 'copy'}
             </HyggeButton>
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <canvas ref={qrCanvasRef} className="shrink-0" />
+            <p className="text-xs text-[var(--hg-text-tertiary)]">
+              Scan with the Chorum mobile app to connect automatically.
+            </p>
           </div>
         </div>
       )}
