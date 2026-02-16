@@ -381,7 +381,9 @@ export function getLocalProviders(): ProviderEntry[] {
 }
 
 // Global background provider preference order
-export const BACKGROUND_PROVIDER_PREFERENCE = ['google', 'deepseek', 'openai', 'anthropic', 'mistral']
+// Spread background tasks across providers to avoid rate-limiting the chat provider.
+// OpenAI gpt-4o-mini is cheap with generous rate limits — good default for background work.
+export const BACKGROUND_PROVIDER_PREFERENCE = ['openai', 'anthropic', 'google', 'deepseek', 'mistral']
 
 export function isProviderSupported(provider: string): boolean {
     return !!MODEL_REGISTRY[provider]

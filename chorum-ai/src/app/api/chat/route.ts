@@ -35,6 +35,30 @@ import { WEB_SEARCH_TOOL_DEFINITION, executeWebSearch, isSearchEnabled } from '@
 // Allow large request bodies (base64-encoded images can exceed default 1MB/10MB)
 export const maxDuration = 60 // seconds
 
+/**
+ * Pick a background-task provider, preferring one that ISN'T the chat provider
+ * to spread rate-limit pressure across APIs.
+ */
+function pickBackgroundProvider(
+    providerConfigs: any[],
+    chatProvider?: string
+): any | undefined {
+    const cloud = providerConfigs.filter(p => !p.isLocal)
+
+    // First pass: find a background-preferred provider that isn't the chat provider
+    for (const preferred of BACKGROUND_PROVIDER_PREFERENCE) {
+        if (preferred === chatProvider) continue
+        const match = cloud.find(p => p.provider === preferred)
+        if (match) return match
+    }
+    // Second pass: if every alternative is exhausted, allow the chat provider
+    for (const preferred of BACKGROUND_PROVIDER_PREFERENCE) {
+        const match = cloud.find(p => p.provider === preferred)
+        if (match) return match
+    }
+    return cloud[0]
+}
+
 export async function POST(req: NextRequest) {
     try {
         // Support both Bearer token (mobile) and session (web) auth
@@ -804,29 +828,19 @@ export async function POST(req: NextRequest) {
             if (projectId) {
                 waitUntil(
                     checkAndSummarize(projectId, async (conversationText) => {
-                        // Use explicit provider cascade for background tasks
-                        // Preference: Gemini Flash → GPT-4o-mini → DeepSeek → Claude Haiku → Mistral
-                        const cloudProviders = providerConfigs.filter(p => !p.isLocal)
-
-                        let selectedProvider: typeof cloudProviders[0] | undefined
-                        for (const preferredProvider of BACKGROUND_PROVIDER_PREFERENCE) {
-                            selectedProvider = cloudProviders.find(p => p.provider === preferredProvider)
-                            if (selectedProvider) break
-                        }
-
-                        if (!selectedProvider) {
+                        const bgProvider = pickBackgroundProvider(providerConfigs, actualProvider)
+                        if (!bgProvider) {
                             throw new Error('No cloud providers available for summarization')
                         }
 
                         const prompt = buildSummarizationPrompt(conversationText)
 
-                        // Use provider factory with cheap model for summarization
                         const result = await callProvider(
                             {
-                                provider: selectedProvider.provider,
-                                apiKey: selectedProvider.apiKey,
-                                model: getCheapModel(selectedProvider.provider),
-                                baseUrl: selectedProvider.baseUrl,
+                                provider: bgProvider.provider,
+                                apiKey: bgProvider.apiKey,
+                                model: getCheapModel(bgProvider.provider),
+                                baseUrl: bgProvider.baseUrl,
                                 isLocal: false
                             },
                             [{ role: 'user', content: prompt }],
@@ -840,24 +854,17 @@ export async function POST(req: NextRequest) {
             // [Conversation Title] Generate title for new conversations (async)
             // Use waitUntil to prevent Vercel from killing the connection before completion
             if (isNewConversation && conversationId) {
-                // Use explicit provider cascade for title generation
-                const cloudProviders = providerConfigs.filter(p => !p.isLocal)
+                const bgProvider = pickBackgroundProvider(providerConfigs, actualProvider)
 
-                let selectedProvider: typeof cloudProviders[0] | undefined
-                for (const preferredProvider of BACKGROUND_PROVIDER_PREFERENCE) {
-                    selectedProvider = cloudProviders.find(p => p.provider === preferredProvider)
-                    if (selectedProvider) break
-                }
-
-                if (!selectedProvider) {
+                if (!bgProvider) {
                     console.warn('[Conversation] No cloud providers available for title generation')
                 } else {
                     waitUntil(
                         generateConversationTitle(content, {
-                            provider: selectedProvider.provider,
-                            apiKey: selectedProvider.apiKey,
-                            model: getCheapModel(selectedProvider.provider),
-                            baseUrl: selectedProvider.baseUrl,
+                            provider: bgProvider.provider,
+                            apiKey: bgProvider.apiKey,
+                            model: getCheapModel(bgProvider.provider),
+                            baseUrl: bgProvider.baseUrl,
                             isLocal: false
                         }).then(async (title) => {
                             try {
@@ -889,9 +896,8 @@ export async function POST(req: NextRequest) {
 
                 if (memorySettings.learningMode === 'sync') {
                     // Synchronous processing - adds latency but immediate learning
-                    const cheapestProvider = providerConfigs.sort((a, b) =>
-                        (a.costPer1M?.input || 0) - (b.costPer1M?.input || 0)
-                    )[0]
+                    // Prefer a different provider than the one that just handled chat
+                    const cheapestProvider = pickBackgroundProvider(providerConfigs, actualProvider)
                     if (cheapestProvider) {
                         await extractAndStoreLearnings(
                             projectId,

@@ -63,14 +63,21 @@ export async function processQueue(userId?: string): Promise<{ processed: number
             )
 
         // Recovery: Reset stuck "processing" items older than 10 minutes
-        // This handles serverless timeouts where items get stuck in processing forever
+        // Scope to userId when available to avoid full-table scan (Supabase statement timeout)
         const zombieCutoff = new Date(Date.now() - 10 * 60 * 1000)
-        await db.update(learningQueue)
-            .set({ status: 'pending' })
-            .where(and(
+        const zombieWhere = userId
+            ? and(
+                eq(learningQueue.status, 'processing'),
+                eq(learningQueue.userId, userId),
+                lt(learningQueue.createdAt, zombieCutoff)
+            )
+            : and(
                 eq(learningQueue.status, 'processing'),
                 lt(learningQueue.createdAt, zombieCutoff)
-            ))
+            )
+        await db.update(learningQueue)
+            .set({ status: 'pending' })
+            .where(zombieWhere)
 
         const pendingItems = await db.select()
             .from(learningQueue)
@@ -143,17 +150,25 @@ export async function processQueue(userId?: string): Promise<{ processed: number
         }
     } catch (e) {
         console.error('[Queue] Error processing queue:', e)
+        // Don't re-schedule after infrastructure errors (DB timeout, etc.)
+        return { processed, failed }
     }
 
     // Check if there are more items to process (drain the queue)
+    const remainingWhere = userId
+        ? and(
+            eq(learningQueue.status, 'pending'),
+            eq(learningQueue.userId, userId),
+            lt(learningQueue.attempts, MAX_ATTEMPTS)
+        )
+        : and(
+            eq(learningQueue.status, 'pending'),
+            lt(learningQueue.attempts, MAX_ATTEMPTS)
+        )
+
     const [remaining] = await db.select()
         .from(learningQueue)
-        .where(
-            and(
-                eq(learningQueue.status, 'pending'),
-                lt(learningQueue.attempts, MAX_ATTEMPTS)
-            )
-        )
+        .where(remainingWhere)
         .limit(1)
 
     if (remaining) {
