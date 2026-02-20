@@ -30,9 +30,6 @@ export function PendingLearnings() {
 
   useEffect(() => {
     fetchPending()
-    // Poll for new items every 30 seconds
-    const interval = setInterval(fetchPending, 30000)
-    return () => clearInterval(interval)
   }, [])
 
   async function fetchPending() {
