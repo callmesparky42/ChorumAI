@@ -12,7 +12,7 @@ export default async function ShellLayout({ children }: { children: React.ReactN
 
     if (process.env.NODE_ENV !== 'development') {
         const session = await getServerSession(authOptions)
-        if (!session?.user?.id) redirect('/api/auth/signin')
+        if (!session?.user?.id) redirect('/')
         userId = session.user.id
     }
 
