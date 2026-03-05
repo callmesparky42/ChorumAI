@@ -1,0 +1,57 @@
+{
+    "name": "Python Best Practices",
+    "learnings": [
+        {
+            "content": "Use type hints on all function signatures. Never write a function without return type annotation.",
+            "type": "invariant",
+            "scopes": [
+                "#python"
+            ]
+        },
+        {
+            "content": "Use dataclasses or Pydantic models for structured data — avoid plain dicts for complex objects.",
+            "type": "pattern",
+            "scopes": [
+                "#python"
+            ]
+        },
+        {
+            "content": "Use pathlib.Path instead of os.path for all file system operations.",
+            "type": "decision",
+            "scopes": [
+                "#python"
+            ]
+        },
+        {
+            "content": "Context managers (with statement) for all file and connection handling. Never forget to close resources.",
+            "type": "invariant",
+            "scopes": [
+                "#python",
+                "#resources"
+            ]
+        },
+        {
+            "content": "Use f-strings for string formatting. Avoid % formatting and .format() in new code.",
+            "type": "decision",
+            "scopes": [
+                "#python"
+            ]
+        },
+        {
+            "content": "Write tests with pytest. Use fixtures for shared state, not setUp/tearDown.",
+            "type": "pattern",
+            "scopes": [
+                "#python",
+                "#testing"
+            ]
+        },
+        {
+            "content": "Use virtual environments. Never install packages globally. Use pyproject.toml with poetry or hatch.",
+            "type": "invariant",
+            "scopes": [
+                "#python",
+                "#tooling"
+            ]
+        }
+    ]
+}

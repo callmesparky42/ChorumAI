@@ -1,0 +1,95 @@
+{
+  "generatedAtUtc": "2026-02-22T18:40:05.0781922Z",
+  "overallStatus": "FAIL",
+  "counts": {
+    "pass": 11,
+    "fail": 1,
+    "blocked": 2
+  },
+  "checks": [
+    {
+      "id": "phase0.directory_exists",
+      "status": "PASS",
+      "summary": "chorum_v2 directory presence",
+      "evidence": "Path checked: c:\\Users\\dmill\\Documents\\GitHub\\ChorumAI\\chorum_v2"
+    },
+    {
+      "id": "phase0.next_build",
+      "status": "PASS",
+      "summary": "npx next build execution",
+      "evidence": "See checks/build.log (exit=0)"
+    },
+    {
+      "id": "phase0.typescript_quality",
+      "status": "PASS",
+      "summary": "TypeScript strict + no @ts-ignore/any in source/config scope",
+      "evidence": "strict=True; noTsIgnore=True; noAnyInScope=True"
+    },
+    {
+      "id": "phase0.auth_wired",
+      "status": "BLOCKED",
+      "summary": "Auth wiring contract check",
+      "evidence": "staticWired=True; .env.local exists=False"
+    },
+    {
+      "id": "phase0.drizzle_connectivity",
+      "status": "BLOCKED",
+      "summary": "Database connectivity requires real Supabase credentials",
+      "evidence": ".env.local / DATABASE_URL not validated in this run"
+    },
+    {
+      "id": "phase0.spec_documents",
+      "status": "FAIL",
+      "summary": "Spec docs + required sections",
+      "evidence": "LAYER_CONTRACTS.md missing section: ## Interface(s); NEBULA_SCHEMA_SPEC.md missing section: ## Interface(s); DOMAIN_SEEDS_SPEC.md missing section: ## Error Handling; DOMAIN_SEEDS_SPEC.md missing section: ## Interface(s)"
+    },
+    {
+      "id": "phase0.layer_directories",
+      "status": "PASS",
+      "summary": "Required layer directories exist",
+      "evidence": "all present"
+    },
+    {
+      "id": "phase0.stub_files",
+      "status": "PASS",
+      "summary": "Stub files in place and non-implementation",
+      "evidence": "missing=; nonLogic=True"
+    },
+    {
+      "id": "phase0.guardian_layer",
+      "status": "PASS",
+      "summary": "chorum-layer-guardian style audit",
+      "evidence": "no violations detected"
+    },
+    {
+      "id": "phase0.guardian_nebula_schema",
+      "status": "PASS",
+      "summary": "nebula-schema-guardian baseline on empty schema.ts",
+      "evidence": "schema.ts baseline valid"
+    },
+    {
+      "id": "phase0.changelog",
+      "status": "PASS",
+      "summary": "CHANGELOG contains Phase 0 entry",
+      "evidence": "Checked for [2.0.0-alpha.0] — Phase 0 heading"
+    },
+    {
+      "id": "phase0.env_example",
+      "status": "PASS",
+      "summary": ".env.local.example present",
+      "evidence": "Exists check"
+    },
+    {
+      "id": "phase0.skills_present",
+      "status": "PASS",
+      "summary": "All 5 guardian skills present",
+      "evidence": "all present"
+    },
+    {
+      "id": "phase0.human_checkpoint_smoke",
+      "status": "PASS",
+      "summary": "Automated local render smoke (surrogate for manual checkpoint)",
+      "evidence": "status=200"
+    }
+  ]
+}

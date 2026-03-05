@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+/* ============================================
+   HYGGE BRUTALIST DESIGN SYSTEM — Chorum v2
+   ============================================ */
+
+:root {
+  /* Surfaces */
+  --hg-bg: #0a0c10;
+  --hg-surface: #141820;
+  --hg-surface-hover: #1a2030;
+  --hg-surface-active: #222838;
+
+  /* Borders */
+  --hg-border: #1e2330;
+  --hg-border-subtle: #2a3040;
+
+  /* Text */
+  --hg-text-primary: #f4f4f5;
+  --hg-text-secondary: #a1a1aa;
+  --hg-text-tertiary: #71717a;
+
+  /* Brand Accents */
+  --hg-accent: #29ABE2;
+  --hg-accent-warm: #F7C325;
+  --hg-accent-muted: rgba(41, 171, 226, 0.12);
+  --hg-accent-warm-muted: rgba(247, 195, 37, 0.10);
+
+  /* Semantic */
+  --hg-success: #22c55e;
+  --hg-destructive: #dc2626;
+  --hg-destructive-muted: rgba(220, 38, 38, 0.1);
+
+  /* Font */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@theme inline {
+  --color-background: var(--hg-bg);
+  --color-foreground: var(--hg-text-primary);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--hg-bg);
+  color: var(--hg-text-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(41, 171, 226, 0.25);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(41, 171, 226, 0.4);
+}
+
+/* Ghost Button — invisible until hover */
+.hg-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--hg-text-secondary);
+  padding: 6px 12px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transition: all 150ms ease;
+  cursor: pointer;
+}
+
+.hg-btn:hover {
+  border-color: var(--hg-border-subtle);
+  color: var(--hg-text-primary);
+  background: var(--hg-surface-hover);
+}
+
+.hg-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hg-btn-accent {
+  color: var(--hg-accent);
+}
+
+.hg-btn-accent:hover {
+  border-color: rgba(41, 171, 226, 0.3);
+  background: var(--hg-accent-muted);
+}
+
+.hg-btn-destructive:hover {
+  color: var(--hg-destructive);
+  border-color: var(--hg-destructive);
+  background: var(--hg-destructive-muted);
+}
+
+.hg-btn-outline {
+  border-color: var(--hg-border-subtle);
+  color: var(--hg-text-secondary);
+}
+
+.hg-btn-outline:hover {
+  border-color: var(--hg-text-tertiary);
+  color: var(--hg-text-primary);
+  background: var(--hg-surface);
+}
+
+.hg-btn-icon {
+  border: none;
+  padding: 6px;
+  color: var(--hg-text-tertiary);
+  background: transparent;
+  line-height: 1;
+}
+
+.hg-btn-icon:hover {
+  color: var(--hg-text-primary);
+  background: var(--hg-surface-hover);
+}
+
+/* Stat Line — label ---- value */
+.hg-stat-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.875rem;
+  padding: 4px 0;
+}
+
+.hg-stat-line .hg-label {
+  color: var(--hg-text-secondary);
+  white-space: nowrap;
+}
+
+.hg-stat-line .hg-fill {
+  flex: 1;
+  border-bottom: 1px dashed var(--hg-border);
+  min-width: 20px;
+}
+
+.hg-stat-line .hg-value {
+  color: var(--hg-text-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* Confidence Bar */
+.hg-confidence-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--hg-border);
+  overflow: hidden;
+}
+
+.hg-confidence-fill {
+  height: 100%;
+  background: var(--hg-accent);
+  transition: width 300ms ease;
+}

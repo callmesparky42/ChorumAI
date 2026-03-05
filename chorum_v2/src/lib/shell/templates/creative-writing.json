@@ -1,0 +1,61 @@
+{
+    "name": "Creative Writing Conventions",
+    "learnings": [
+        {
+            "content": "Show, don't tell. Replace emotional labels ('she was angry') with concrete sensory details and actions ('she slammed the mug down').",
+            "type": "invariant",
+            "scopes": [
+                "#writing",
+                "#prose"
+            ]
+        },
+        {
+            "content": "Every scene needs a goal, a conflict, and an outcome. If a scene has no conflict, cut it or merge it.",
+            "type": "pattern",
+            "scopes": [
+                "#writing",
+                "#structure"
+            ]
+        },
+        {
+            "content": "Dialogue tags: use 'said' and 'asked'. Avoid adverb-heavy tags like 'she insisted heatedly'. Let the dialogue itself carry the emotion.",
+            "type": "invariant",
+            "scopes": [
+                "#writing",
+                "#dialogue"
+            ]
+        },
+        {
+            "content": "Start chapters in medias res — in the middle of action or conflict. Never start with weather, waking up, or backstory.",
+            "type": "antipattern",
+            "scopes": [
+                "#writing",
+                "#structure"
+            ]
+        },
+        {
+            "content": "Use active voice for action and tension. Passive voice is acceptable for distance and uncertainty.",
+            "type": "pattern",
+            "scopes": [
+                "#writing",
+                "#prose"
+            ]
+        },
+        {
+            "content": "Each chapter should end on a hook — a question, a reversal, or a new threat to keep readers turning pages.",
+            "type": "golden_path",
+            "scopes": [
+                "#writing",
+                "#structure"
+            ]
+        },
+        {
+            "content": "First drafts are for exploration. Editing is for precision. Never edit while drafting — it kills momentum.",
+            "type": "decision",
+            "scopes": [
+                "#writing",
+                "#process"
+            ]
+        }
+    ]
+}

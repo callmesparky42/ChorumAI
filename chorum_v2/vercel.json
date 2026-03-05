@@ -1,0 +1,20 @@
+{
+    "crons": [
+        {
+            "path": "/api/cron/decay",
+            "schedule": "0 2 * * *"
+        },
+        {
+            "path": "/api/cron/zombie-recovery",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "path": "/api/cron/process-queue",
+            "schedule": "*/2 * * * *"
+        },
+        {
+            "path": "/api/cron/embedding-backfill",
+            "schedule": "*/10 * * * *"
+        }
+    ]
+}
