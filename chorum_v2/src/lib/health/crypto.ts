@@ -1,21 +1,22 @@
 import { createCipheriv, createDecipheriv, createHash, webcrypto } from 'node:crypto'
 
-const HEALTH_KEY_BASE64 = process.env.HEALTH_ENCRYPTION_KEY
-const CORE_KEY_BASE64 = process.env.ENCRYPTION_KEY
+let _healthKey: Buffer | null = null
 
-if (!HEALTH_KEY_BASE64) {
-  throw new Error('HEALTH_ENCRYPTION_KEY is not set.')
-}
-if (HEALTH_KEY_BASE64 === CORE_KEY_BASE64) {
-  throw new Error(
-    'HEALTH_ENCRYPTION_KEY must not equal ENCRYPTION_KEY. ' +
-    'PHI and provider credentials must use separate keys.'
-  )
-}
-
-const HEALTH_KEY = Buffer.from(HEALTH_KEY_BASE64, 'base64')
-if (HEALTH_KEY.length !== 32) {
-  throw new Error('HEALTH_ENCRYPTION_KEY must decode to exactly 32 bytes.')
+function getHealthKey(): Buffer {
+  if (_healthKey) return _healthKey
+  const keyBase64 = process.env.HEALTH_ENCRYPTION_KEY
+  if (!keyBase64) throw new Error('HEALTH_ENCRYPTION_KEY is not set.')
+  const coreKeyBase64 = process.env.ENCRYPTION_KEY
+  if (keyBase64 === coreKeyBase64) {
+    throw new Error(
+      'HEALTH_ENCRYPTION_KEY must not equal ENCRYPTION_KEY. ' +
+      'PHI and provider credentials must use separate keys.'
+    )
+  }
+  const key = Buffer.from(keyBase64, 'base64')
+  if (key.length !== 32) throw new Error('HEALTH_ENCRYPTION_KEY must decode to exactly 32 bytes.')
+  _healthKey = key
+  return key
 }
 
 export class HealthDecryptionError extends Error {
@@ -56,7 +57,7 @@ export function encryptPHI(data: unknown): { ciphertext: string; iv: string; tag
   webcrypto.getRandomValues(ivBytes)
   const iv = Buffer.from(ivBytes)
 
-  const cipher = createCipheriv('aes-256-gcm', HEALTH_KEY, iv)
+  const cipher = createCipheriv('aes-256-gcm', getHealthKey(), iv)
   const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()])
   const authTag = cipher.getAuthTag()
   const packedCiphertext = Buffer.concat([authTag, encrypted])
@@ -79,7 +80,7 @@ export function decryptPHI(ciphertext: string, iv: string): object {
 
     const authTag = packed.subarray(0, 16)
     const encrypted = packed.subarray(16)
-    const decipher = createDecipheriv('aes-256-gcm', HEALTH_KEY, ivBuffer)
+    const decipher = createDecipheriv('aes-256-gcm', getHealthKey(), ivBuffer)
     decipher.setAuthTag(authTag)
 
     const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()])
