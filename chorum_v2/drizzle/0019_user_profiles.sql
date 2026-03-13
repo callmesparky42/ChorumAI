@@ -28,10 +28,16 @@ CREATE POLICY user_profiles_select ON public.user_profiles FOR SELECT TO authent
 CREATE POLICY user_profiles_insert ON public.user_profiles FOR INSERT TO authenticated WITH CHECK (id = auth.uid());
 CREATE POLICY user_profiles_update ON public.user_profiles FOR UPDATE TO authenticated USING (id = auth.uid()) WITH CHECK (id = auth.uid());
 
--- 3. Migrate user_settings FK from auth.users → public.user_profiles
---    a. Drop the existing FK constraint (name from drizzle-kit snapshot)
-ALTER TABLE user_settings DROP CONSTRAINT IF EXISTS user_settings_id_fkey;
---    b. Add the new FK referencing public.user_profiles
-ALTER TABLE user_settings
-  ADD CONSTRAINT user_settings_id_fkey
-  FOREIGN KEY (id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+-- 3. Migrate user_settings FK from auth.users → user_profiles (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'user_settings'
+  ) THEN
+    ALTER TABLE user_settings DROP CONSTRAINT IF EXISTS user_settings_id_fkey;
+    ALTER TABLE user_settings
+      ADD CONSTRAINT user_settings_id_fkey
+      FOREIGN KEY (id) REFERENCES user_profiles(id) ON DELETE CASCADE;
+  END IF;
+END $$;
