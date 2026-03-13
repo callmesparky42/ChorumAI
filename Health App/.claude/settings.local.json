@@ -10,7 +10,13 @@
       "Bash(node:*)",
       "mcp__supabase__get_publishable_keys",
       "Bash(xargs grep:*)",
-      "Bash(find c:/Users/dmill/Documents/GitHub/ChorumAI/chorum_v2 -path */health-types* -type f)"
+      "Bash(find c:/Users/dmill/Documents/GitHub/ChorumAI/chorum_v2 -path */health-types* -type f)",
+      "Bash(git -C \"c:/Users/dmill/Documents/GitHub/ChorumAI\" diff HEAD -- chorum_v2/src/app/api/health/upload/confirm/route.ts chorum_v2/src/lib/shell/health-actions.ts chorum_v2/src/components/shell/health/HealthCharts.tsx)",
+      "Bash(git -C \"c:/Users/dmill/Documents/GitHub/ChorumAI\" show --name-only HEAD)",
+      "Bash(git -C \"c:/Users/dmill/Documents/GitHub/ChorumAI\" log --oneline -8)",
+      "Bash(git -C:*)",
+      "Bash(npx tsc:*)",
+      "Bash(echo \"EXIT:$?\")"
     ]
   },
   "enableAllProjectMcpServers": true,
