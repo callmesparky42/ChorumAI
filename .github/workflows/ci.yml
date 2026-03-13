@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: chorum_v2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: chorum_v2/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── TypeScript ────────────────────────────────────────────────────────
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # ── Unit tests ────────────────────────────────────────────────────────
+      - name: Test
+        run: npm test
+        env:
+          # Vitest needs a placeholder so modules that lazy-check env vars
+          # don't blow up during test collection.
+          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' }}
+          HEALTH_ENCRYPTION_KEY: ${{ secrets.CI_HEALTH_ENCRYPTION_KEY || 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=' }}
+
+      # ── Production build ──────────────────────────────────────────────────
+      # Mirrors what Vercel runs. Catches import-time throws and page errors
+      # before the deploy even starts.
+      - name: Build
+        run: npm run build
+        env:
+          # Auth (dummy values — build must not reach real services)
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ci-secret
+          GOOGLE_CLIENT_ID: ci-client-id
+          GOOGLE_CLIENT_SECRET: ci-client-secret
+          # DB (build must not execute queries — lazy init means this is fine)
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          HEALTH_DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_health
+          # Encryption keys (build must not encrypt/decrypt — lazy init)
+          ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          HEALTH_ENCRYPTION_KEY: BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=
