@@ -21,6 +21,13 @@ import {
   handleStartSession,
   handleSubmitFeedback,
 } from '@/lib/customization/handlers'
+import {
+  HealthMcpError,
+  handleHealthCheckup,
+  handleHealthSnapshot,
+  handleHealthSources,
+  handleHealthTrends,
+} from '@/lib/customization/health-handlers'
 
 const MCP_TOOL_MANIFEST = [
   {
@@ -50,6 +57,22 @@ const MCP_TOOL_MANIFEST = [
   {
     name: 'read_nebula',
     description: 'Browse or inspect stored learnings directly when asked what the system remembers.',
+  },
+  {
+    name: 'health_snapshot',
+    description: 'Store a point-in-time health data record (Garmin metrics, lab results, ICD report, vital signs).',
+  },
+  {
+    name: 'health_trends',
+    description: 'Query recent health data. Returns structured metrics for the last N days. Use this before answering questions about the user\'s health patterns.',
+  },
+  {
+    name: 'health_sources',
+    description: 'Search trusted medical knowledge sources (Mayo Clinic, NIH, Cleveland Clinic, etc.) for a health query.',
+  },
+  {
+    name: 'health_checkup',
+    description: 'Retrieve a structured summary of the user\'s recent health data (last 7 days). Returns numeric metrics only. Does not analyze or diagnose.',
   },
 ]
 
@@ -272,10 +295,34 @@ export async function POST(request: Request) {
         return NextResponse.json(jsonrpcSuccess(id, result))
       }
 
+      case 'health_snapshot': {
+        const result = await handleHealthSnapshot(params, authCtx)
+        return NextResponse.json(jsonrpcSuccess(id, result))
+      }
+
+      case 'health_trends': {
+        const result = await handleHealthTrends(params, authCtx)
+        return NextResponse.json(jsonrpcSuccess(id, result))
+      }
+
+      case 'health_sources': {
+        const result = await handleHealthSources(params, authCtx)
+        return NextResponse.json(jsonrpcSuccess(id, result))
+      }
+
+      case 'health_checkup': {
+        const result = await handleHealthCheckup(params, authCtx)
+        return NextResponse.json(jsonrpcSuccess(id, result))
+      }
+
       default:
         return NextResponse.json(jsonrpcError(id, -32601, `Method not found: ${method}`), { status: 404 })
     }
   } catch (err) {
+    if (err instanceof HealthMcpError) {
+      const status = err.code === -32602 ? 400 : 500
+      return NextResponse.json(jsonrpcError(id, err.code, err.message), { status })
+    }
     console.error(`[MCP] Error handling ${method}:`, err)
     return NextResponse.json(jsonrpcError(id, -32603, 'Internal error'), { status: 500 })
   }

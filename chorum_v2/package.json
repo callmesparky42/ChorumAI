@@ -11,13 +11,18 @@
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.1",
+    "@chorum/health-types": "*",
     "@supabase/supabase-js": "^2.97.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.36.3",
     "bcryptjs": "^3.0.3",
     "claude": "^0.1.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.1",
+    "garmin-connect": "^1.6.2",
     "next": "15.5.12",
     "next-auth": "^4.24.13",
+    "pdfjs-dist": "^4.4.168",
     "postgres": "^3.4.8",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -26,6 +31,7 @@
     "recharts": "^3.7.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
+    "sharp": "^0.34.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {

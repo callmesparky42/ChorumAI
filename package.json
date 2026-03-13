@@ -1,0 +1,9 @@
+{
+  "name": "chorum-monorepo",
+  "private": true,
+  "workspaces": [
+    "chorum_v2",
+    "packages/*",
+    "apps/*"
+  ]
+}

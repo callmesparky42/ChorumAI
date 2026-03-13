@@ -222,4 +222,8 @@ export const TOOL_SCOPES: Record<string, TokenScope> = {
   extract_learnings: 'write:nebula',
   submit_feedback: 'write:feedback',
   end_session: 'write:feedback',
+  health_snapshot: 'write:nebula',
+  health_trends: 'read:nebula',
+  health_sources: 'read:nebula',
+  health_checkup: 'read:nebula',
 }

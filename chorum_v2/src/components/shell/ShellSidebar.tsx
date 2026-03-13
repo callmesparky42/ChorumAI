@@ -6,10 +6,14 @@ import { useState } from 'react'
 
 const NAV_ITEMS = [
     { href: '/chat', label: 'Chat' },
-    { href: '/knowledge', label: 'Knowledge' },
     { href: '/inbox', label: 'Inbox' },
     { href: '/audit', label: 'Audit' },
     { href: '/settings', label: 'Settings' },
+]
+
+const PLATFORM_ITEMS = [
+    { href: '/knowledge', label: 'Knowledge' },
+    { href: '/dashboard/knowledge', label: 'Intelligence' },
 ]
 
 export function ShellSidebar({ userId, inboxCount }: { userId: string, inboxCount: number }) {
@@ -45,6 +49,29 @@ export function ShellSidebar({ userId, inboxCount }: { userId: string, inboxCoun
                             {item.href === '/inbox' && inboxCount > 0 && (
                                 <span className="text-[var(--hg-accent)] ml-1">{inboxCount}</span>
                             )}
+                        </Link>
+                    )
+                })}
+
+                {/* Platform section */}
+                <div className="px-4 pt-4 pb-1">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--hg-text-tertiary)]">Platform</span>
+                </div>
+                {PLATFORM_ITEMS.map((item) => {
+                    const isActive = pathname.startsWith(item.href)
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => setIsOpen(false)}
+                            className={clsx(
+                                'block px-4 py-2 text-sm border-l-2 transition-colors',
+                                isActive
+                                    ? 'border-[var(--hg-accent)] text-[var(--hg-text-primary)] bg-[var(--hg-surface)]'
+                                    : 'border-transparent text-[var(--hg-text-secondary)] hover:text-[var(--hg-text-primary)] hover:bg-[var(--hg-surface-hover)]',
+                            )}
+                        >
+                            {item.label}
                         </Link>
                     )
                 })}

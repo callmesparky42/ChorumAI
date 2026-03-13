@@ -54,6 +54,7 @@ export interface LearningContext {
  */
 import { selectInjectionTier } from '../chorum/tiers'
 import { getCachedContext, recompileCache } from './cache'
+import { buildTemporalAnchor, touchLastConversation } from './temporal'
 
 // ... imports remain the same ...
 
@@ -63,7 +64,8 @@ export async function injectLearningContext(
     userQuery: string,
     userId: string, // Added userId for cache recompilation
     conversationDepth: number = 0,
-    contextWindow: number = 128000
+    contextWindow: number = 128000,
+    now?: Date
 ): Promise<LearningContext> {
     const start = Date.now()
 
@@ -75,8 +77,16 @@ export async function injectLearningContext(
         const cached = await getCachedContext(projectId, tierConfig.tier)
 
         if (cached) {
-            // Fast path: inject cached string directly
-            const systemPrompt = basePrompt + '\n\n---\n# Project Context\n' + cached
+            // Fast path: build temporal anchor in parallel with touching lastConversationAt
+            const [temporalAnchor] = await Promise.all([
+                buildTemporalAnchor(projectId, now),
+                touchLastConversation(projectId).catch(() => undefined),
+            ])
+
+            const systemPrompt = basePrompt
+                + '\n\n---\n# Project Context\n'
+                + temporalAnchor + '\n\n'
+                + cached
 
             // Console logging for verification (Task 4.1)
             console.log(`[Chorum] Context tier: ${tierConfig.tier} (${tierConfig.label}) | ` +
@@ -120,6 +130,11 @@ export async function injectLearningContext(
             `Cache: N/A`)
     }
 
+    // Fire-and-forget: update lastConversationAt in parallel with everything below
+    touchLastConversation(projectId).catch(err =>
+        console.error('[Temporal] lastConversation update failed:', err)
+    )
+
     // 1. Classify Query (Tier 3 or Fallback Logic)
     const classification = classifier.classify(userQuery, conversationDepth)
     const budget = classifier.calculateBudget(classification)
@@ -150,6 +165,7 @@ export async function injectLearningContext(
     let fileMeta: { filePath: string; isCritical: boolean | null; linkedInvariants: string[] | null; projectId: string }[] = []
     let queryEmbedding: number[] = []
     let allLinks: any[] = []
+    let temporalAnchor = ''
     // Conductor's Podium settings
     let conductorLens = 1.0
     let focusDomains: string[] = []
@@ -166,13 +182,15 @@ export async function injectLearningContext(
                 conductorLens: projects.conductorLens,
                 focusDomains: projects.focusDomains,
                 domainSignal: projects.domainSignal
-            }).from(projects).where(eq(projects.id, projectId)).limit(1)
+            }).from(projects).where(eq(projects.id, projectId)).limit(1),
+            buildTemporalAnchor(projectId, now),
         ])
 
         learningItems = results[0]
         fileMeta = results[1]
         queryEmbedding = results[2]
         allLinks = results[3]
+        temporalAnchor = results[5]
 
         // Conductor's Podium settings
         const projectSettings = results[4][0]
@@ -197,7 +215,7 @@ export async function injectLearningContext(
         .filter(f => f.isCritical)
         .map(f => f.filePath)
 
-    // Map to MemoryCandidate (include Conductor's Podium fields)
+    // Map to MemoryCandidate (include Conductor's Podium + temporal fields)
     const candidates: MemoryCandidate[] = learningItems.map(item => ({
         id: item.id,
         type: item.type,
@@ -210,7 +228,9 @@ export async function injectLearningContext(
         createdAt: item.createdAt,
         // Conductor's Podium
         pinnedAt: item.pinnedAt || null,
-        mutedAt: item.mutedAt || null
+        mutedAt: item.mutedAt || null,
+        // Temporal awareness
+        decaysAfterDays: item.decaysAfterDays ?? null,
     }))
 
     // 4. Score & Select
@@ -322,7 +342,8 @@ export async function injectLearningContext(
     }
 
     // 6. Assemble Context
-    const learningContextStr = relevance.assembleContext(selectedItems)
+    // temporalAnchor built in parallel with other data above (empty string if budget was 0)
+    const learningContextStr = relevance.assembleContext(selectedItems, now)
 
     // Build Prompt
     // We append specific critical file section if not part of Relevance Engine (spec put files separate?)
@@ -338,8 +359,8 @@ export async function injectLearningContext(
     }
 
     const systemPrompt = mixedContext
-        ? basePrompt + '\n\n---\n# Project Learning Context\n' + mixedContext
-        : basePrompt
+        ? basePrompt + '\n\n---\n# Project Learning Context\n' + temporalAnchor + '\n\n' + mixedContext
+        : basePrompt + '\n\n---\n# Project Learning Context\n' + temporalAnchor
 
     const end = Date.now()
 

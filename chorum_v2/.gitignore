@@ -30,8 +30,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env*
+*.env
+local.env
+
+# local claude settings
+.claude/
 
 # vercel
 .vercel
@@ -39,3 +44,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# mobile app
+apps/health-mobile/node_modules/
+apps/health-mobile/.expo/
+apps/health-mobile/android/
+apps/health-mobile/ios/

@@ -46,6 +46,7 @@ export interface LearningItem {
     // Conductor's Podium
     pinnedAt?: Date | null  // User pinned - always include in context
     mutedAt?: Date | null   // User muted - never include in context
+    decaysAfterDays?: number | null  // null = never stale; overrides DECAY_DEFAULTS_BY_TYPE
     createdAt: Date | null
 }
 

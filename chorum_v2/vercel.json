@@ -15,6 +15,34 @@
         {
             "path": "/api/cron/embedding-backfill",
             "schedule": "*/10 * * * *"
+        },
+        {
+            "path": "/api/cron/health-garmin-sync",
+            "schedule": "0 */6 * * *"
+        },
+        {
+            "path": "/api/cron/health-checkup",
+            "schedule": "0 8 * * 1"
+        },
+        {
+            "path": "/api/cron/health-push-digest",
+            "schedule": "15 8 * * 1"
+        },
+        {
+            "path": "/api/cron/health-integrity-check",
+            "schedule": "0 2 * * 0"
+        },
+        {
+            "path": "/api/cron/health-data-retention",
+            "schedule": "0 3 1 * *"
+        },
+        {
+            "path": "/api/cron/health-push-receipts",
+            "schedule": "0 */1 * * *"
+        },
+        {
+            "path": "/api/cron/health-longitudinal",
+            "schedule": "0 7 1 * *"
         }
     ]
 }

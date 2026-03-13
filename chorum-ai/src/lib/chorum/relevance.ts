@@ -5,6 +5,7 @@
 
 import { QueryClassification, QueryIntent } from './classifier'
 import type { LearningType } from '../learning/types'
+import { formatItemAge } from '../learning/temporal'
 
 // Interface matching the DB schema shape (plus embedding)
 export interface MemoryCandidate {
@@ -20,6 +21,7 @@ export interface MemoryCandidate {
     // Conductor's Podium
     pinnedAt?: Date | null  // User pinned - always include in context
     mutedAt?: Date | null   // User muted - never include in context
+    decaysAfterDays?: number | null  // per-item staleness threshold in days
     // Calculated fields
     score?: number
     retrievalReason?: string
@@ -524,9 +526,12 @@ export class RelevanceEngine {
 
     /**
      * Formats selected items into the injection string.
+     * now is used to compute item age labels — pass a frozen date in tests.
      */
-    public assembleContext(items: MemoryCandidate[]): string {
+    public assembleContext(items: MemoryCandidate[], now?: Date): string {
         if (items.length === 0) return ''
+
+        const currentTime = now ?? new Date()
 
         const groups: Record<string, MemoryCandidate[]> = {}
         for (const item of items) {
@@ -536,7 +541,7 @@ export class RelevanceEngine {
 
         const sections: string[] = ['<chorum_context>']
 
-        // Universal sections
+        // Universal sections — stable types, no age labels
         if (groups['anchor']) {
             sections.push('## Project Identity & Anchors')
             groups['anchor'].forEach(i => sections.push(`- ${i.content}`))
@@ -547,46 +552,51 @@ export class RelevanceEngine {
             groups['invariant'].forEach(i => sections.push(`- ${i.content}`))
         }
 
-        // Code-domain sections
+        // Code-domain sections — dynamic types, show age labels
         if (groups['pattern']) {
             sections.push('## Relevant Patterns')
-            groups['pattern'].forEach(i => sections.push(`- ${i.content}`))
+            groups['pattern'].forEach(i => sections.push(`- ${formatItemAge(i, currentTime)}${i.content}`))
         }
 
         if (groups['decision']) {
             sections.push('## Project Decisions')
-            groups['decision'].forEach(i => sections.push(`- ${i.content} (Context: ${i.context || 'None'})`))
+            groups['decision'].forEach(i => sections.push(`- ${formatItemAge(i, currentTime)}${i.content} (Context: ${i.context || 'None'})`))
         }
 
         if (groups['golden_path']) {
             sections.push('## Golden Paths')
-            groups['golden_path'].forEach(i => sections.push(`- ${i.content}`))
+            groups['golden_path'].forEach(i => sections.push(`- ${formatItemAge(i, currentTime)}${i.content}`))
         }
 
-        // Writing-domain sections
+        if (groups['antipattern']) {
+            sections.push('## Anti-Patterns')
+            groups['antipattern'].forEach(i => sections.push(`- ${formatItemAge(i, currentTime)}${i.content}`))
+        }
+
+        // Writing-domain sections — dynamic types, show age labels
         if (groups['character']) {
             sections.push('## Characters')
-            groups['character'].forEach(i => sections.push(`- ${i.content}${i.context ? ` (${i.context})` : ''}`))
+            groups['character'].forEach(i => sections.push(`- ${formatItemAge(i, currentTime)}${i.content}${i.context ? ` (${i.context})` : ''}`))
         }
 
         if (groups['setting']) {
             sections.push('## Setting & Atmosphere')
-            groups['setting'].forEach(i => sections.push(`- ${i.content}`))
+            groups['setting'].forEach(i => sections.push(`- ${formatItemAge(i, currentTime)}${i.content}`))
         }
 
         if (groups['plot_thread']) {
             sections.push('## Active Plot Threads')
-            groups['plot_thread'].forEach(i => sections.push(`- ${i.content}`))
+            groups['plot_thread'].forEach(i => sections.push(`- ${formatItemAge(i, currentTime)}${i.content}`))
         }
 
         if (groups['voice']) {
             sections.push('## Voice & Style')
-            groups['voice'].forEach(i => sections.push(`- ${i.content}`))
+            groups['voice'].forEach(i => sections.push(`- ${formatItemAge(i, currentTime)}${i.content}`))
         }
 
         if (groups['world_rule']) {
             sections.push('## World Rules')
-            groups['world_rule'].forEach(i => sections.push(`- ${i.content}`))
+            groups['world_rule'].forEach(i => sections.push(`- ${formatItemAge(i, currentTime)}${i.content}`))
         }
 
         // Catch-all for any unknown types
@@ -598,7 +608,7 @@ export class RelevanceEngine {
         if (otherTypes.length > 0) {
             sections.push('## Other Context')
             otherTypes.forEach(t => {
-                groups[t].forEach(i => sections.push(`- [${t}] ${i.content}`))
+                groups[t].forEach(i => sections.push(`- [${t}] ${formatItemAge(i, currentTime)}${i.content}`))
             })
         }
 

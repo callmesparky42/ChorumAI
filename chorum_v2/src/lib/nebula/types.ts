@@ -44,6 +44,7 @@ export interface Learning {
   mutedAt: Date | null
   usageCount: number
   lastUsedAt: Date | null
+  sourceApp: string | null
   promotedAt: Date | null
   createdAt: Date
   updatedAt: Date
@@ -114,4 +115,6 @@ export type TokenScope =
   | 'read:nebula'
   | 'write:nebula'
   | 'write:feedback'
+  | 'read:health'
+  | 'write:health'
   | 'admin'

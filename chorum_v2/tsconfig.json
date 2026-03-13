@@ -25,6 +25,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@chorum/health-types": [
+        "../packages/health-types/src/index.ts"
       ]
     },
     "noUncheckedIndexedAccess": true,
@@ -38,6 +41,7 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "apps/**"
   ]
 }

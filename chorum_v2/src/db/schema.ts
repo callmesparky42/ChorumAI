@@ -77,6 +77,7 @@ export const learnings = pgTable(
     usageCount: integer('usage_count').notNull().default(0),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
     promotedAt: timestamp('promoted_at', { withTimezone: true }),
+    sourceApp: text('source_app'),  // FK-lite to conductor_apps.slug; null = core
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -323,6 +324,23 @@ export const apiTokens = pgTable(
 )
 
 // ---------------------------------------------------------------------------
+// Table: mobile_auth_codes — one-time short-lived code -> bearer token exchange
+// ---------------------------------------------------------------------------
+
+export const mobileAuthCodes = pgTable(
+  'mobile_auth_codes',
+  {
+    code: text('code').primaryKey(),
+    token: text('token').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    used: boolean('used').notNull().default(false),
+  },
+  (table) => [
+    index('mobile_auth_codes_expiry').on(table.expiresAt),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Table: provider_configs — Per-user LLM provider API keys + preferences
 // ---------------------------------------------------------------------------
 
@@ -390,6 +408,23 @@ export const userSettings = pgTable('user_settings', {
   customization: jsonb('customization').notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ---------------------------------------------------------------------------
+// Table: conductor_apps — Connected app registry for the Conductor
+// ---------------------------------------------------------------------------
+
+export const conductorApps = pgTable('conductor_apps', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  slug: text('slug').notNull().unique(),
+  displayName: text('display_name').notNull(),
+  description: text('description'),
+  iconUrl: text('icon_url'),
+  apiKeyHash: text('api_key_hash'),
+  ownerId: uuid('owner_id'),   // NULL = system-owned (visible to all users)
+  active: boolean('active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  lastWriteAt: timestamp('last_write_at', { withTimezone: true }),
 })
 
 // ---------------------------------------------------------------------------

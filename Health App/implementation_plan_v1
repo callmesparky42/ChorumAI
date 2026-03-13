@@ -1,0 +1,260 @@
+# Chorum Health: Android-First Healthcare Monitoring Plugin
+
+**Revision 3** — All decisions locked in per user feedback.
+
+Android-first React Native Expo app backed by Chorum's MCP/API. Captures and analyzes health data (Garmin wearable, medical documents, lab results, ICD reports). Shares everything with a web dashboard at chorumai.com/health.
+
+---
+
+## Decisions (Resolved)
+
+| # | Decision | Resolution |
+|---|----------|------------|
+| 1 | **Framework** | React Native Expo — aligns with future Chorum mobile direction |
+| 2 | **Garmin HRV** | Health Connect + unofficial `garmin-connect` lib. Fragile is acceptable. |
+| 3 | **TIFF handling** | Server-side TIFF→PNG. Read-only activity — quarterly Medtronic/Epic ICD reports (battery, NSVTs, SVTs, reviewer notes) |
+| 4 | **Auth** | Own Google OAuth login page (Supabase Auth), not API token paste |
+| 5 | **DB isolation** | Dedicated Supabase branch for health tables. Copy what's needed from Chorum core, maximum isolation. |
+| 6 | **PHI in LLM** | De-identified is acceptable — matches research hospital practice |
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ANDROID APP (React Native Expo)                                │
+│  • Google OAuth login (Supabase Auth)                           │
+│  • Health Connect ← Garmin (HR, sleep, steps)                   │
+│  • garmin-connect lib ← HRV (server-side, cron)                │
+│  • Camera → ML Kit OCR (on-device, PHI stays local)            │
+│  • Server-converted PNG pages for ICD TIFFs                     │
+│  • Charts, timeline, upload, health chat                        │
+│  • Push notifications for checkup results                       │
+│           │ HTTPS + Supabase Auth JWT                            │
+│           ▼                                                      │
+│  CHORUM API (Next.js @ chorumai.com)                            │
+│  • /api/mcp — Extended with 4 health MCP tools                  │
+│  • /api/health/* — Snapshots, upload, trends, Garmin sync       │
+│  • /api/cron/health-* — Automated sync + weekly checkups        │
+│  • All health data in DEDICATED Supabase branch                 │
+│           │                                                      │
+│           ▼                                                      │
+│  WEB DASHBOARD (chorumai.com/health)                            │
+│  • Same data, same snapshots — share-everything                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Proposed Changes
+
+### Component 1: Supabase Branch — Health Data Isolation
+
+> [!IMPORTANT]
+> Health data lives in a **dedicated Supabase branch**, not co-mingled with Chorum's core tables. The branch gets copies of the auth and core tables it needs (users, learnings, learning_scopes, embeddings) but health-specific tables are isolated.
+
+#### Tables in health branch
+
+| Table | Purpose |
+|-------|---------|
+| `health_snapshots` | Append-only AES-256-GCM encrypted health records (labs, Garmin daily, ICD reports, vitals, MyChart docs) |
+| `health_sources` | Trusted medical knowledge source registry (Mayo, Cleveland Clinic, NIH, NHS, etc.) |
+| `phi_audit_log` | HIPAA-required access log — every view, create, export, decrypt, delete |
+| `garmin_sync_state` | Encrypted OAuth tokens + sync cursor for server-side Garmin HRV |
+| (copied) `learnings` | Health-scoped learnings synced from/to Chorum core |
+| (copied) `learning_scopes` | Scope tags for health learnings (`#health`, `#cardiac`, `#labs`, etc.) |
+
+#### Health learning types added to `LearningType`
+
+```
+health_metric      — extracted vital/metric with value + reference range
+health_trend       — detected pattern across multiple snapshots
+health_alert       — flagged anomaly or out-of-range value
+health_baseline    — established normal ranges for this user
+```
+
+---
+
+### Component 2: PHI Encryption Layer
+
+#### [NEW] `src/lib/health/crypto.ts`
+
+- AES-256-GCM with per-record random IV
+- Separate `HEALTH_ENCRYPTION_KEY` env var (not shared with provider key encryption)
+- `encryptPHI()` / `decryptPHI()` / `hashPHI()` (SHA-256 for dedup without decryption)
+
+---
+
+### Component 3: Backend API Routes
+
+#### [NEW] `src/app/api/health/snapshots/route.ts`
+- `POST` — Create encrypted snapshot (append-only, PHI audit logged)
+- `GET` — List/filter by type + date range (decrypted server-side, returned over TLS)
+
+#### [NEW] `src/app/api/health/upload/route.ts`
+- Multipart upload: TIFF, PDF, PNG, JPG, CSV, FIT
+- TIFF → PNG server-side conversion (Sharp in Edge Function)
+- Originals stored in encrypted Supabase Storage bucket
+
+#### [NEW] `src/app/api/health/garmin/connect/route.ts`
+- Initial Garmin credential setup (encrypted storage)
+
+#### [NEW] `src/app/api/health/garmin/sync/route.ts`
+- Server-side HRV + supplemental data fetch via `garmin-connect` lib
+- CRON_SECRET protected for automated runs
+
+#### [NEW] `src/app/api/health/trends/route.ts`
+- Computed aggregates: moving averages, anomaly detection, cross-metric correlations
+
+---
+
+### Component 4: MCP Extension
+
+#### [MODIFY] [route.ts](file:///c:/Users/dmill/Documents/GitHub/ChorumAI/chorum_v2/src/app/api/mcp/route.ts)
+
+4 new tools in `MCP_TOOL_MANIFEST`:
+
+| Tool | Description | Scope |
+|------|-------------|-------|
+| `health_snapshot` | Store a point-in-time health data record | `write:nebula` |
+| `health_trends` | Query trend analysis across snapshot history | `read:nebula` |
+| `health_sources` | Search trusted medical sources for a health query | `read:nebula` |
+| `health_checkup` | Trigger an on-demand health analysis | `read:nebula` |
+
+---
+
+### Component 5: Android App (React Native Expo)
+
+#### [NEW] `apps/health-mobile/`
+
+```
+apps/health-mobile/
+├── app/                      # Expo Router
+│   ├── (tabs)/
+│   │   ├── dashboard.tsx     # Vitals overview + charts
+│   │   ├── upload.tsx        # Camera OCR + file import
+│   │   ├── timeline.tsx      # Snapshot timeline + TIFF viewer
+│   │   └── chat.tsx          # Health persona conversation
+│   ├── _layout.tsx
+│   └── login.tsx             # Google OAuth (Supabase Auth)
+├── components/
+│   ├── VitalsCards.tsx        # HR, HRV, sleep score, steps
+│   ├── HealthCharts.tsx       # Chart components per data type
+│   ├── CameraOCR.tsx          # expo-camera + ML Kit on-device
+│   ├── TiffViewer.tsx         # Server-converted PNG pages, pinch-zoom
+│   ├── UploadSheet.tsx        # Bottom sheet for file/camera/paste
+│   └── SnapshotCard.tsx       # Timeline entry UI
+├── lib/
+│   ├── api.ts                 # Chorum API client (MCP + REST)
+│   ├── health-connect.ts      # Android Health Connect bridge
+│   ├── auth.ts                # Google OAuth via Supabase
+│   └── notifications.ts      # Push notifications
+├── app.json
+└── package.json
+```
+
+**Auth flow:**
+1. User opens app → Google OAuth via Supabase Auth
+2. Supabase issues JWT → stored in `expo-secure-store`
+3. All API calls use JWT in `Authorization: Bearer` header
+4. Chorum API validates via existing `authenticate()` in `auth.ts` (session path)
+5. Optional biometric re-auth to open app
+
+**Chart strategy:**
+
+| Data Type | Chart | Library |
+|-----------|-------|---------|
+| Heart Rate | Area chart | `victory-native` |
+| HRV | Scatter + trend line | `victory-native` |
+| Sleep stages | Stacked bar | `victory-native` |
+| Steps | Bar + target line | `victory-native` |
+| Lab values | Line + reference band | `victory-native` |
+| Activities | Calendar heat map | custom component |
+| ICD metrics (NSVT, SVT) | Annotated timeline | custom component |
+
+---
+
+### Component 6: Shared Types Package
+
+#### [NEW] `packages/health-types/`
+
+Shared TypeScript types consumed by both the mobile app and the backend:
+- Snapshot payload schemas
+- Health Connect data shapes
+- Garmin transformer types
+- API request/response contracts
+- Chart data interfaces
+
+---
+
+### Component 7: Health Persona + Domain Seed
+
+**Persona:** Health Monitor — `#health` scope, thinking tier, temp 0.3, access to `health_sources` and `health_trends` tools.
+
+**Domain seed:** `healthcare` — signal keywords for medical terms, preferred types for health learnings.
+
+---
+
+### Component 8: Cron Jobs
+
+#### [MODIFY] [vercel.json](file:///c:/Users/dmill/Documents/GitHub/ChorumAI/chorum_v2/vercel.json)
+
+```diff
++{ "path": "/api/cron/health-garmin-sync", "schedule": "0 */6 * * *" },
++{ "path": "/api/cron/health-checkup", "schedule": "0 8 * * 1" }
+```
+
+- **Garmin sync** (every 6h): Fetch HRV + supplemental data via `garmin-connect` lib
+- **Weekly checkup** (Monday 8 AM): Health persona analyzes recent data → push notification to phone
+
+---
+
+### Component 9: Web Dashboard
+
+#### [NEW] `src/app/(shell)/health/page.tsx`
+
+Lightweight web companion — same data, different surface:
+- Vitals overview cards + Recharts (already installed)
+- Snapshot timeline with TIFF viewer (converted PNGs)
+- Drag-and-drop upload zone
+- Reads from same health branch via same API routes
+
+---
+
+### Component 10: HIPAA Hardening
+
+| Safeguard | Implementation |
+|-----------|---------------|
+| Encryption at rest | AES-256-GCM for all PHI in `health_snapshots` |
+| Encryption in transit | HTTPS/TLS 1.3 (Vercel enforced) |
+| Access control | Google OAuth + Supabase Auth + ownership checks |
+| Audit logging | `phi_audit_log` — every PHI access logged with user, IP, timestamp |
+| Auto-logoff | 15-min idle (web), biometric re-auth (mobile) |
+| De-identification | PHI scrubbing before LLM injection — clinical values only, never PII |
+| Rate limiting | 600/min on MCP (existing), additional limits on health routes |
+| Data integrity | SHA-256 hash per snapshot, append-only (no overwrites/deletes) |
+| Isolation | Dedicated Supabase branch — health tables separated from core |
+
+---
+
+## Verification Plan
+
+### Backend (Vitest)
+- `health/crypto.test.ts` — encrypt/decrypt roundtrip, IV uniqueness
+- `health/garmin-transformer.test.ts` — Garmin JSON → normalized snapshot
+- `health/document-parser.test.ts` — lab result regex from OCR text
+- `health/snapshots.test.ts` — append-only, dedup, timeline ordering
+- `health/trends.test.ts` — moving average, anomaly detection
+- `health/audit.test.ts` — PHI audit log validation
+
+### Android (Physical Device)
+- Google OAuth login flow
+- Health Connect → Garmin data sync
+- Camera OCR on sample MyChart printout
+- TIFF upload → PNG conversion → viewer
+- E2E: capture → upload → snapshot → learning → chart
+
+### Web
+- `/health` dashboard renders with shared data
+- Upload from web appears on mobile and vice versa

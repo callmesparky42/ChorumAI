@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__supabase__list_tables",
+      "mcp__supabase__list_migrations",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__apply_migration",
+      "Bash(ls C:\\\\Users\\\\dmill\\\\Documents\\\\GitHub\\\\ChorumAI\\\\chorum_v2\\\\src\\\\app\\\\\\(shell\\)\\\\dashboard:*)",
+      "Bash(ls C:\\\\Users\\\\dmill\\\\Documents\\\\GitHub\\\\ChorumAI\\\\chorum_v2\\\\src\\\\app\\\\\\(shell\\)\\\\dashboard\\\\knowledge:*)",
+      "Bash(node:*)",
+      "mcp__supabase__get_publishable_keys"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
+}

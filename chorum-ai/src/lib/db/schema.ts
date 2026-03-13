@@ -169,6 +169,7 @@ export const projects = pgTable('projects', {
     conversationsAnalyzed: number
     computedAt: string  // ISO timestamp
   }>(),
+  lastConversationAt: timestamp('last_conversation_at'),
   createdAt: timestamp('created_at').defaultNow()
 })
 
@@ -254,6 +255,7 @@ export const projectLearningPaths = pgTable('project_learning_paths', {
   // Conductor's Podium: pin/mute controls
   pinnedAt: timestamp('pinned_at'), // User pinned this item - always include in context
   mutedAt: timestamp('muted_at'),   // User muted this item - never include in context
+  decaysAfterDays: integer('decays_after_days'), // null = never stale; overrides type default
 
   createdAt: timestamp('created_at').defaultNow()
 })
