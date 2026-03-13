@@ -165,6 +165,8 @@ function ProvidersTab({ userId }: { userId: string }) {
     const [loading, setLoading] = useState(true)
     const [newProv, setNewProv] = useState('')
     const [newKey, setNewKey] = useState('')
+    const [saving, setSaving] = useState(false)
+    const [toast, setToast] = useState<string | null>(null)
     const [healthStatus, setHealthStatus] = useState<Record<string, { ok: boolean; latency?: number; err?: string }>>({})
 
     useEffect(() => {
@@ -173,16 +175,29 @@ function ProvidersTab({ userId }: { userId: string }) {
 
     const handleSave = async () => {
         if (!newProv || !newKey) return
-        await saveProviderConfig(userId, { provider: newProv, apiKey: newKey, modelOverride: null, baseUrl: null, isLocal: false, priority: providers.length })
-        const p = await getUserProviders(userId)
-        setProviders(p)
-        setNewProv('')
-        setNewKey('')
+        setSaving(true)
+        try {
+            await saveProviderConfig(userId, { provider: newProv, apiKey: newKey, modelOverride: null, baseUrl: null, isLocal: false, priority: providers.length })
+            const p = await getUserProviders(userId)
+            setProviders(p)
+            setNewProv('')
+            setNewKey('')
+        } catch (e: any) {
+            console.error(e)
+            setToast(`Failed to save provider: ${e?.message ?? 'Unknown error'}`)
+        } finally {
+            setSaving(false)
+        }
     }
 
     const handleDelete = async (prov: string) => {
-        await deleteProviderConfig(userId, prov)
-        setProviders(await getUserProviders(userId))
+        try {
+            await deleteProviderConfig(userId, prov)
+            setProviders(await getUserProviders(userId))
+        } catch (e: any) {
+            console.error(e)
+            setToast(`Failed to remove provider: ${e?.message ?? 'Unknown error'}`)
+        }
     }
 
     const handleTest = async (prov: string) => {
@@ -201,6 +216,7 @@ function ProvidersTab({ userId }: { userId: string }) {
 
     return (
         <div className="space-y-6 max-w-2xl">
+            {toast && <HyggeToast message={toast} />}
             <div>
                 <h3 className="text-sm font-medium mb-4">API Keys</h3>
                 {providers.length === 0 && <p className="text-sm text-[var(--hg-text-tertiary)]">No providers configured.</p>}
@@ -234,7 +250,7 @@ function ProvidersTab({ userId }: { userId: string }) {
                     <HyggeInput label="Provider ID (e.g., openai, anthropic)" value={newProv} onChange={e => setNewProv(e.target.value)} />
                     <HyggeInput label="API Key" type="password" value={newKey} onChange={e => setNewKey(e.target.value)} />
                 </div>
-                <HyggeButton onClick={handleSave} disabled={!newProv || !newKey} variant="accent">Save Provider</HyggeButton>
+                <HyggeButton onClick={handleSave} disabled={!newProv || !newKey || saving} variant="accent">{saving ? 'Saving…' : 'Save Provider'}</HyggeButton>
             </div>
 
             <TaskAssignmentsSection userId={userId} providers={providers} />
