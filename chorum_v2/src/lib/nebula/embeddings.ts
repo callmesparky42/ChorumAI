@@ -21,6 +21,7 @@ function rowToLearning(row: typeof learnings.$inferSelect): Learning {
     mutedAt: row.mutedAt ?? null,
     usageCount: row.usageCount,
     lastUsedAt: row.lastUsedAt ?? null,
+    sourceApp: row.sourceApp ?? null,
     promotedAt: row.promotedAt ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -143,7 +144,7 @@ export async function searchByEmbedding(
     confidence_base: number; confidence: number; extraction_method: string;
     source_conversation_id: string | null; refined_from: string | null;
     pinned_at: Date | null; muted_at: Date | null;
-    usage_count: number; last_used_at: Date | null; promoted_at: Date | null;
+    usage_count: number; last_used_at: Date | null; source_app: string | null; promoted_at: Date | null;
     created_at: Date; updated_at: Date;
     semantic_score: number; is_cross_lens: boolean;
   }>(sql`
@@ -185,6 +186,7 @@ export async function searchByEmbedding(
       mutedAt: row.muted_at,
       usageCount: row.usage_count,
       lastUsedAt: row.last_used_at,
+      sourceApp: row.source_app ?? null,
       promotedAt: row.promoted_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

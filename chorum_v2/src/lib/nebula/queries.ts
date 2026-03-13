@@ -28,6 +28,7 @@ function rowToLearning(row: typeof learnings.$inferSelect): Learning {
     mutedAt: row.mutedAt ?? null,
     usageCount: row.usageCount,
     lastUsedAt: row.lastUsedAt ?? null,
+    sourceApp: row.sourceApp ?? null,
     promotedAt: row.promotedAt ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
