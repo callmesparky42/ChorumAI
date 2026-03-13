@@ -3,7 +3,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { createHash } from 'crypto'
 import { db } from '@/db'
-import { sql } from 'drizzle-orm'
+import { userProfiles } from '@/db/schema'
 
 /**
  * Convert an OAuth provider + subject to a deterministic UUID v5-style string.
@@ -20,16 +20,19 @@ function oauthSubToUuid(provider: string, sub: string): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`
 }
 
-async function ensureAuthUser(id: string, email: string): Promise<void> {
+async function ensureUserProfile(
+  id: string,
+  provider: string,
+  sub: string,
+  email: string,
+): Promise<void> {
   try {
-    await db.execute(
-      sql`INSERT INTO auth.users (id, email, raw_app_meta_data, raw_user_meta_data, aud, role, created_at, updated_at)
-          VALUES (${id}::uuid, ${email}, '{}', '{}', 'authenticated', 'authenticated', now(), now())
-          ON CONFLICT (id) DO NOTHING`
-    )
+    await db
+      .insert(userProfiles)
+      .values({ id, oauthProvider: provider, oauthSub: sub, email })
+      .onConflictDoNothing()
   } catch (e) {
-    // Non-fatal: user may already exist or auth schema may be read-only
-    console.warn('ensureAuthUser skipped:', e)
+    console.warn('ensureUserProfile skipped:', e)
   }
 }
 
@@ -65,7 +68,7 @@ export const authOptions: NextAuthOptions = {
       if (account && token.sub) {
         const internalId = oauthSubToUuid(account.provider, token.sub)
         const email = (profile as any)?.email ?? token.email ?? ''
-        await ensureAuthUser(internalId, email as string)
+        await ensureUserProfile(internalId, account.provider, token.sub, email as string)
         token.userId = internalId
       }
       return token

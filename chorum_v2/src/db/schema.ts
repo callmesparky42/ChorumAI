@@ -38,17 +38,34 @@ const vector1536 = makeVector(1536)
 const vector384 = makeVector(384)
 
 // ---------------------------------------------------------------------------
-// Supabase auth schema reference — FK only, not managed by drizzle-kit
+// Supabase auth schema reference — kept for RLS functions only, NOT used as FK
 // ---------------------------------------------------------------------------
 
+// authUsers is intentionally NOT exported and NOT referenced via .references()
+// anywhere. The Supabase postgres role cannot INSERT into auth.users, so we
+// use public.user_profiles (below) as the identity anchor instead.
 const authSchema = pgSchema('auth')
+const _authUsers = authSchema.table('users', { id: uuid('id').primaryKey() })
+void _authUsers // suppress unused-variable lint
 
-// We reference auth.users for FK purposes only. drizzle-kit will NOT try to
-// create this table because it is defined in a pgSchema that is not exported
-// from this file as a managed table.
-const authUsers = authSchema.table('users', {
-  id: uuid('id').primaryKey(),
-})
+// ---------------------------------------------------------------------------
+// Table: user_profiles — Public identity anchor for NextAuth users
+// ---------------------------------------------------------------------------
+
+export const userProfiles = pgTable(
+  'user_profiles',
+  {
+    id: uuid('id').primaryKey(),
+    oauthProvider: text('oauth_provider').notNull(),
+    oauthSub: text('oauth_sub').notNull(),
+    email: text('email').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('user_profiles_provider_sub_idx').on(table.oauthProvider, table.oauthSub),
+  ]
+)
 
 // ---------------------------------------------------------------------------
 // Table: learnings — Core knowledge node (Layer 0 atom)
@@ -403,7 +420,7 @@ export const personas = pgTable(
 // ---------------------------------------------------------------------------
 
 export const userSettings = pgTable('user_settings', {
-  id: uuid('id').primaryKey().references(() => authUsers.id, { onDelete: 'cascade' }),
+  id: uuid('id').primaryKey().references(() => userProfiles.id, { onDelete: 'cascade' }),
   endOfSessionJudgeEnabled: boolean('end_of_session_judge_enabled').notNull().default(false),
   customization: jsonb('customization').notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
