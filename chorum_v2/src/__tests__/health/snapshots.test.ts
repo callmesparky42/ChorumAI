@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => {
   const logPhiAccess = vi.fn(() => Promise.resolve())
   const hashPHI = vi.fn(() => 'hash-1')
   const encryptPHI = vi.fn(() => ({ ciphertext: 'encrypted', iv: 'iv-1' }))
-  const decryptPHI = vi.fn(() => ({ ok: true }))
+  const decryptPHI = vi.fn(() => ({ ok: true } as unknown))
 
   const select = vi.fn()
   const insert = vi.fn()
@@ -85,8 +85,8 @@ import { GET, POST } from '@/app/api/health/snapshots/route'
 function jsonRequest(url: string, method: 'POST' | 'GET', body?: unknown): Request {
   return new Request(url, {
     method,
-    headers: body ? { 'content-type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
+    ...(body ? { headers: { 'content-type': 'application/json' } } : {}),
+    body: body ? JSON.stringify(body) : null,
   })
 }
 
@@ -197,7 +197,7 @@ describe('POST /api/health/snapshots', () => {
       payload,
     }) as never)
 
-    const inserted = values.mock.calls[0][0] as Record<string, unknown>
+    const inserted = (values.mock.calls as unknown[][])[0]![0]! as Record<string, unknown>
     expect(inserted['encryptedPayload']).toBe('encrypted')
     expect(inserted['encryptedPayload']).not.toBe(JSON.stringify(payload))
   })

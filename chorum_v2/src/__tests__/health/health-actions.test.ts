@@ -346,7 +346,7 @@ describe('getSignedReadUrls', () => {
     })
     const keys = ['health-uploads/user/file_1.png', 'health-uploads/user/file_2.png']
     const result = await getSignedReadUrls(keys)
-    expect(result[keys[0]]).toBe('https://read.example/file')
-    expect(result[keys[1]]).toBe('https://read.example/file')
+    expect(result[keys[0]!]).toBe('https://read.example/file')
+    expect(result[keys[1]!]).toBe('https://read.example/file')
   })
 })

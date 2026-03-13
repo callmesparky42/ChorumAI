@@ -134,6 +134,7 @@ describe('customization/client', () => {
         mutedAt: null,
         usageCount: 0,
         lastUsedAt: null,
+        sourceApp: null,
         promotedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),

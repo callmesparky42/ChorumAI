@@ -40,6 +40,7 @@ function makeLearning(overrides: Partial<Learning> = {}): Learning {
     mutedAt: null,
     usageCount: 0,
     lastUsedAt: null,
+    sourceApp: null,
     promotedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),

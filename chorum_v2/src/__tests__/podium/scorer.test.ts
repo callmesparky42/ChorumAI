@@ -31,6 +31,7 @@ function makeCandidate(overrides: Partial<ScoredLearning> = {}): ScoredLearning 
     mutedAt: null,
     usageCount: 3,
     lastUsedAt: daysAgo(5),
+    sourceApp: null,
     promotedAt: null,
     createdAt: daysAgo(30),
     updatedAt: daysAgo(5),

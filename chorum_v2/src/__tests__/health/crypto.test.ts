@@ -83,7 +83,7 @@ describe('PHI Encryption', () => {
     const crypto = await loadCryptoModule(KEY_A, KEY_B)
     const encrypted = crypto.encryptPHI({ hello: 'world' })
     const ivBytes = Buffer.from(encrypted.iv, 'base64')
-    ivBytes[0] = ivBytes[0] ^ 0xff
+    ivBytes[0] = (ivBytes[0] ?? 0) ^ 0xff
 
     expect(() => crypto.decryptPHI(encrypted.ciphertext, ivBytes.toString('base64')))
       .toThrow(crypto.HealthDecryptionError)
@@ -93,7 +93,7 @@ describe('PHI Encryption', () => {
     const crypto = await loadCryptoModule(KEY_A, KEY_B)
     const encrypted = crypto.encryptPHI({ hello: 'world' })
     const bytes = Buffer.from(encrypted.ciphertext, 'base64')
-    bytes[bytes.length - 1] = bytes[bytes.length - 1] ^ 0xff
+    bytes[bytes.length - 1] = (bytes[bytes.length - 1] ?? 0) ^ 0xff
 
     expect(() => crypto.decryptPHI(bytes.toString('base64'), encrypted.iv))
       .toThrow(crypto.HealthDecryptionError)

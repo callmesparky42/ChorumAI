@@ -81,11 +81,12 @@ import {
   handleHealthSources,
   handleHealthTrends,
 } from '@/lib/customization/health-handlers'
+import type { AuthContext } from '@/lib/customization/types'
 
-const AUTH = {
+const AUTH: AuthContext = {
   userId: '11111111-1111-4111-8111-111111111111',
   scopes: ['read:nebula', 'write:nebula', 'write:feedback'],
-} as const
+}
 
 function selectRowsWithOrder(rows: Array<Record<string, unknown>>) {
   const limit = vi.fn().mockResolvedValue(rows)
