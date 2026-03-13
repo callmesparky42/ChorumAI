@@ -29,9 +29,9 @@ CREATE POLICY user_profiles_insert ON public.user_profiles FOR INSERT TO authent
 CREATE POLICY user_profiles_update ON public.user_profiles FOR UPDATE TO authenticated USING (id = auth.uid()) WITH CHECK (id = auth.uid());
 
 -- 3. Migrate user_settings FK from auth.users → public.user_profiles
---    a. Drop the existing FK constraint
-ALTER TABLE public.user_settings DROP CONSTRAINT IF EXISTS user_settings_id_fkey;
+--    a. Drop the existing FK constraint (name from drizzle-kit snapshot)
+ALTER TABLE user_settings DROP CONSTRAINT IF EXISTS user_settings_id_fkey;
 --    b. Add the new FK referencing public.user_profiles
-ALTER TABLE public.user_settings
+ALTER TABLE user_settings
   ADD CONSTRAINT user_settings_id_fkey
-  FOREIGN KEY (id) REFERENCES public.user_profiles(id) ON DELETE CASCADE;
+  FOREIGN KEY (id) REFERENCES user_profiles(id) ON DELETE CASCADE;
