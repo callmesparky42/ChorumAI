@@ -47,7 +47,7 @@ export async function syncGarminForUser(userId: string): Promise<GarminSyncResul
     return { userId, snapshotsCreated: 0, skippedDuplicates: 0, error: 'No Garmin credentials found' }
   }
 
-  const state = rows[0]
+  const state = rows[0]!
 
   // Circuit breaker — open circuit short-circuits with no API call
   if (state.circuitOpen) {

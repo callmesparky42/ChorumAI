@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       }
 
       for (let i = 0; i < chunk.length; i += 1) {
-        const ticket = tickets[i]
+        const ticket = tickets[i]!
         if (!ticket || ticket.status === 'ok') {
           sent += 1
           continue

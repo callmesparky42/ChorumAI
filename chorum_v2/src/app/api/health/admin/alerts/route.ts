@@ -57,12 +57,12 @@ export async function PATCH(req: NextRequest) {
     .insert(healthUserSettings)
     .values({
       userId: auth.userId,
-      ...(encoded !== null ? { alertThresholds: encoded } : { alertThresholds: null }),
+      alertThresholds: encoded,
     })
     .onConflictDoUpdate({
       target: healthUserSettings.userId,
       set: {
-        ...(encoded !== null ? { alertThresholds: encoded } : { alertThresholds: null }),
+        alertThresholds: encoded,
         updatedAt: new Date(),
       },
     })
