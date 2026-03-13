@@ -17,7 +17,7 @@ import { deidentifyObject } from '@/lib/health/deidentify'
 import { buildHealthTemporalBlock, deriveTemporalContext, formatSnapshotAge } from '@/lib/health/temporal'
 import { eq, and, gte, desc } from 'drizzle-orm'
 import type { FullProviderConfig } from '@/lib/providers'
-import type { ProviderConfig } from '@/lib/agents/provider-configs'
+import type { ProviderConfig } from '@/lib/agents/types'
 
 // ---------------------------------------------------------------------------
 // Provider selection — prefers claude-sonnet-4-6 for clinical reasoning quality.
