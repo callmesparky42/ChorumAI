@@ -126,7 +126,8 @@ export function HealthCharts({
               />
               <Tooltip
                 contentStyle={{ background: 'var(--hg-surface)', border: '1px solid var(--hg-border)', fontSize: 12 }}
-                formatter={(value: number, name: string) => [`${Math.round(value / 60)}h ${value % 60}m`, name]}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={((value: number | undefined, name: string | undefined) => value != null ? [`${Math.round(value / 60)}h ${value % 60}m`, name ?? ''] : [name ?? '']) as any}
               />
               <Bar dataKey="deepMinutes" stackId="sleep" fill="var(--hg-accent)" name="Deep" />
               <Bar dataKey="remMinutes" stackId="sleep" fill="var(--hg-accent-warm)" name="REM" />
@@ -154,7 +155,8 @@ export function HealthCharts({
               />
               <Tooltip
                 contentStyle={{ background: 'var(--hg-surface)', border: '1px solid var(--hg-border)', fontSize: 12 }}
-                formatter={(value: number) => [value.toLocaleString(), 'Steps']}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={((value: number | undefined) => value != null ? [value.toLocaleString(), 'Steps'] : ['Steps']) as any}
               />
               <Bar dataKey="steps" fill="var(--hg-accent-warm)" opacity={0.8} />
               <ReferenceLine
