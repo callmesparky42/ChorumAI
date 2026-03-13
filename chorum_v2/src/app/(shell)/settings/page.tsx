@@ -26,8 +26,8 @@ function TaskAssignmentsSection({ userId, providers }: { userId: string; provide
     const [editValues, setEditValues] = useState({ provider: '', model: '', maxTokens: '', dailyTokenLimit: '' })
 
     useEffect(() => {
-        getTaskProviderConfig(userId).then(setTaskConfig)
-        getTaskUsageStats(userId).then(setUsage)
+        getTaskProviderConfig(userId).then(setTaskConfig).catch(console.error)
+        getTaskUsageStats(userId).then(setUsage).catch(console.error)
     }, [userId])
 
     const handleEdit = (task: TaskName) => {
@@ -168,7 +168,7 @@ function ProvidersTab({ userId }: { userId: string }) {
     const [healthStatus, setHealthStatus] = useState<Record<string, { ok: boolean; latency?: number; err?: string }>>({})
 
     useEffect(() => {
-        getUserProviders(userId).then(p => { setProviders(p); setLoading(false) })
+        getUserProviders(userId).then(p => { setProviders(p); setLoading(false) }).catch(e => { console.error(e); setLoading(false) })
     }, [userId])
 
     const handleSave = async () => {
@@ -258,7 +258,7 @@ function MemoryTab({ userId }: { userId: string }) {
         getUserCustomization(userId).then(raw => {
             // Merge with defaults so toggles show correct state even for new users
             setCust({ ...MEMORY_DEFAULTS, ...raw })
-        })
+        }).catch(e => { console.error(e); setCust(MEMORY_DEFAULTS) })
     }, [userId])
 
     if (!cust) return <div className="p-4 text-[var(--hg-text-tertiary)]">Loading...</div>
