@@ -1,3 +1,4 @@
+import React from 'react'
 import type { LatestVitalValue, LatestVitals } from '@chorum/health-types'
 
 function daysAgoLabel(recordedAt: string): string {
@@ -22,7 +23,7 @@ function renderCard(
   vital: LatestVitalValue | null,
   unit: string,
   accent: string,
-): JSX.Element {
+): React.JSX.Element {
   const stale = vital ? isStale(vital.recordedAt) : false
 
   return (
