@@ -110,7 +110,7 @@ async function processUser(userId: string): Promise<void> {
   function safeDecrypt(row: typeof allRows[number]): unknown {
     try {
       const raw = decryptPHI(row.encryptedPayload, row.payloadIv)
-      return deidentifyObject({ type: row.type, source: row.source, date: row.recordedAt.toISOString().split('T')[0], data: raw })
+      return deidentifyObject({ type: row.type, source: row.source, date: row.recordedAt.toISOString().split('T')[0]!, data: raw })
     } catch {
       return null
     }

@@ -84,7 +84,7 @@ export async function syncGarminForUser(userId: string): Promise<GarminSyncResul
   // Fetch from Garmin
   let dailyRaw: unknown
   let hrvRaw: unknown
-  const syncDate = state.syncCursor ?? new Date().toISOString().split('T')[0]
+  const syncDate = state.syncCursor ?? new Date().toISOString().split('T')[0]!
 
   try {
     const client = new GarminConnect()
@@ -94,7 +94,7 @@ export async function syncGarminForUser(userId: string): Promise<GarminSyncResul
     hrvRaw   = await client.getHRV(syncDate)
 
     // Success — reset failure counter, advance cursor to today
-    const today = new Date().toISOString().split('T')[0]
+    const today = new Date().toISOString().split('T')[0]!
     await healthDb
       .update(garminSyncState)
       .set({ consecutiveFailures: 0, lastSyncAt: new Date(), syncCursor: today, updatedAt: new Date() })

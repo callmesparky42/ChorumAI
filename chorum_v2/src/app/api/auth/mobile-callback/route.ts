@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const { token } = await nebula.createApiToken({
     userId: session.user.id,
-    name: `mobile-${new Date().toISOString().split('T')[0]}`,
+    name: `mobile-${new Date().toISOString().split('T')[0]!}`,
     scopes: ['read:nebula', 'write:nebula', 'read:health', 'write:health'],
     expiresAt,
   })
