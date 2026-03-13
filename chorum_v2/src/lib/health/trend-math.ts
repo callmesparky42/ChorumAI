@@ -16,7 +16,7 @@ export function computeMovingAverage(points: TrendPoint[], window: number): Tren
     const slice = points.slice(idx, idx + window)
     const avg   = slice.reduce((sum, p) => sum + p.value, 0) / slice.length
     return {
-      date:  points[idx + window - 1].date,
+      date:  points[idx + window - 1]!.date,
       value: Math.round(avg * 10) / 10,
     }
   })
