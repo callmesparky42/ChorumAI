@@ -8,7 +8,9 @@
       "Bash(ls C:\\\\Users\\\\dmill\\\\Documents\\\\GitHub\\\\ChorumAI\\\\chorum_v2\\\\src\\\\app\\\\\\(shell\\)\\\\dashboard:*)",
       "Bash(ls C:\\\\Users\\\\dmill\\\\Documents\\\\GitHub\\\\ChorumAI\\\\chorum_v2\\\\src\\\\app\\\\\\(shell\\)\\\\dashboard\\\\knowledge:*)",
       "Bash(node:*)",
-      "mcp__supabase__get_publishable_keys"
+      "mcp__supabase__get_publishable_keys",
+      "Bash(xargs grep:*)",
+      "Bash(find c:/Users/dmill/Documents/GitHub/ChorumAI/chorum_v2 -path */health-types* -type f)"
     ]
   },
   "enableAllProjectMcpServers": true,

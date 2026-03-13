@@ -175,8 +175,8 @@ export async function POST(request: NextRequest) {
 
     const response: ConfirmUploadResponse = {
       snapshotId: snapshot.id,
-      tiffPages: tiffPages.length > 0 ? tiffPages : undefined,
-      tiffError: tiffError ? true : undefined,
+      ...(tiffPages.length > 0 && { tiffPages }),
+      ...(tiffError && { tiffError: true }),
     }
     return NextResponse.json(response, { status: snapshot.created ? 201 : 200 })
   } catch {

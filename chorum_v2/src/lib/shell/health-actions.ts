@@ -637,7 +637,7 @@ export async function confirmHealthUpload(
 
   return {
     snapshotId: snapshot.id,
-    tiffPages: tiffPages.length > 0 ? tiffPages : undefined,
-    tiffError: tiffError ? true : undefined,
+    ...(tiffPages.length > 0 && { tiffPages }),
+    ...(tiffError && { tiffError: true }),
   }
 }
