@@ -58,7 +58,7 @@ async function main() {
             }
 
             for (let i = 0; i < statements.length; i++) {
-                let stmt = statements[i];
+                let stmt = statements[i]!;
                 try {
                     await sql.unsafe(stmt + ';'); 
                 } catch (err: any) {
