@@ -10,11 +10,12 @@ async function main() {
     const sql = postgres(process.env.HEALTH_DATABASE_URL, { max: 1 });
     
     const files = [
-        '0010_health_schema.sql',
-        '0010b_health_seed.sql',
-        '0011_health_rls.sql',
-        // '0012_health_persona.sql', // CORE db
-        '0014_health_user_settings.sql'
+        '0000_health_schema.sql',
+        '0001_health_seed.sql',
+        '0002_health_rls.sql',
+        // '0003_health_persona.sql', // targets CORE db, not health
+        '0004_health_user_settings.sql',
+        '0005_garmin_sync_state.sql',
     ];
 
     try {
@@ -30,7 +31,7 @@ async function main() {
 
         for (const file of files) {
             console.log(`Applying ${file}...`);
-            const filePath = path.join(process.cwd(), 'drizzle', file);
+            const filePath = path.join(process.cwd(), 'health-drizzle', file);
             let content = fs.readFileSync(filePath, 'utf8');
             
             // Strip -- comments to avoid them eating up lines

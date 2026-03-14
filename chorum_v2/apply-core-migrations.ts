@@ -10,6 +10,8 @@ async function main() {
     const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
     
     const files = [
+        '0001_nebula_core.sql',
+        '0019_user_profiles.sql',
         '0002_user_settings.sql',
         '0003_customization.sql',
         '0003b_seed_domains.sql',
@@ -27,7 +29,6 @@ async function main() {
         '0017_learning_source_app.sql',
         '0017b_seed_conductor_apps.sql',
         '0018_conductor_apps_system_owner.sql',
-        '0019_user_profiles.sql'
     ];
 
     try {
