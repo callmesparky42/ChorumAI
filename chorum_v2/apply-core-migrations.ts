@@ -7,7 +7,7 @@ async function main() {
         console.error("DATABASE_URL not set");
         process.exit(1);
     }
-    const sql = postgres(process.env.DATABASE_URL, { max: 1 });
+    const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
     
     const files = [
         '0002_user_settings.sql',

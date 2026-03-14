@@ -2,7 +2,7 @@ import postgres from 'postgres';
 
 async function main() {
     console.log("HEALTH_DATABASE_URL:", process.env.HEALTH_DATABASE_URL ? "Set" : "Not Set");
-    const sql = postgres(process.env.HEALTH_DATABASE_URL, { max: 1 });
+    const sql = postgres(process.env.HEALTH_DATABASE_URL!, { max: 1 });
     
     try {
         const result = await sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`;
