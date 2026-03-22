@@ -331,16 +331,55 @@ export const MODEL_REGISTRY: Record<string, ProviderEntry> = {
 // Helpers
 // ----------------------------------------------------------------------
 
+const PROVIDER_ALIASES: Record<string, string> = {
+    anthropic: 'anthropic',
+    claude: 'anthropic',
+    'anthropic-claude': 'anthropic',
+    openai: 'openai',
+    'open-ai': 'openai',
+    gpt: 'openai',
+    chatgpt: 'openai',
+    google: 'google',
+    gemini: 'google',
+    'google-gemini': 'google',
+    'gemini-google': 'google',
+    mistral: 'mistral',
+    'mistral-ai': 'mistral',
+    deepseek: 'deepseek',
+    'deep-seek': 'deepseek',
+    'deepseek-ai': 'deepseek',
+    ollama: 'ollama',
+    lmstudio: 'lmstudio',
+    'lm-studio': 'lmstudio',
+    'openai-compatible': 'openai-compatible',
+    'openai-compatible-api': 'openai-compatible',
+}
+
+function normalizeProviderKey(provider: string): string {
+    return provider
+        .trim()
+        .toLowerCase()
+        .replace(/[()]/g, ' ')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+}
+
+export function normalizeProviderId(provider: string): string {
+    const key = normalizeProviderKey(provider)
+    return PROVIDER_ALIASES[key] ?? key
+}
+
 export function getDefaultModel(provider: string): string {
-    return MODEL_REGISTRY[provider]?.defaultModel || ''
+    return MODEL_REGISTRY[normalizeProviderId(provider)]?.defaultModel || ''
 }
 
 export function getCheapModel(provider: string): string {
-    return MODEL_REGISTRY[provider]?.cheapModel || MODEL_REGISTRY[provider]?.defaultModel || ''
+    const normalized = normalizeProviderId(provider)
+    return MODEL_REGISTRY[normalized]?.cheapModel || MODEL_REGISTRY[normalized]?.defaultModel || ''
 }
 
 export function getContextWindow(provider: string, modelId?: string): number {
-    const p = MODEL_REGISTRY[provider]
+    const p = MODEL_REGISTRY[normalizeProviderId(provider)]
     if (!p) return 128000
 
     if (modelId) {
@@ -354,22 +393,22 @@ export function getContextWindow(provider: string, modelId?: string): number {
 }
 
 export function getModelsForProvider(provider: string): ModelEntry[] {
-    return MODEL_REGISTRY[provider]?.models || []
+    return MODEL_REGISTRY[normalizeProviderId(provider)]?.models || []
 }
 
 export function getTestModel(provider: string): string {
-    return MODEL_REGISTRY[provider]?.testModel || ''
+    return MODEL_REGISTRY[normalizeProviderId(provider)]?.testModel || ''
 }
 
 export function getModelDisplayName(provider: string, modelId: string): string {
-    const p = MODEL_REGISTRY[provider]
+    const p = MODEL_REGISTRY[normalizeProviderId(provider)]
     if (!p) return modelId
     const m = p.models.find(m => m.id === modelId)
     return m ? m.displayName : modelId
 }
 
 export function getProvider(provider: string): ProviderEntry | undefined {
-    return MODEL_REGISTRY[provider]
+    return MODEL_REGISTRY[normalizeProviderId(provider)]
 }
 
 export function getCloudProviders(): ProviderEntry[] {
@@ -386,9 +425,9 @@ export function getLocalProviders(): ProviderEntry[] {
 export const BACKGROUND_PROVIDER_PREFERENCE = ['openai', 'anthropic', 'google', 'deepseek', 'mistral']
 
 export function isProviderSupported(provider: string): boolean {
-    return !!MODEL_REGISTRY[provider]
+    return !!MODEL_REGISTRY[normalizeProviderId(provider)]
 }
 
 export function getDefaultBaseUrl(provider: string): string | undefined {
-    return MODEL_REGISTRY[provider]?.defaultBaseUrl
+    return MODEL_REGISTRY[normalizeProviderId(provider)]?.defaultBaseUrl
 }

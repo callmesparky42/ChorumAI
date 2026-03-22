@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => {
-  const mockSelectWhere = vi.fn()
+  const mockSelectWhere = vi.fn(() => Promise.resolve([]))
   const mockSelectFrom = vi.fn(() => ({ where: mockSelectWhere }))
   const mockSelect = vi.fn(() => ({ from: mockSelectFrom }))
 
@@ -22,10 +22,9 @@ const mocks = vi.hoisted(() => {
     }])
   })
 
-  const mockInsertOnConflict = vi.fn(() => ({ returning: mockInsertReturning }))
   const mockInsertValues = vi.fn((values: Record<string, unknown>) => {
     lastInsertValues = values
-    return { onConflictDoUpdate: mockInsertOnConflict }
+    return { returning: mockInsertReturning }
   })
   const mockInsert = vi.fn(() => ({ values: mockInsertValues }))
 
@@ -71,11 +70,12 @@ describe('agents/provider-configs', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.ENCRYPTION_KEY = Buffer.alloc(32, 1).toString('base64')
+    mocks.mockSelectWhere.mockResolvedValue([])
   })
 
-  it('saveProviderConfig encrypts API key', async () => {
+  it('saveProviderConfig encrypts API key and normalizes provider aliases', async () => {
     await saveProviderConfig(USER_ID, {
-      provider: 'openai',
+      provider: 'Gemini',
       apiKey: 'plain-secret',
       modelOverride: null,
       baseUrl: null,
@@ -86,9 +86,10 @@ describe('agents/provider-configs', () => {
     const inserted = mocks.mockInsertValues.mock.calls[0]?.[0] as { apiKeyEnc: string }
     expect(inserted.apiKeyEnc).toBeDefined()
     expect(inserted.apiKeyEnc).not.toContain('plain-secret')
+    expect((mocks.mockInsertValues.mock.calls[0]?.[0] as { provider: string }).provider).toBe('google')
   })
 
-  it('getUserProviders decrypts stored API key', async () => {
+  it('getUserProviders decrypts stored API key and normalizes provider ids', async () => {
     const saved = await saveProviderConfig(USER_ID, {
       provider: 'openai',
       apiKey: 'plain-secret',
@@ -102,49 +103,58 @@ describe('agents/provider-configs', () => {
     mocks.mockSelectWhere.mockResolvedValue([{
       id: 'cfg-1',
       userId: USER_ID,
-      provider: 'openai',
+      provider: 'Google',
       apiKeyEnc: encrypted,
       modelOverride: null,
       baseUrl: null,
       isLocal: false,
       isEnabled: true,
       priority: 0,
-    }])
+      createdAt: new Date('2026-03-22T00:00:00Z'),
+      updatedAt: new Date('2026-03-22T00:00:00Z'),
+    }] as never)
 
     const rows = await getUserProviders(USER_ID)
     expect(rows[0]?.apiKey).toBe('plain-secret')
+    expect(rows[0]?.provider).toBe('google')
     expect(saved.apiKey).toBe('plain-secret')
   })
 
-  it('disableProvider sets isEnabled false', async () => {
-    await disableProvider(USER_ID, 'openai')
+  it('disableProvider resolves aliases before update', async () => {
+    mocks.mockSelectWhere.mockResolvedValue([{
+      id: 'cfg-1',
+      userId: USER_ID,
+      provider: 'Google',
+      apiKeyEnc: 'ignored',
+      modelOverride: null,
+      baseUrl: null,
+      isLocal: false,
+      isEnabled: true,
+      priority: 0,
+      createdAt: new Date('2026-03-22T00:00:00Z'),
+      updatedAt: new Date('2026-03-22T00:00:00Z'),
+    }] as never)
+
+    await disableProvider(USER_ID, 'gemini')
     expect(mocks.mockUpdateWhere).toHaveBeenCalledOnce()
   })
 
-  it('upsert same provider updates instead of duplicating', async () => {
-    await saveProviderConfig(USER_ID, {
-      provider: 'openai',
-      apiKey: 'first',
+  it('deleteProviderConfig removes provider row by normalized id', async () => {
+    mocks.mockSelectWhere.mockResolvedValue([{
+      id: 'cfg-1',
+      userId: USER_ID,
+      provider: 'Google',
+      apiKeyEnc: 'ignored',
       modelOverride: null,
       baseUrl: null,
       isLocal: false,
+      isEnabled: true,
       priority: 0,
-    })
+      createdAt: new Date('2026-03-22T00:00:00Z'),
+      updatedAt: new Date('2026-03-22T00:00:00Z'),
+    }] as never)
 
-    await saveProviderConfig(USER_ID, {
-      provider: 'openai',
-      apiKey: 'second',
-      modelOverride: null,
-      baseUrl: null,
-      isLocal: false,
-      priority: 1,
-    })
-
-    expect(mocks.mockInsert.mock.calls.length).toBe(2)
-  })
-
-  it('deleteProviderConfig removes provider row', async () => {
-    await deleteProviderConfig(USER_ID, 'openai')
+    await deleteProviderConfig(USER_ID, 'gemini')
     expect(mocks.mockDeleteWhere).toHaveBeenCalledOnce()
   })
 })

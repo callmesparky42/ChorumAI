@@ -26,6 +26,8 @@ vi.mock('@/lib/agents/provider-configs', () => ({
 
 vi.mock('@/lib/providers', () => ({
   callProvider: vi.fn(),
+  getDefaultModel: vi.fn((provider: string) => provider === 'google' ? 'gemini-2.0-flash' : 'gpt-4o'),
+  normalizeProviderId: vi.fn((provider: string) => provider.toLowerCase() === 'gemini' ? 'google' : provider.toLowerCase()),
 }))
 
 import { route } from '@/lib/agents/router'
@@ -151,5 +153,59 @@ describe('agents/chat', () => {
 
     expect(chunks.length).toBeGreaterThan(0)
     expect(chunks[0]).toBe('assistant response')
+  })
+
+  it('chatSync respects explicit provider selection and aliases', async () => {
+    binaryStar.getContext.mockResolvedValue({
+      compiledContext: 'Injected context',
+      injectedItems: [],
+      tierUsed: 1,
+      tokensUsed: 100,
+      auditEntries: [],
+    })
+
+    vi.mocked(getUserProviders).mockResolvedValue([
+      {
+        id: 'cfg-1',
+        userId: 'user-1',
+        provider: 'openai',
+        apiKey: 'openai-key',
+        modelOverride: null,
+        baseUrl: null,
+        isLocal: false,
+        isEnabled: true,
+        priority: 0,
+      },
+      {
+        id: 'cfg-2',
+        userId: 'user-1',
+        provider: 'google',
+        apiKey: 'google-key',
+        modelOverride: null,
+        baseUrl: null,
+        isLocal: false,
+        isEnabled: true,
+        priority: 1,
+      },
+    ])
+
+    await chatSync({
+      userId: 'user-1',
+      conversationId: 'conv-4',
+      message: 'hello',
+      selectedProvider: 'Gemini',
+      history: [],
+      contextWindowSize: 16000,
+    })
+
+    expect(callProvider).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'google',
+        model: 'gemini-2.0-flash',
+        apiKey: 'google-key',
+      }),
+      expect.any(Array),
+      expect.any(String),
+    )
   })
 })

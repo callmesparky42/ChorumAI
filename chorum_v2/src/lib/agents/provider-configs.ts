@@ -1,7 +1,8 @@
 import crypto from 'crypto'
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { db } from '@/db'
 import { providerConfigs } from '@/db/schema'
+import { normalizeProviderId } from '@/lib/providers'
 import type { ProviderConfig, SaveProviderConfigInput } from './types'
 
 const ALGORITHM = 'aes-256-gcm'
@@ -47,7 +48,7 @@ function toProviderConfig(row: typeof providerConfigs.$inferSelect): ProviderCon
   return {
     id: row.id,
     userId: row.userId,
-    provider: row.provider,
+    provider: normalizeProviderId(row.provider),
     apiKey: decrypt(row.apiKeyEnc),
     modelOverride: row.modelOverride,
     baseUrl: row.baseUrl,
@@ -57,36 +58,55 @@ function toProviderConfig(row: typeof providerConfigs.$inferSelect): ProviderCon
   }
 }
 
-export async function getUserProviders(userId: string): Promise<ProviderConfig[]> {
-  const rows = await db
+async function getProviderRowsForUser(userId: string): Promise<(typeof providerConfigs.$inferSelect)[]> {
+  return db
     .select()
     .from(providerConfigs)
     .where(eq(providerConfigs.userId, userId))
+}
 
-  return rows.map(toProviderConfig)
+async function findStoredProviderRow(
+  userId: string,
+  provider: string,
+): Promise<typeof providerConfigs.$inferSelect | undefined> {
+  const normalizedProvider = normalizeProviderId(provider)
+  const rows = await getProviderRowsForUser(userId)
+
+  return rows.find((row) => normalizeProviderId(row.provider) === normalizedProvider)
+}
+
+export async function getUserProviders(userId: string): Promise<ProviderConfig[]> {
+  const rows = await getProviderRowsForUser(userId)
+
+  const deduped = rows
+    .slice()
+    .sort((a, b) => {
+      if (a.priority !== b.priority) return a.priority - b.priority
+      return b.updatedAt.getTime() - a.updatedAt.getTime()
+    })
+    .reduce<(typeof providerConfigs.$inferSelect)[]>((acc, row) => {
+      const normalizedProvider = normalizeProviderId(row.provider)
+      const exists = acc.some((item) => normalizeProviderId(item.provider) === normalizedProvider)
+      if (!exists) acc.push(row)
+      return acc
+    }, [])
+
+  return deduped.map(toProviderConfig)
 }
 
 export async function saveProviderConfig(
   userId: string,
   input: SaveProviderConfigInput,
 ): Promise<ProviderConfig> {
+  const normalizedProvider = normalizeProviderId(input.provider)
   const encrypted = encrypt(input.apiKey)
+  const existing = await findStoredProviderRow(userId, normalizedProvider)
 
-  const [row] = await db
-    .insert(providerConfigs)
-    .values({
-      userId,
-      provider: input.provider,
-      apiKeyEnc: encrypted,
-      modelOverride: input.modelOverride,
-      baseUrl: input.baseUrl,
-      isLocal: input.isLocal,
-      priority: input.priority,
-      isEnabled: true,
-    })
-    .onConflictDoUpdate({
-      target: [providerConfigs.userId, providerConfigs.provider],
-      set: {
+  if (existing) {
+    const [row] = await db
+      .update(providerConfigs)
+      .set({
+        provider: normalizedProvider,
         apiKeyEnc: encrypted,
         modelOverride: input.modelOverride,
         baseUrl: input.baseUrl,
@@ -94,7 +114,25 @@ export async function saveProviderConfig(
         priority: input.priority,
         isEnabled: true,
         updatedAt: new Date(),
-      },
+      })
+      .where(eq(providerConfigs.id, existing.id))
+      .returning()
+
+    if (!row) throw new Error('Failed to save provider config')
+    return toProviderConfig(row)
+  }
+
+  const [row] = await db
+    .insert(providerConfigs)
+    .values({
+      userId,
+      provider: normalizedProvider,
+      apiKeyEnc: encrypted,
+      modelOverride: input.modelOverride,
+      baseUrl: input.baseUrl,
+      isLocal: input.isLocal,
+      priority: input.priority,
+      isEnabled: true,
     })
     .returning()
 
@@ -103,14 +141,20 @@ export async function saveProviderConfig(
 }
 
 export async function disableProvider(userId: string, provider: string): Promise<void> {
+  const existing = await findStoredProviderRow(userId, provider)
+  if (!existing) return
+
   await db
     .update(providerConfigs)
     .set({ isEnabled: false, updatedAt: new Date() })
-    .where(and(eq(providerConfigs.userId, userId), eq(providerConfigs.provider, provider)))
+    .where(eq(providerConfigs.id, existing.id))
 }
 
 export async function deleteProviderConfig(userId: string, provider: string): Promise<void> {
+  const existing = await findStoredProviderRow(userId, provider)
+  if (!existing) return
+
   await db
     .delete(providerConfigs)
-    .where(and(eq(providerConfigs.userId, userId), eq(providerConfigs.provider, provider)))
+    .where(eq(providerConfigs.id, existing.id))
 }

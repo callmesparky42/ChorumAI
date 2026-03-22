@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
         return new Response(JSON.stringify(parsed.error.issues), { status: 400 })
     }
-    const { conversationId, message, personaId, history, attachments } = parsed.data
+    const { conversationId, message, personaId, selectedProvider, history, attachments } = parsed.data
 
     // Verify conversation ownership
     const conv = await db.query.conversations.findFirst({
@@ -93,6 +93,7 @@ export async function POST(request: Request) {
                     history,
                     contextWindowSize: 16000,
                     ...(personaId ? { agentId: personaId } : {}),
+                    ...(selectedProvider ? { selectedProvider } : {}),
                 }
                 for await (const chunk of agent.chat(chatInput)) {
                     fullResponse += chunk

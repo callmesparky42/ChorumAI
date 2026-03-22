@@ -1,4 +1,4 @@
-import { getCheapModel, getContextWindow, getDefaultModel } from '@/lib/providers'
+import { getCheapModel, getContextWindow, getDefaultModel, normalizeProviderId } from '@/lib/providers'
 import type { DomainSignal } from '@/lib/core'
 import { getPersona, getPersonas } from './personas'
 import { getUserProviders } from './provider-configs'
@@ -92,8 +92,9 @@ async function resolveProviderForPersona(
   const configs = await getUserProviders(userId)
 
   if (persona.defaultProvider) {
+    const defaultProvider = normalizeProviderId(persona.defaultProvider)
     const explicit = configs.find(
-      (config) => config.provider === persona.defaultProvider && config.isEnabled,
+      (config) => config.provider === defaultProvider && config.isEnabled,
     )
     if (explicit) {
       const model = persona.defaultModel ?? explicit.modelOverride ?? getDefaultModel(explicit.provider)

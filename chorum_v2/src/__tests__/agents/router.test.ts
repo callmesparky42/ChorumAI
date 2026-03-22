@@ -13,6 +13,7 @@ vi.mock('@/lib/providers', () => ({
   getContextWindow: vi.fn(() => 128000),
   getCheapModel: vi.fn(() => 'cheap-model'),
   getDefaultModel: vi.fn(() => 'default-model'),
+  normalizeProviderId: vi.fn((provider: string) => provider.toLowerCase() === 'claude' ? 'anthropic' : provider.toLowerCase()),
 }))
 
 import { getPersona, getPersonas } from '@/lib/agents/personas'
@@ -136,5 +137,37 @@ describe('agents/router', () => {
     vi.mocked(getUserProviders).mockResolvedValue([])
 
     await expect(route('anything', 'user-1')).rejects.toThrow('No providers configured')
+  })
+
+  it('route normalizes persona defaultProvider aliases', async () => {
+    vi.mocked(getPersona).mockResolvedValue({
+      id: 'a1',
+      name: 'writer',
+      description: '',
+      scopeFilter: { include: [], exclude: [], boost: [] },
+      systemPromptTemplate: 'x',
+      defaultProvider: 'Claude',
+      defaultModel: null,
+      temperature: 0.4,
+      maxTokens: 4096,
+      allowedTools: [],
+      isSystem: true, tier: null,
+    })
+    vi.mocked(getUserProviders).mockResolvedValue([
+      {
+        id: 'p1',
+        userId: 'user-1',
+        provider: 'anthropic',
+        apiKey: 'key',
+        modelOverride: null,
+        baseUrl: null,
+        isLocal: false,
+        isEnabled: true,
+        priority: 0,
+      },
+    ])
+
+    const decision = await route('hello', 'user-1', 'a1')
+    expect(decision.provider).toBe('anthropic')
   })
 })

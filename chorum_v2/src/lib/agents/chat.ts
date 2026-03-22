@@ -1,7 +1,7 @@
 import { createBinaryStar } from '@/lib/core'
 import type { DomainSignal } from '@/lib/core'
 import { createNebula } from '@/lib/nebula'
-import { callProvider } from '@/lib/providers'
+import { callProvider, getDefaultModel, normalizeProviderId } from '@/lib/providers'
 import type { ChatMessage } from '@/lib/providers'
 import { detectScopes } from '@/lib/customization/scope-detection'
 import { computeEmbedding } from '@/lib/customization/extraction'
@@ -55,9 +55,22 @@ export async function chatSync(input: AgentChatInput): Promise<AgentChatResult> 
 
   const systemPrompt = buildSystemPrompt(decision.persona, podiumResult.compiledContext)
   const providers = await getUserProviders(input.userId)
-  const providerConfig = providers.find((provider) => provider.provider === decision.provider && provider.isEnabled)
+  const selectedProvider = input.selectedProvider ? normalizeProviderId(input.selectedProvider) : null
+  const explicitProviderConfig = selectedProvider
+    ? providers.find((provider) => provider.provider === selectedProvider && provider.isEnabled)
+    : null
+  if (selectedProvider && !explicitProviderConfig) {
+    throw new Error(`Provider ${selectedProvider} not configured`)
+  }
+
+  const resolvedProvider = explicitProviderConfig?.provider ?? decision.provider
+  const resolvedModel = explicitProviderConfig
+    ? (explicitProviderConfig.modelOverride ?? getDefaultModel(explicitProviderConfig.provider) ?? decision.model)
+    : decision.model
+  const providerConfig = explicitProviderConfig
+    ?? providers.find((provider) => provider.provider === decision.provider && provider.isEnabled)
   if (!providerConfig) {
-    throw new Error(`Provider ${decision.provider} not configured`)
+    throw new Error(`Provider ${resolvedProvider} not configured`)
   }
 
   const messages: ChatMessage[] = [
@@ -69,9 +82,9 @@ export async function chatSync(input: AgentChatInput): Promise<AgentChatResult> 
   ]
 
   const callConfig = {
-    provider: decision.provider,
+    provider: resolvedProvider,
     apiKey: providerConfig.apiKey,
-    model: decision.model,
+    model: resolvedModel,
     isLocal: providerConfig.isLocal,
     ...(providerConfig.baseUrl ? { baseUrl: providerConfig.baseUrl } : {}),
   }
@@ -84,8 +97,8 @@ export async function chatSync(input: AgentChatInput): Promise<AgentChatResult> 
     injectedContext: podiumResult.compiledContext,
     tokensUsed: result.tokensInput + result.tokensOutput,
     conversationId: input.conversationId,
-    model: result.model ?? decision.model,
-    provider: decision.provider,
+    model: result.model ?? resolvedModel,
+    provider: resolvedProvider,
   }
 }
 

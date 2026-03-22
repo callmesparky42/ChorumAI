@@ -24,6 +24,7 @@ export interface AgentChatInput {
   conversationId: string
   message: string
   agentId?: string
+  selectedProvider?: string
   history: { role: 'user' | 'assistant'; content: string }[]
   contextWindowSize: number
   scopeHints?: string[]

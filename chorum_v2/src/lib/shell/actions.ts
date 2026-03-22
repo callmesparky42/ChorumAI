@@ -14,7 +14,7 @@ import { eq, desc, and, isNull, gte, count, sql } from 'drizzle-orm'
 import crypto from 'crypto'
 import path from 'path'
 import fs from 'fs'
-import { callProvider } from '@/lib/providers'
+import { callProvider, normalizeProviderId } from '@/lib/providers'
 import { checkRateLimit } from '@/lib/shell/rate-limit'
 const DEV_USER_ID = '11111111-1111-1111-1111-111111111111'
 let devUserSeeded = false
@@ -255,7 +255,7 @@ export async function endChatSession(conversationId: string) {
 }
 
 export async function sendChatMessage(
-    conversationId: string, message: string, agentId?: string,
+    conversationId: string, message: string, agentId?: string, selectedProvider?: string,
     history: { role: 'user' | 'assistant'; content: string }[] = [],
 ) {
     const authCtx = await getAuthContext()
@@ -268,6 +268,7 @@ export async function sendChatMessage(
         contextWindowSize: 16000,
     }
     if (agentId) payload.agentId = agentId
+    if (selectedProvider) payload.selectedProvider = selectedProvider
     return agent.chatSync(payload)
 }
 
@@ -471,14 +472,21 @@ export async function testProviderConnection(provider: string) {
     const authCtx = await getAuthContext()
     const { getUserProviders } = await import('@/lib/agents')
     const configs = await getUserProviders(authCtx.userId)
-    const config = configs.find(c => c.provider === provider)
+    const normalizedProvider = normalizeProviderId(provider)
+    const config = configs.find(c => c.provider === normalizedProvider)
 
     if (!config) return { success: false, error: 'Provider not configured' }
 
     const start = Date.now()
     try {
         await callProvider(
-            { provider: config.provider, apiKey: config.apiKey, model: 'auto' },
+            {
+                provider: config.provider,
+                apiKey: config.apiKey,
+                model: config.modelOverride ?? 'auto',
+                ...(config.baseUrl ? { baseUrl: config.baseUrl } : {}),
+                ...(config.isLocal !== undefined ? { isLocal: config.isLocal } : {}),
+            },
             [{ role: 'user', content: 'test' }],
             'Reply with OK',
         )

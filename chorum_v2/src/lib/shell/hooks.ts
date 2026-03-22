@@ -177,7 +177,13 @@ export function useChat() {
         // Fallback to sync if streaming failed
         if (!streamSucceeded) {
             try {
-                const res = await sendChatMessage(cid, content, activePersona || undefined, currentHistory)
+                const res = await sendChatMessage(
+                    cid,
+                    content,
+                    activePersona || undefined,
+                    selectedProvider || undefined,
+                    currentHistory,
+                )
                 const assistantMessage: ChatMessage = { role: 'assistant', content: res.response }
                 const finalMessages = [...newMessages, assistantMessage]
                 setMessages(finalMessages)
